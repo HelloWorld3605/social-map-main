@@ -1,0 +1,215 @@
+/* ===== MAPBOX POPUP STYLING ===== */
+.mapboxgl-popup {
+    z-index: 1000;
+}
+
+.mapboxgl-popup-content {
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e4e6ea;
+    font-family: 'Roboto', Arial, sans-serif;
+}
+
+.mapboxgl-popup-close-button {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    font-size: 20px;
+    color: #666;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mapboxgl-popup-close-button:hover {
+    background: rgba(255, 255, 255, 1);
+    color: #333;
+    transform: scale(1.1);
+}
+
+.mapboxgl-popup-tip {
+    border-top-color: #fff;
+}
+
+/* Dark mode popup styling */
+body.dark-mode .mapboxgl-popup-content {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #333;
+}
+
+body.dark-mode .mapboxgl-popup-close-button {
+    background: rgba(42, 42, 42, 0.9);
+    color: #ccc;
+}
+
+body.dark-mode .mapboxgl-popup-close-button:hover {
+    background: rgba(42, 42, 42, 1);
+    color: #fff;
+}
+
+body.dark-mode .mapboxgl-popup-tip {
+    border-top-color: #1a1a1a;
+}
+
+/* ===== ENHANCED LOCATION POPUP STYLING ===== */
+.location-popup {
+    width: 300px;
+    border-radius: 12px;
+    overflow: hidden;
+    font-family: 'Roboto', Arial, sans-serif;
+}
+
+.popup-image-container {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    overflow: hidden;
+}
+
+.popup-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.popup-image:hover {
+    transform: scale(1.05);
+}
+
+.popup-image-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom,
+            rgba(0, 0, 0, 0.1) 0%,
+            rgba(0, 0, 0, 0.3) 100%);
+    display: flex;
+    align-items: flex-end;
+    padding: 12px;
+}
+
+.popup-location-tag {
+    background: rgba(236, 94, 149, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    backdrop-filter: blur(4px);
+}
+
+.popup-content-body {
+    padding: 16px;
+}
+
+.popup-title {
+    margin: 0 0 8px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.popup-description {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.popup-stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    padding: 8px 0;
+    border-top: 1px solid #e4e6ea;
+    border-bottom: 1px solid #e4e6ea;
+}
+
+.popup-stat {
+    flex: 1;
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+    font-weight: 500;
+}
+
+.stat-value {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.popup-explore-btn {
+    width: 100%;
+    background: linear-gradient(135deg, #EC5E95 0%, #d14d85 100%);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 8px rgba(236, 94, 149, 0.3);
+}
+
+.popup-explore-btn:hover {
+    background: linear-gradient(135deg, #d14d85 0%, #c44275 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(236, 94, 149, 0.4);
+}
+
+.popup-explore-btn:active {
+    transform: translateY(0);
+}
+
+/* Dark mode for enhanced popup */
+body.dark-mode .popup-title {
+    color: #fff;
+}
+
+body.dark-mode .popup-description {
+    color: #ccc;
+}
+
+body.dark-mode .stat-label {
+    color: #aaa;
+}
+
+body.dark-mode .stat-value {
+    color: #fff;
+}
+
+body.dark-mode .popup-stats {
+    border-color: #333;
+}
+
+body.dark-mode .location-popup {
+    background: #1a1a1a;
+}
+
+/* Force CSS priority for popup */
+.mapboxgl-popup .location-popup {
+    width: 300px !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+    font-family: 'Roboto', Arial, sans-serif !important;
+    background: white !important;
+}
+

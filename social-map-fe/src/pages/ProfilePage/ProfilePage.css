@@ -1,0 +1,447 @@
+/* ===== PROFILE PAGE - FACEBOOK STYLE ===== */
+.profile-page {
+    min-height: 100vh;
+    background: #f0f2f5;
+    width: 100%;
+}
+
+/* Loading & Error States */
+.profile-loading,
+.profile-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    gap: 16px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #EC5E95;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Cover Photo */
+.profile-cover {
+    width: 100%;
+    height: 400px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Default gradient when no cover photo */
+.cover-default-gradient {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Profile Header */
+.profile-header-container {
+    max-width: 940px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 0 0 8px 8px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.profile-header {
+    display: flex;
+    gap: 20px;
+    padding: 0 20px;
+    position: relative;
+}
+
+.profile-avatar-wrapper {
+    position: relative;
+    margin-top: -80px;
+}
+
+.profile-avatar {
+    width: 168px;
+    height: 168px;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    object-fit: cover;
+    background: #f0f2f5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.profile-info {
+    flex: 1;
+    padding-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.profile-name-section {
+    flex: 1;
+}
+
+.profile-name {
+    font-size: 32px;
+    font-weight: 700;
+    color: #050505;
+    margin: 0 0 4px 0;
+}
+
+.profile-mutual-friends {
+    color: #65676b;
+    font-size: 15px;
+    margin: 0;
+}
+
+/* Action Buttons */
+.profile-actions {
+    display: flex;
+    gap: 8px;
+    padding-top: 8px;
+}
+
+.profile-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 16px;
+    height: 36px;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.profile-btn img {
+    width: 16px;
+    height: 16px;
+}
+
+.profile-btn-primary {
+    background: #EC5E95;
+    color: white;
+}
+
+.profile-btn-primary:hover {
+    background: #d14d85;
+}
+
+.profile-btn-secondary {
+    background: #e4e6eb;
+    color: #050505;
+}
+
+.profile-btn-secondary:hover {
+    background: #d8dadf;
+}
+
+.profile-btn-message {
+    background: #e7f3ff;
+    color: #0866ff;
+}
+
+.profile-btn-message:hover {
+    background: #d0e8ff;
+}
+
+.profile-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Navigation Tabs */
+.profile-nav {
+    display: flex;
+    gap: 4px;
+    padding: 0 20px;
+    border-top: 1px solid #e4e6eb;
+    margin-top: 16px;
+}
+
+.profile-nav-item {
+    padding: 16px 16px 12px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #65676b;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.profile-nav-item:hover {
+    background: #f2f2f2;
+    border-radius: 8px 8px 0 0;
+}
+
+.profile-nav-item.active {
+    color: #EC5E95;
+    border-bottom-color: #EC5E95;
+}
+
+/* Profile Content */
+.profile-content {
+    max-width: 940px;
+    margin: 16px auto;
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 16px;
+    padding: 0 20px;
+}
+
+/* Profile Cards */
+.profile-card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+}
+
+.profile-card-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #050505;
+    margin: 0 0 16px 0;
+}
+
+/* About Section */
+.profile-about {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.profile-bio {
+    color: #050505;
+    font-size: 15px;
+    line-height: 1.5;
+    margin: 0 0 12px 0;
+}
+
+.profile-info-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #050505;
+    font-size: 15px;
+    padding: 8px 0;
+}
+
+.profile-info-item img {
+    width: 20px;
+    height: 20px;
+    opacity: 0.7;
+}
+
+/* Friends Preview */
+.profile-friends-preview {
+    text-align: center;
+    padding: 20px;
+}
+
+.friends-count {
+    color: #65676b;
+    font-size: 15px;
+}
+
+/* Create Post Card */
+.create-post-card {
+    cursor: pointer;
+}
+
+.create-post-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.create-post-header img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.create-post-header input {
+    flex: 1;
+    padding: 12px 16px;
+    border-radius: 20px;
+    border: none;
+    background: #f0f2f5;
+    font-size: 15px;
+    color: #65676b;
+    cursor: pointer;
+}
+
+.create-post-header input:hover {
+    background: #e4e6eb;
+}
+
+/* Posts Section */
+.profile-posts {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.no-posts {
+    background: #fff;
+    border-radius: 8px;
+    padding: 60px 20px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.no-posts p {
+    color: #65676b;
+    font-size: 17px;
+    margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .profile-content {
+        grid-template-columns: 1fr;
+    }
+
+    .profile-sidebar {
+        order: 2;
+    }
+
+    .profile-main {
+        order: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .profile-cover {
+        height: 240px;
+    }
+
+    .profile-avatar-wrapper {
+        margin-top: -50px;
+    }
+
+    .profile-avatar {
+        width: 120px;
+        height: 120px;
+    }
+
+    .profile-name {
+        font-size: 24px;
+    }
+
+    .profile-info {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .profile-actions {
+        width: 100%;
+        justify-content: stretch;
+    }
+
+    .profile-btn {
+        flex: 1;
+        justify-content: center;
+    }
+
+    .profile-content {
+        padding: 0 8px;
+    }
+
+    .profile-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .profile-actions {
+        flex-direction: column;
+    }
+
+    .profile-btn {
+        width: 100%;
+    }
+
+    .profile-nav {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .profile-nav::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+/* Dark Mode Support */
+body.dark-mode .profile-page {
+    background: #18191a;
+}
+
+body.dark-mode .profile-header-container,
+body.dark-mode .profile-card,
+body.dark-mode .no-posts {
+    background: #242526;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+body.dark-mode .profile-name,
+body.dark-mode .profile-card-title,
+body.dark-mode .profile-bio,
+body.dark-mode .profile-info-item {
+    color: #e4e6eb;
+}
+
+body.dark-mode .profile-mutual-friends,
+body.dark-mode .friends-count,
+body.dark-mode .no-posts p {
+    color: #b0b3b8;
+}
+
+body.dark-mode .profile-nav-item {
+    color: #b0b3b8;
+}
+
+body.dark-mode .profile-nav-item:hover {
+    background: #3a3b3c;
+}
+
+body.dark-mode .profile-btn-secondary {
+    background: #3a3b3c;
+    color: #e4e6eb;
+}
+
+body.dark-mode .profile-btn-secondary:hover {
+    background: #4e4f50;
+}
+
+body.dark-mode .create-post-header input {
+    background: #3a3b3c;
+    color: #b0b3b8;
+}
+
+body.dark-mode .create-post-header input:hover {
+    background: #4e4f50;
+}

@@ -1,0 +1,53 @@
+.main-layout {
+    min-height: 100vh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: #f0f2f5; /* Thêm background để tránh khoảng trắng */
+}
+
+/* Main content area */
+.main-content {
+    flex: 1;
+    position: relative;
+    min-height: calc(100vh - 60px);
+}
+
+/* Homepage - Không có padding (map fullscreen) */
+.main-content.no-padding {
+    padding-top: 0;
+    margin-left: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    background: transparent; /* Map có background riêng */
+}
+
+/* Các trang khác - Có padding cho header và sidebar */
+.main-content.with-padding {
+    padding-top: 80px;
+    /* Chiều cao header */
+    background: #f0f2f5;
+    transition: margin-left 0.3s ease;
+    min-height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+/* Khi sidebar mở rộng */
+body.sidebar-expanded .main-content.with-padding {
+    margin-left: 280px;
+    /* Chiều rộng sidebar khi mở */
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .main-content.with-padding {
+        margin-left: 0;
+        padding-top: 60px;
+    }
+
+    body.sidebar-expanded .main-content.with-padding {
+        margin-left: 0;
+    }
+}

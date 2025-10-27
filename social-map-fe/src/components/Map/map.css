@@ -1,0 +1,184 @@
+/* ===== MAPBOX CONTROLS ===== */
+/* Hide Mapbox zoom controls (+/-) and navigation controls */
+.mapboxgl-ctrl-zoom-in,
+.mapboxgl-ctrl-zoom-out,
+.mapboxgl-ctrl-group,
+.mapboxgl-ctrl-compass,
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib {
+    display: none !important;
+}
+
+/* Hide all navigation controls container */
+.mapboxgl-ctrl-top-right,
+.mapboxgl-ctrl-bottom-right {
+    display: none !important;
+}
+
+/* Keep bottom-left for attribution */
+.mapboxgl-ctrl-bottom-left {
+    display: block !important;
+}
+
+.map-section {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+}
+
+/* Ensure mapbox map fills the container */
+.mapboxgl-map {
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+}
+
+/* Ensure mapbox canvas is visible and full size */
+.mapboxgl-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block !important;
+}
+
+/* Ensure container canvas wrapper is full size */
+.mapboxgl-canvas-container {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib {
+    display: none !important;
+}
+
+.map-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+}
+
+.map-loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.map-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #EC5E95;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 20px;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.map-loading-text {
+    font-family: 'Roboto', Arial, sans-serif;
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.map-error-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    z-index: 1001;
+    max-width: 400px;
+    display: none;
+}
+
+.map-error-container.show {
+    display: block;
+}
+
+.map-error-icon {
+    font-size: 48px;
+    color: #e74c3c;
+    margin-bottom: 15px;
+}
+
+.map-error-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.map-error-message {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+    line-height: 1.4;
+}
+
+.map-retry-btn {
+    background: #EC5E95;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.map-retry-btn:hover {
+    background: #d14d85;
+}
+
+.map-retry-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* Progress bar */
+.map-progress {
+    width: 200px;
+    height: 4px;
+    background: #f3f3f3;
+    border-radius: 2px;
+    overflow: hidden;
+    margin-top: 15px;
+}
+
+.map-progress-bar {
+    height: 100%;
+    background: #EC5E95;
+    width: 0%;
+    transition: width 0.3s ease;
+}

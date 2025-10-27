@@ -1,0 +1,460 @@
+/* ======= LOCATION SHARE CARD (SOCIAL MAP STYLE) ======= */
+.location-message {
+    display: flex;
+    justify-content: flex-end;
+    margin: 10px 0;
+}
+
+.location-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(0, 123, 255, 0.15);
+    border-radius: 16px;
+    padding: 10px 14px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+    cursor: pointer;
+    transition: all 0.25s ease;
+    max-width: 340px;
+    position: relative;
+}
+
+.location-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 123, 255, 0.2);
+    border-color: rgba(0, 123, 255, 0.35);
+}
+
+.location-card-image {
+    position: relative;
+    width: 78px;
+    height: 78px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.location-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.25s ease;
+}
+
+.location-card:hover .location-card-image img {
+    transform: scale(1.05);
+}
+
+.overlay-icon {
+    position: absolute;
+    bottom: 6px;
+    right: 8px;
+    font-size: 18px;
+    color: white;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.7);
+}
+
+.location-card-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.location-card-content h4 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #1d1f24;
+}
+
+.location-card-content p {
+    margin: 0;
+    font-size: 13px;
+    color: #5c5f68;
+    line-height: 1.3;
+}
+
+.location-card-btn {
+    background: linear-gradient(135deg, #007bff, #005ce6);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    align-self: flex-start;
+    margin-top: 4px;
+    transition: all 0.2s ease;
+}
+
+.location-card-btn:hover {
+    background: linear-gradient(135deg, #005ce6, #003bb3);
+}
+
+.location-time {
+    display: block;
+    font-size: 11px;
+    color: #777;
+    margin-top: 2px;
+    text-align: right;
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.location-card {
+    animation: popIn 0.25s ease;
+}
+
+/* ====== Notification ====== */
+.location-notification {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    background: rgba(0, 123, 255, 0.9);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 9999;
+}
+
+.location-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.location-notification.success {
+    background: linear-gradient(135deg, #4ade80, #16a34a);
+}
+
+.location-notification.warning {
+    background: linear-gradient(135deg, #facc15, #ca8a04);
+}
+
+/* ===== LOCATION SHARING & DRAG DROP ===== */
+.location-drag-preview {
+    position: fixed;
+    z-index: 10000;
+    pointer-events: none;
+    transition: transform 0.1s ease;
+}
+
+.drag-preview-content {
+    display: flex;
+    align-items: center;
+    background: rgba(236, 94, 149, 0.95);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 20px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    max-width: 200px;
+}
+
+.drag-preview-image {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    margin-right: 8px;
+    object-fit: cover;
+}
+
+.drag-preview-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.drag-preview-name {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+
+.drag-preview-icon {
+    font-size: 14px;
+}
+
+/* Drop zone highlighting */
+.location-drop-zone {
+    outline: 2px dashed #EC5E95 !important;
+    outline-offset: -2px;
+    background: rgba(236, 94, 149, 0.1) !important;
+    transition: all 0.2s ease;
+}
+
+.location-drop-active {
+    outline: 3px solid #EC5E95 !important;
+    outline-offset: -3px;
+    background: rgba(236, 94, 149, 0.2) !important;
+    transform: scale(1.02);
+}
+
+/* Location message cards */
+.location-message-card {
+    display: flex;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    max-width: 280px;
+    margin: 4px 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.location-message-card:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.location-card-image {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+}
+
+.location-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.location-card-overlay {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+}
+
+.location-card-content {
+    flex: 1;
+    padding: 8px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.location-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 4px 0;
+    line-height: 1.2;
+}
+
+.location-card-description {
+    font-size: 11px;
+    color: #666;
+    margin: 0 0 6px 0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.location-card-button {
+    background: #EC5E95;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 10px;
+    font-weight: 500;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: background-color 0.2s;
+}
+
+.location-card-button:hover {
+    background: #d14d85;
+}
+
+/* Location message styling */
+.location-message {
+    margin: 8px 0;
+}
+
+.location-message .location-message-card {
+    margin-left: auto;
+}
+
+/* ✅ Fix Notification size for Social Map */
+.location-notification {
+    position: fixed;
+    bottom: 80%;
+    right: 25px;
+    background: white;
+    color: #222;
+    padding: 10px 16px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-left: 4px solid #28a745;
+    /* màu xanh lá nhẹ */
+    font-size: 13px;
+    font-weight: 500;
+    max-width: 220px;
+    /* ✅ Giới hạn chiều rộng */
+    white-space: normal;
+    /* ✅ Cho phép text xuống dòng */
+    word-wrap: break-word;
+    /* ✅ Tự ngắt nếu dài */
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+    z-index: 9999;
+}
+
+.location-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.location-notification.success {
+    background: linear-gradient(135deg, #e9fce9, #d4f6d4);
+    border-left-color: #16a34a;
+    color: #14532d;
+}
+
+.location-notification.warning {
+    background: linear-gradient(135deg, #fff8e6, #fff3cc);
+    border-left-color: #f59e0b;
+    color: #78350f;
+}
+
+.location-notification.info {
+    background: linear-gradient(135deg, #e6f0ff, #d9e8ff);
+    border-left-color: #3b82f6;
+    color: #1e3a8a;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .location-notification {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+        font-size: 12px;
+        padding: 8px 12px;
+    }
+}
+
+
+/* Dark mode */
+body.dark-mode .location-message-card {
+    background: #2d2d2d;
+}
+
+body.dark-mode .location-card-title {
+    color: #fff;
+}
+
+body.dark-mode .location-card-description {
+    color: #ccc;
+}
+
+body.dark-mode .location-notification {
+    background: #2d2d2d;
+    color: #fff;
+}
+
+/* ===== MARKER DRAG STYLING ===== */
+.mapboxgl-marker {
+    transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 50%;
+    position: relative;
+    user-select: none;
+}
+
+.mapboxgl-marker:hover {
+    transform: scale(1.05);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+    cursor: grab !important;
+    z-index: 1000;
+}
+
+.mapboxgl-marker:active {
+    transform: scale(1.1);
+    cursor: grabbing !important;
+    filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4));
+}
+
+/* Visual indicator for clickable area */
+.mapboxgl-marker::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    border-radius: 50%;
+    background: transparent;
+    transition: all 0.2s ease;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.mapboxgl-marker:hover::before {
+    background: rgba(59, 130, 246, 0.1);
+    border: 2px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Prevent map cursor when dragging */
+.mapboxgl-canvas-container.dragging-marker {
+    cursor: grabbing !important;
+    pointer-events: none;
+}
+
+.mapboxgl-canvas-container.dragging-marker .mapboxgl-canvas {
+    cursor: grabbing !important;
+}
+
+.mapboxgl-canvas-container.dragging-marker * {
+    cursor: grabbing !important;
+}
+
+/* Map blocking overlay during marker drag */
+.map-blocking-overlay {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    z-index: 9999 !important;
+    cursor: grabbing !important;
+    pointer-events: all !important;
+    background: transparent !important;
+    user-select: none !important;
+}

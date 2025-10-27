@@ -1,0 +1,581 @@
+.header {
+    display: flex;
+    justify-content: space-between;
+    height: 80px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 20px;
+     /*background-color: #6765F2;*/
+    /*backdrop-filter: blur(10px);*/
+    /*box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); */
+}
+
+/*-------------- left section --------------------*/
+.left-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    width: 300px;
+}
+
+.hamburger-menu {
+    height: 24px;
+}
+
+.socialmap-logo {
+    width: 190px;
+    position: relative;
+    left: 26px;
+    bottom: 7px;
+}
+
+
+/*-------------- middle section--------------------*/
+.middle-section {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+.search-wrapper {
+    position: relative;
+    max-width: 500px;
+    width: 100%;
+}
+
+.search-container {
+    display: flex;
+    align-items: center;
+    background-color: rgb(243, 243, 243);
+    border-radius: 30px;
+    padding-right: 5px;
+    width: 100%;
+    transition: box-shadow 0.3s ease;
+}
+
+/* Khi click,hover vào input bên trong, container cũng sáng viền */
+.search-container:focus-within,
+.search-container:hover {
+    box-shadow: 0 0 0 2px #e4b4c6;
+}
+
+
+.search-bar {
+    flex: 1;
+    height: 55px;
+    border-radius: 30px 0 0 30px;
+    padding-left: 20px;
+    font-size: 14px;
+    border: none;
+    background-color: transparent;
+    /* để hòa với container */
+    outline: none;
+}
+
+.location-request-btn {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 8px;
+    margin-right: 5px;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+}
+
+.location-request-btn:hover {
+    background: rgba(234, 76, 137, 0.1);
+    transform: scale(1.1);
+}
+
+.location-request-btn:active {
+    transform: scale(0.95);
+}
+
+.search-button {
+    background-color: #ea4c89;
+    border: none;
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+
+.search-icon {
+    height: 20px;
+    width: 20px;
+    filter: brightness(0) invert(1);
+    /* chuyển icon đen thành trắng */
+}
+
+.search-loading-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ffffff;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Search Dropdown */
+.search-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    max-height: 400px;
+    overflow-y: auto;
+    z-index: 1100;
+    animation: dropdownSlideIn 0.2s ease;
+}
+
+@keyframes dropdownSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.search-result-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background-color: #f8f9fa;
+}
+
+.search-result-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.search-result-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.search-result-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.search-result-address {
+    font-size: 12px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* No Results */
+.search-no-results {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.no-results-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.no-results-text {
+    font-size: 14px;
+    color: #999;
+}
+
+/* Scrollbar for dropdown */
+.search-dropdown::-webkit-scrollbar {
+    width: 6px;
+}
+
+.search-dropdown::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 0 12px 12px 0;
+}
+
+.search-dropdown::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.search-dropdown::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+
+
+/*-------------- right section --------------------*/
+.right-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 300px;
+    flex-shrink: 0;
+}
+
+.chat-container,
+.notifications-container {
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.notifications-icon {
+    height: 28px;
+}
+
+.chat-icon {
+    height: 24px;
+}
+
+.current-user-picture {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e0e0e0;
+}
+
+.profile-trigger:hover,
+.chat-container:hover,
+.notifications-container:hover {
+    opacity: 0.7;
+}
+
+.profile-trigger:active,
+.chat-container:active,
+.notifications-container:active {
+    opacity: 0.5;
+}
+
+.notifications-container,
+.profile-container,
+.chat-container {
+    position: relative;
+}
+
+.profile-trigger {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.notification-count,
+.unread-messages {
+    position: absolute;
+    top: -6px;
+    right: -5px;
+    font-size: 13px;
+    background-color: rgb(200, 0, 0);
+    color: white;
+    padding: 2px 5px 2px 5px;
+    border-radius: 10px;
+}
+
+.arrow-down-icon {
+    position: absolute;
+    height: 12px;
+    width: 12px;
+    bottom: 2px;
+    left: 30px;
+    background-color: #ddd6d9;
+    border-radius: 10px;
+    transition: transform 0.3s ease;
+}
+
+.arrow-down-icon.rotated {
+    transform: rotate(180deg);
+}
+
+/* ===== PROFILE DROPDOWN MENU ===== */
+.profile-dropdown {
+    position: absolute;
+    top: calc(100% + 15px);
+    right: 0;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid #e4e6ea;
+    min-width: 300px;
+    z-index: 1000;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px) scale(0.95);
+    transition: all 0.2s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.profile-dropdown.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+}
+
+/* Speech bubble arrow pointing to profile icon */
+.profile-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid #e4e6ea;
+    z-index: 10001;
+}
+
+.profile-dropdown::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    right: 20px;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid #fff;
+    z-index: 10002;
+}
+
+.dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e4e6ea;
+    background: #fff;
+}
+
+.dropdown-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e4e6ea;
+    flex-shrink: 0;
+}
+
+.dropdown-user-info {
+    flex: 1;
+}
+
+.dropdown-username {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 2px;
+    color: #333;
+}
+
+.dropdown-email {
+    font-size: 13px;
+    color: #666;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: #e4e6ea;
+    margin: 8px 0;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 20px;
+    border: none;
+    background: transparent;
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    text-align: left;
+    margin: 0 4px;
+    border-radius: 6px;
+}
+
+.dropdown-item:hover {
+    background-color: #f2f3f5;
+}
+
+.dropdown-item.logout {
+    color: #dc2626;
+}
+
+.dropdown-item.logout:hover {
+    background-color: #fee2e2;
+}
+
+.dropdown-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.dropdown-item.logout .dropdown-icon {
+    stroke: #dc2626;
+}
+
+
+
+/* ===== HAMBURGER MENU ===== */
+.hamburger {
+    background-color: transparent;
+    border: 0;
+    cursor: pointer;
+    padding: 0;
+    transition: opacity 0.15s;
+    width: 40px;
+    /* tăng hitbox */
+    height: 40px;
+    /* tăng hitbox */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hamburger-box {
+    width: 30px;
+    height: 24px;
+    display: inline-block;
+    position: relative;
+}
+
+.hamburger-inner,
+.hamburger-inner::before,
+.hamburger-inner::after {
+    width: 30px;
+    height: 2px;
+    background-color: #000;
+    border-radius: 4px;
+    position: absolute;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.hamburger-inner {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    margin-top: -1px;
+}
+
+.hamburger-inner::before {
+    content: "";
+    top: -8px;
+}
+
+.hamburger-inner::after {
+    content: "";
+    bottom: -8px;
+}
+
+.hamburger:hover {
+    opacity: 0.7;
+}
+
+.hamburger-box {
+    width: 30px;
+    height: 24px;
+    display: inline-block;
+    position: relative;
+}
+
+.hamburger-inner,
+.hamburger-inner::before,
+.hamburger-inner::after {
+    width: 30px;
+    height: 2px;
+    background-color: #000;
+    border-radius: 4px;
+    position: absolute;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.hamburger-inner {
+    top: 50%;
+}
+
+.hamburger-inner::before,
+.hamburger-inner::after {
+    content: "";
+    display: block;
+}
+
+.hamburger-inner::before {
+    top: -8px;
+}
+
+.hamburger-inner::after {
+    bottom: -8px;
+}
+
+/* Active (thành dấu X) */
+.hamburger.is-active .hamburger-inner {
+    transform: rotate(45deg);
+}
+
+.hamburger.is-active .hamburger-inner::before {
+    top: 0;
+    opacity: 0;
+}
+
+.hamburger.is-active .hamburger-inner::after {
+    bottom: 0;
+    transform: rotate(-90deg);
+}

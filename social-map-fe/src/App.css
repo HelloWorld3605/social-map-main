@@ -1,0 +1,8 @@
+/* App wrapper - full screen */
+.app-container {
+  width: 100%;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
