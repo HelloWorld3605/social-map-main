@@ -8,6 +8,16 @@ export default function Sidebar() {
 
     // Check location permission on mount
     useEffect(() => {
+        // Kiểm tra xem user đã tắt vị trí chưa
+        const userDisabledLocation = localStorage.getItem('locationDisabled') === 'true';
+
+        if (userDisabledLocation) {
+            // Nếu user đã tắt, không bật lại dù browser có permission
+            setLocationEnabled(false);
+            return;
+        }
+
+        // Chỉ tự động bật nếu có permission VÀ user chưa tắt
         if ('permissions' in navigator) {
             navigator.permissions.query({ name: 'geolocation' }).then((result) => {
                 if (result.state === 'granted') {
@@ -61,12 +71,16 @@ export default function Sidebar() {
             setUserLocation(null);
             setLocationError(null);
             localStorage.removeItem('userLocation');
+            // Lưu trạng thái user đã TẮT vị trí
+            localStorage.setItem('locationDisabled', 'true');
 
             window.dispatchEvent(new CustomEvent('locationUpdated', {
                 detail: null
             }));
         } else {
-            // Request location permission
+            // Turn on location
+            // Xóa flag "đã tắt"
+            localStorage.removeItem('locationDisabled');
             getCurrentLocation();
             setLocationEnabled(true);
         }
