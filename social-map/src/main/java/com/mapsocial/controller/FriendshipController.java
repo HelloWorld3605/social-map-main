@@ -76,4 +76,34 @@ public class FriendshipController {
         UUID authenticatedUserId = userPrincipal.getUser().getId();
         return ResponseEntity.ok(friendshipService.getPendingRequests(authenticatedUserId));
     }
+
+    // Lấy danh sách lời mời kết bạn đã gửi (sent requests)
+    @GetMapping("/sent/me")
+    public ResponseEntity<List<FriendResponseDTO>> getMySentRequests(
+            @AuthenticationPrincipal UserPrincipal userPrincipal
+    ) {
+        UUID authenticatedUserId = userPrincipal.getUser().getId();
+        return ResponseEntity.ok(friendshipService.getSentRequests(authenticatedUserId));
+    }
+
+    // Kiểm tra trạng thái friendship với user khác
+    @GetMapping("/status/{otherUserId}")
+    public ResponseEntity<String> getFriendshipStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID otherUserId
+    ) {
+        UUID userId = userPrincipal.getUser().getId();
+        return ResponseEntity.ok(friendshipService.getFriendshipStatus(userId, otherUserId));
+    }
+
+    // Hủy kết bạn
+    @DeleteMapping("/unfriend/{friendId}")
+    public ResponseEntity<Void> unfriend(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID friendId
+    ) {
+        UUID userId = userPrincipal.getUser().getId();
+        friendshipService.unfriend(userId, friendId);
+        return ResponseEntity.noContent().build();
+    }
 }

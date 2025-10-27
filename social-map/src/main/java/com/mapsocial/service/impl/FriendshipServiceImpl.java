@@ -90,17 +90,8 @@ public class FriendshipServiceImpl implements FriendshipService {
             throw new IllegalStateException("Chỉ người nhận mới có thể chấp nhận.");
 
         friendship.setStatus(FriendshipStatus.ACCEPTED);
+        friendship.setUpdatedAt(LocalDateTime.now());
         friendshipRepository.save(friendship);
-
-        // Tạo bản ghi ngược lại để dễ dàng truy vấn bạn bè
-        Friendship reverse = Friendship.builder()
-                .sender(friendship.getReceiver())
-                .receiver(friendship.getSender())
-                .status(FriendshipStatus.ACCEPTED)
-                .createdAt(LocalDateTime.now())
-                .updatedAt(LocalDateTime.now())
-                .build();
-        friendshipRepository.save(reverse);
 
         return friendshipMapper.toResponseDTO(friendship);
     }
@@ -155,6 +146,19 @@ public class FriendshipServiceImpl implements FriendshipService {
     }
 
     @Override
+    public List<FriendResponseDTO> getSentRequests(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user."));
+
+        // Lấy các lời mời mà user là người gửi và trạng thái đang PENDING
+        List<Friendship> sentRequests = friendshipRepository.findBySenderAndStatus(user, FriendshipStatus.PENDING);
+
+        return sentRequests.stream()
+                .map(friendshipMapper::toResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public FriendResponseDTO blockUser(UUID blockerId, UUID blockedId) {
         if (blockerId.equals(blockedId))
             throw new IllegalArgumentException("Không thể chặn chính mình.");
@@ -187,6 +191,78 @@ public class FriendshipServiceImpl implements FriendshipService {
         return friendshipMapper.toResponseDTO(friendship);
     }
 
+    @Override
+    public String getFriendshipStatus(UUID userId, UUID otherUserId) {
+        if (userId.equals(otherUserId)) {
+            return "SELF";
+        }
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user"));
+        User otherUser = userRepository.findById(otherUserId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user khác"));
 
+        Optional<Friendship> friendship = friendshipRepository.findFriendshipBetween(user, otherUser);
+
+        if (friendship.isEmpty()) {
+            return "NONE"; // Chưa có quan hệ
+        }
+
+        Friendship f = friendship.get();
+
+        // Nếu đã là bạn bè
+        if (f.getStatus() == FriendshipStatus.ACCEPTED) {
+            return "ACCEPTED";
+        }
+
+        // Nếu bị chặn
+        if (f.getStatus() == FriendshipStatus.BLOCKED) {
+            return "BLOCKED";
+        }
+
+        // Nếu đang pending
+        if (f.getStatus() == FriendshipStatus.PENDING) {
+            // Kiểm tra xem mình là người gửi hay người nhận
+            if (f.getSender().getId().equals(userId)) {
+                return "PENDING"; // Mình đã gửi lời mời
+            } else {
+                return "RECEIVED"; // Mình nhận được lời mời
+            }
+        }
+
+        return "NONE";
+    }
+
+    @Override
+    public void unfriend(UUID userId, UUID friendId) {
+        if (userId.equals(friendId)) {
+            throw new IllegalArgumentException("Không thể hủy kết bạn với chính mình");
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy user"));
+        User friend = userRepository.findById(friendId)
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy bạn bè"));
+
+        // Tìm mối quan hệ giữa 2 người
+        Optional<Friendship> friendship = friendshipRepository.findFriendshipBetween(user, friend);
+
+        if (friendship.isEmpty()) {
+            throw new IllegalStateException("Hai người không phải bạn bè");
+        }
+
+        Friendship f = friendship.get();
+
+        // Chỉ cho phép unfriend nếu đang là bạn bè
+        if (f.getStatus() != FriendshipStatus.ACCEPTED) {
+            throw new IllegalStateException("Hai người không phải bạn bè");
+        }
+
+        // Xóa cả 2 chiều của mối quan hệ
+        friendshipRepository.delete(f);
+
+        // Tìm và xóa bản ghi ngược (nếu có)
+        friendshipRepository.findFriendshipBetween(friend, user)
+                .ifPresent(friendshipRepository::delete);
+    }
 }

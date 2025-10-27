@@ -7,107 +7,85 @@ import { api } from './apiClient';
 export const friendshipService = {
     /**
      * Gửi lời mời kết bạn
-     * POST /api/friendships/send-request?receiverId={receiverId}
+     * POST /api/friends/request
      */
     sendFriendRequest: async (receiverId) => {
-        return await api.post('/friendships/send-request', null, {
-            params: { receiverId }
+        return await api.post('/friends/request', {
+            receiverId: receiverId
         });
     },
 
     /**
      * Chấp nhận lời mời kết bạn
-     * POST /api/friendships/accept?senderId={senderId}
+     * PUT /api/friends/{friendshipId}/accept
      */
-    acceptFriendRequest: async (senderId) => {
-        return await api.post('/friendships/accept', null, {
-            params: { senderId }
-        });
+    acceptFriendRequest: async (friendshipId) => {
+        return await api.put(`/friends/${friendshipId}/accept`);
     },
 
     /**
-     * Từ chối lời mời kết bạn
-     * POST /api/friendships/reject?senderId={senderId}
+     * Từ chối/Hủy lời mời kết bạn
+     * DELETE /api/friends/{friendshipId}
      */
-    rejectFriendRequest: async (senderId) => {
-        return await api.post('/friendships/reject', null, {
-            params: { senderId }
-        });
-    },
-
-    /**
-     * Hủy lời mời kết bạn đã gửi
-     * DELETE /api/friendships/cancel?receiverId={receiverId}
-     */
-    cancelFriendRequest: async (receiverId) => {
-        return await api.delete('/friendships/cancel', {
-            params: { receiverId }
-        });
+    cancelFriendRequest: async (friendshipId) => {
+        return await api.delete(`/friends/${friendshipId}`);
     },
 
     /**
      * Hủy kết bạn (unfriend)
-     * DELETE /api/friendships/unfriend?friendId={friendId}
+     * DELETE /api/friends/unfriend/{friendId}
      */
     unfriend: async (friendId) => {
-        return await api.delete('/friendships/unfriend', {
-            params: { friendId }
-        });
+        return await api.delete(`/friends/unfriend/${friendId}`);
     },
 
     /**
      * Lấy trạng thái kết bạn với một user
-     * GET /api/friendships/status?userId={userId}
+     * GET /api/friends/status/{userId}
      *
-     * Trả về: null | 'PENDING' | 'ACCEPTED' | 'RECEIVED'
+     * Trả về: 'NONE' | 'PENDING' | 'ACCEPTED' | 'RECEIVED' | 'BLOCKED' | 'SELF'
      */
     getFriendshipStatus: async (userId) => {
         try {
-            const response = await api.get('/friendships/status', {
-                params: { userId }
-            });
-            return response.status || null;
+            return await api.get(`/friends/status/${userId}`);
         } catch (error) {
             console.error('Failed to get friendship status:', error);
-            return null;
+            return 'NONE';
         }
     },
 
     /**
-     * Lấy danh sách bạn bè
-     * GET /api/friendships/friends
+     * Lấy danh sách bạn bè của mình
+     * GET /api/friends/list/me
      */
-    getFriends: async () => {
-        return await api.get('/friendships/friends');
+    getMyFriends: async () => {
+        return await api.get('/friends/list/me');
     },
 
     /**
-     * Lấy danh sách lời mời kết bạn đã nhận
-     * GET /api/friendships/requests/received
+     * Lấy danh sách bạn bè của user khác
+     * GET /api/friends/list/{userId}
      */
-    getReceivedRequests: async () => {
-        return await api.get('/friendships/requests/received');
+    getFriends: async (userId) => {
+        return await api.get(`/friends/list/${userId}`);
     },
 
     /**
-     * Lấy danh sách lời mời kết bạn đã gửi
-     * GET /api/friendships/requests/sent
+     * Lấy danh sách lời mời kết bạn đã nhận (pending requests)
+     * GET /api/friends/pending/me
+     */
+    getPendingRequests: async () => {
+        return await api.get('/friends/pending/me');
+    },
+
+    /**
+     * Lấy danh sách lời mời kết bạn đã gửi (sent requests)
+     * GET /api/friends/sent/me
      */
     getSentRequests: async () => {
-        return await api.get('/friendships/requests/sent');
-    },
-
-    /**
-     * Tìm kiếm bạn bè
-     * GET /api/friendships/search?query={query}
-     */
-    searchFriends: async (query) => {
-        return await api.get('/friendships/search', {
-            params: { query }
-        });
+        return await api.get('/friends/sent/me');
     }
 };
 
 // Export default để tương thích
 export default friendshipService;
-

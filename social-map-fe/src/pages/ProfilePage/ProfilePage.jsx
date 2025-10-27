@@ -13,6 +13,7 @@ export default function ProfilePage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [friendshipStatus, setFriendshipStatus] = useState(null);
+    const [friendshipId, setFriendshipId] = useState(null);
     const [mutualFriendsCount, setMutualFriendsCount] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -72,13 +73,25 @@ export default function ProfilePage() {
         }
     };
 
-    // Handle accept friend request
+    // Handle accept friend request - Cần lấy friendshipId từ pending requests
     const handleAcceptFriend = async () => {
         if (isProcessing) return;
 
         try {
             setIsProcessing(true);
-            await friendshipService.acceptFriendRequest(userId);
+
+            // Lấy danh sách pending requests để tìm friendshipId
+            const pendingRequests = await friendshipService.getPendingRequests();
+            const request = pendingRequests.find(req =>
+                req.senderId === userId || req.receiverId === userId
+            );
+
+            if (!request) {
+                alert('Không tìm thấy lời mời kết bạn');
+                return;
+            }
+
+            await friendshipService.acceptFriendRequest(request.id);
             setFriendshipStatus('ACCEPTED');
         } catch (error) {
             console.error('Failed to accept friend request:', error);
@@ -97,7 +110,7 @@ export default function ProfilePage() {
         try {
             setIsProcessing(true);
             await friendshipService.unfriend(userId);
-            setFriendshipStatus(null);
+            setFriendshipStatus('NONE');
         } catch (error) {
             console.error('Failed to unfriend:', error);
             alert('Không thể hủy kết bạn');
@@ -112,8 +125,36 @@ export default function ProfilePage() {
 
         try {
             setIsProcessing(true);
-            await friendshipService.cancelFriendRequest(userId);
-            setFriendshipStatus(null);
+
+            // Kiểm tra xem đây là lời mời đã gửi hay đã nhận
+            let friendshipId = null;
+
+            // Nếu status là PENDING, tìm trong sent requests (mình đã gửi)
+            if (friendshipStatus === 'PENDING') {
+                const sentRequests = await friendshipService.getSentRequests();
+                const request = sentRequests.find(req => req.receiverId === userId);
+                if (request) {
+                // So sánh với toString() vì backend trả về UUID
+                const request = sentRequests.find(req => req.receiverId.toString() === userId);
+                }
+            }
+            // Nếu status là RECEIVED, tìm trong pending requests (mình nhận được)
+            else if (friendshipStatus === 'RECEIVED') {
+                const pendingRequests = await friendshipService.getPendingRequests();
+                const request = pendingRequests.find(req => req.senderId === userId);
+                if (request) {
+                // So sánh với toString() vì backend trả về UUID
+                const request = pendingRequests.find(req => req.senderId.toString() === userId);
+                }
+            }
+
+            if (!friendshipId) {
+                alert('Không tìm thấy lời mời kết bạn');
+                return;
+            }
+
+            await friendshipService.cancelFriendRequest(friendshipId);
+            setFriendshipStatus('NONE');
         } catch (error) {
             console.error('Failed to cancel request:', error);
             alert('Không thể hủy lời mời');

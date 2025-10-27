@@ -18,6 +18,11 @@ public interface FriendshipService {
 
     List<FriendResponseDTO> getPendingRequests(UUID userId);
 
+    List<FriendResponseDTO> getSentRequests(UUID userId);
 
     FriendResponseDTO blockUser(UUID blockerId, UUID blockedId);
+
+    String getFriendshipStatus(UUID userId, UUID otherUserId);
+
+    void unfriend(UUID userId, UUID friendId);
 }
