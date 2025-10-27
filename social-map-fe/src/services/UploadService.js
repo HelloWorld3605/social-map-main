@@ -32,4 +32,5 @@ const uploadFile = async (file) => {
 // Export các hàm của service
 export const UploadService = {
     uploadFile,
+    uploadImage: uploadFile, // Alias for uploadFile
 };

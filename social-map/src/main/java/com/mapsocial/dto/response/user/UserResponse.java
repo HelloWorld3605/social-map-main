@@ -28,6 +28,12 @@ public class UserResponse {
     @Schema(description = "URL ảnh đại diện của người dùng", example = "https://example.com/avatar.jpg")
     private String avatarUrl;
 
+    @Schema(description = "URL ảnh bìa của người dùng", example = "https://example.com/cover.jpg")
+    private String coverPhoto;
+
     @Schema(description = "Trạng thái xác thực email", example = "true")
     private Boolean isEmailVerified;
+
+    @Schema(description = "Thời gian tạo tài khoản", example = "2024-01-01T00:00:00")
+    private String createdAt;
 }

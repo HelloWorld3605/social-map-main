@@ -57,6 +57,15 @@ public class UserServiceImpl implements UserService {
             user.setAvatarUrl(updateRequest.getAvatarUrl().trim());
         }
 
+        // Cập nhật ảnh bìa - cho phép null để xóa ảnh bìa
+        if (updateRequest.getCoverPhoto() != null) {
+            if (updateRequest.getCoverPhoto().trim().isEmpty()) {
+                user.setCoverPhoto(null);
+            } else {
+                user.setCoverPhoto(updateRequest.getCoverPhoto().trim());
+            }
+        }
+
         User savedUser = userRepository.save(user);
         return userMapper.toUserResponse(savedUser);
     }

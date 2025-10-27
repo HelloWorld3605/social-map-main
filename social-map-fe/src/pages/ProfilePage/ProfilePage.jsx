@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { userService } from '../../services/userService';
 import { friendshipService } from '../../services/friendshipService';
 import { ChatService } from '../../services/ChatService';
+import EditProfileModal from '../../components/Profile/EditProfileModal';
 import './ProfilePage.css';
 
 export default function ProfilePage() {
@@ -14,6 +15,7 @@ export default function ProfilePage() {
     const [friendshipStatus, setFriendshipStatus] = useState(null);
     const [mutualFriendsCount, setMutualFriendsCount] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     // Load user profile
     useEffect(() => {
@@ -137,6 +139,19 @@ export default function ProfilePage() {
         } catch (error) {
             console.error('Failed to open chat:', error);
             alert('Không thể mở chat');
+        }
+    };
+
+    // Handle open edit modal
+    const handleOpenEditModal = () => {
+        setIsEditModalOpen(true);
+    };
+
+    // Handle profile updated
+    const handleProfileUpdated = (updatedUser) => {
+        setUser(updatedUser);
+        if (!userId || userId === currentUser?.id) {
+            setCurrentUser(updatedUser);
         }
     };
 
@@ -287,7 +302,7 @@ export default function ProfilePage() {
                             {isOwnProfile && (
                                 <button
                                     className="profile-btn profile-btn-secondary"
-                                    onClick={() => navigate('/settings')}
+                                    onClick={handleOpenEditModal}
                                 >
                                     <span>Chỉnh sửa trang cá nhân</span>
                                 </button>
@@ -367,6 +382,15 @@ export default function ProfilePage() {
                     </div>
                 </div>
             </div>
+
+            {/* Edit Profile Modal */}
+            {isEditModalOpen && (
+                <EditProfileModal
+                    user={user}
+                    onClose={() => setIsEditModalOpen(false)}
+                    onProfileUpdated={handleProfileUpdated}
+                />
+            )}
         </div>
     );
 }

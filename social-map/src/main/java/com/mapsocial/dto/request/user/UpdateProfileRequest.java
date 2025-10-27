@@ -14,4 +14,7 @@ public class UpdateProfileRequest {
 
     @Schema(description = "URL ảnh đại diện", example = "https://example.com/new-avatar.jpg")
     private String avatarUrl;
+
+    @Schema(description = "URL ảnh nêền", example = "https://example.com/new-avatar.jpg")
+    private String coverPhoto;
 }
