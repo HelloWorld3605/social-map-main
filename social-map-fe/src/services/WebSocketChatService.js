@@ -10,6 +10,7 @@ class WebSocketChatService {
 
     connect(onConnected, onError) {
         const token = localStorage.getItem('authToken');
+        console.log('[WebSocket] Using token:', token); // Debug log
         const socket = new SockJS(`${BASE_URL}/ws`);
         this.stompClient = Stomp.over(socket);
         this.stompClient.debug = () => { };

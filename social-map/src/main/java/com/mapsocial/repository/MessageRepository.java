@@ -46,6 +46,5 @@ public interface MessageRepository extends MongoRepository<Message, String> {
     long countUnreadMessages(String conversationId, LocalDateTime lastReadAt);
 
     //  Tìm message cuối cùng của conversation
-    @Query("{'conversationId': ?0, 'deleted': false}")
-    Optional<Message> findFirstByConversationIdAndDeletedFalseOrderByCreatedAtDesc(String conversationId);
+    Optional<Message> findTop1ByConversationIdAndDeletedFalseOrderByCreatedAtDesc(String conversationId);
 }

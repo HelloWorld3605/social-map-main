@@ -56,6 +56,27 @@ export default function SideChat() {
                             console.error('WebSocket error:', error);
                         }
                     );
+
+                    // Subscribe to conversation updates
+                    webSocketService.subscribeToConversationUpdates(
+                        (updateDTO) => {
+                            // Update conversation with new last message and unread count
+                            setConversations(prev => prev.map(conv =>
+                                conv.id === updateDTO.conversationId
+                                    ? {
+                                        ...conv,
+                                        lastMessage: updateDTO.lastMessageContent,
+                                        lastMessageSenderId: updateDTO.lastMessageSenderId,
+                                        lastMessageAt: updateDTO.lastMessageAt,
+                                        unreadCount: updateDTO.unreadCount
+                                    }
+                                    : conv
+                            ));
+                        },
+                        (error) => {
+                            console.error('Conversation update error:', error);
+                        }
+                    );
                 },
                 (error) => {
                     console.error('WebSocket connection failed:', error);
@@ -220,7 +241,7 @@ export default function SideChat() {
         } else {
             const otherUser = conv.otherUser || conv.members?.find(m => m.userId !== currentUserId);
             return {
-                name: otherUser?.displayName || 'User',
+                name: otherUser?.fullName || 'User',
                 avatar: otherUser?.avatarUrl || '/channels/myprofile.jpg',
                 status: otherUser?.online ? 'Đang hoạt động' : 'Không hoạt động',
             };
@@ -240,9 +261,9 @@ export default function SideChat() {
             );
         }
 
-        if (conv.lastMessage) {
+        if (conv.lastMessageContent) {
             const prefix = conv.lastMessageSenderId === currentUserId ? 'Bạn: ' : '';
-            return `${prefix}${conv.lastMessage}`;
+            return `${prefix}${conv.lastMessageContent}`;
         }
 
         return 'Bắt đầu trò chuyện';
@@ -338,6 +359,7 @@ export default function SideChat() {
                             conversation={conversation}
                             minimized={chatData.minimized}
                             currentUserId={currentUserId}
+                            unreadCount={conversation.unreadCount || 0}
                             onClose={() => handleCloseChatWindow(conversationId)}
                             onMinimize={() => handleMinimizeChatWindow(conversationId)}
                             onNewMessage={(message) => handleNewMessage(conversationId, message)}

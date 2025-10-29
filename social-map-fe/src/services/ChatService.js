@@ -306,6 +306,18 @@ class WebSocketChatService {
     }
 
     /**
+     * Subscribe to user's private queue for conversation updates
+     */
+    subscribeToConversationUpdates(onUpdate, onError) {
+        if (!this.stompClient?.connected) return;
+
+        this.subscribe('/user/queue/conversation-update', onUpdate);
+        this.subscribe('/user/queue/errors', (error) => {
+            onError?.(typeof error === 'string' ? error : JSON.stringify(error));
+        });
+    }
+
+    /**
      * Gửi tin nhắn qua WebSocket
      * Backend sẽ tự động lấy senderId từ JWT token
      */

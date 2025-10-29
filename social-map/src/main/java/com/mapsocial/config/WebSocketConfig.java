@@ -29,20 +29,16 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
-        // Kênh client có thể subscribe để nhận tin nhắn
         config.enableSimpleBroker("/topic", "/queue");
-        // Prefix cho endpoint gửi tin nhắn từ client
         config.setApplicationDestinationPrefixes("/app");
-        // User destination prefix
         config.setUserDestinationPrefix("/user");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Endpoint cho client kết nối WebSocket
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*") // Cho phép mọi domain
-                .withSockJS(); // Dùng SockJS fallback cho browser cũ
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 
     @Override
@@ -52,31 +48,77 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             public Message<?> preSend(Message<?> message, MessageChannel channel) {
                 StompHeaderAccessor accessor = MessageHeaderAccessor.getAccessor(message, StompHeaderAccessor.class);
 
-                if (StompCommand.CONNECT.equals(accessor.getCommand())) {
-                    // Lấy JWT token từ header
-                    String authToken = accessor.getFirstNativeHeader("Authorization");
-
-                    if (authToken != null && authToken.startsWith("Bearer ")) {
-                        String token = authToken.substring(7);
-
-                        if (jwtUtils.validateToken(token)) {
-                            String email = jwtUtils.getEmailFromToken(token);
-                            UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
-
-                            UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(
-                                    userDetails,
-                                    null,
-                                    userDetails.getAuthorities()
-                                );
-
-                            accessor.setUser(authentication);
+                if (accessor != null && accessor.getCommand() != null) {
+                    if (StompCommand.CONNECT.equals(accessor.getCommand())) {
+                        System.out.println("[WebSocket] CONNECT received. Authorization header: " + accessor.getFirstNativeHeader("Authorization"));
+                        handleConnect(accessor);
+                    } else if (StompCommand.SEND.equals(accessor.getCommand()) ||
+                               StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
+                        if (accessor.getUser() == null) {
+                            System.out.println("[WebSocket] SEND/SUBSCRIBE received. No user set. Trying to restore from session.");
+                        } else {
+                            System.out.println("[WebSocket] SEND/SUBSCRIBE received. User already set: " + accessor.getUser());
+                        }
+                        handleSendOrSubscribe(accessor);
+                        if (accessor.getUser() == null) {
+                            System.out.println("[WebSocket] SEND/SUBSCRIBE: Authentication still missing after restore!");
+                        } else {
+                            System.out.println("[WebSocket] SEND/SUBSCRIBE: Authentication restored: " + accessor.getUser());
                         }
                     }
                 }
 
                 return message;
             }
+
+            private void handleConnect(StompHeaderAccessor accessor) {
+                String authToken = accessor.getFirstNativeHeader("Authorization");
+
+                if (authToken != null && authToken.startsWith("Bearer ")) {
+                    String token = authToken.substring(7);
+                    System.out.println("[WebSocket] handleConnect: Extracted token: " + token);
+
+                    if (jwtUtils.validateToken(token)) {
+                        String email = jwtUtils.getEmailFromToken(token);
+                        UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+                        CustomUserDetailsService.UserPrincipal userPrincipal = (CustomUserDetailsService.UserPrincipal) userDetails;
+
+                        UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                userPrincipal,
+                                null,
+                                userPrincipal.getAuthorities()
+                            );
+
+                        // Set only the UserPrincipal as the user for WebSocket session
+                        accessor.setUser(userPrincipal);
+                        System.out.println("[WebSocket] handleConnect: UserPrincipal set as user: " + userPrincipal.getUsername());
+                        if (accessor.getSessionAttributes() != null) {
+                            accessor.getSessionAttributes().put("AUTHENTICATED_USER", authentication);
+                            System.out.println("[WebSocket] handleConnect: Authentication stored in session attributes.");
+                        }
+                    } else {
+                        System.out.println("[WebSocket] handleConnect: Invalid JWT token!");
+                    }
+                } else {
+                    System.out.println("[WebSocket] handleConnect: No valid Authorization header found.");
+                }
+            }
+
+            private void handleSendOrSubscribe(StompHeaderAccessor accessor) {
+                if (accessor.getUser() == null && accessor.getSessionAttributes() != null) {
+                    UsernamePasswordAuthenticationToken authentication =
+                            (UsernamePasswordAuthenticationToken) accessor.getSessionAttributes().get("AUTHENTICATED_USER");
+
+                    if (authentication != null) {
+                        accessor.setUser((CustomUserDetailsService.UserPrincipal) authentication.getPrincipal());
+                        System.out.println("[WebSocket] handleSendOrSubscribe: Authentication restored from session attributes.");
+                    } else {
+                        System.out.println("[WebSocket] handleSendOrSubscribe: No authentication found in session attributes.");
+                    }
+                }
+            }
+
         });
     }
 }

@@ -13,12 +13,12 @@ public class ConversationMemberDTO {
     private String userId;
     private String username;
     private String fullName;
-    private String avatar;
+    private String avatarUrl;
 
     private String role; // "ADMIN", "MEMBER"
     private LocalDateTime lastReadAt;
     private LocalDateTime joinedAt;
     private boolean isActive;
     private boolean isTyping;
+    private boolean isOnline;
 }
-

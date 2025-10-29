@@ -26,21 +26,21 @@ public interface ConversationMemberRepository extends MongoRepository<Conversati
     Optional<ConversationMember> findByConversationIdAndUserId(String conversationId, String userId);
 
     // Kiểm tra user có trong conversation không
-    @Query("{'conversationId': ?0, 'userId': ?1, 'active': true}")
+    @Query(value = "{'conversationId': ?0, 'userId': ?1, 'active': true}", exists = true)
     boolean existsByConversationIdAndUserIdAndActive(String conversationId, String userId);
 
     // Đếm số members trong conversation
     @Query(value = "{'conversationId': ?0, 'active': true}", count = true)
     long countActiveByConversationId(String conversationId);
 
-    // ✅ Tìm conversation 1-1 giữa 2 users
+    // Tìm conversation 1-1 giữa 2 users
     @Query("{'userId': {$in: [?0, ?1]}, 'active': true}")
     List<ConversationMember> findByUserIdsIn(String userId1, String userId2);
 
-    // ✅ Tìm members đang typing
+    // Tìm members đang typing
     @Query("{'conversationId': ?0, 'typing': true}")
     List<ConversationMember> findTypingMembers(String conversationId);
 
-    // ✅ Xóa tất cả members của conversation (khi xóa group)
+    // Xóa tất cả members của conversation (khi xóa group)
     void deleteByConversationId(String conversationId);
 }

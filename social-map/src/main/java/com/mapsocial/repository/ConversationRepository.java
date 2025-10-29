@@ -11,10 +11,6 @@ import java.util.Optional;
 
 @Repository
 public interface ConversationRepository extends MongoRepository<Conversation, String> {
-
-    // ❌ XOÁ: Các query dùng memberIds
-    // ✅ Tìm conversation qua ConversationMemberRepository
-
     // Tìm conversation theo ID và kiểm tra tồn tại
     Optional<Conversation> findById(String id);
 

@@ -132,19 +132,17 @@ export default function ProfilePage() {
             // Nếu status là PENDING, tìm trong sent requests (mình đã gửi)
             if (friendshipStatus === 'PENDING') {
                 const sentRequests = await friendshipService.getSentRequests();
-                const request = sentRequests.find(req => req.receiverId === userId);
+                const request = sentRequests.find(req => req.receiverId.toString() === userId.toString());
                 if (request) {
-                // So sánh với toString() vì backend trả về UUID
-                const request = sentRequests.find(req => req.receiverId.toString() === userId);
+                    friendshipId = request.id;
                 }
             }
             // Nếu status là RECEIVED, tìm trong pending requests (mình nhận được)
             else if (friendshipStatus === 'RECEIVED') {
                 const pendingRequests = await friendshipService.getPendingRequests();
-                const request = pendingRequests.find(req => req.senderId === userId);
+                const request = pendingRequests.find(req => req.senderId.toString() === userId.toString());
                 if (request) {
-                // So sánh với toString() vì backend trả về UUID
-                const request = pendingRequests.find(req => req.senderId.toString() === userId);
+                    friendshipId = request.id;
                 }
             }
 

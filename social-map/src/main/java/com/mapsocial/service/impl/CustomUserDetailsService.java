@@ -39,7 +39,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     
 
     // Inner class để đại diện cho User trong Spring Security context
-    public static class UserPrincipal implements UserDetails {
+    public static class UserPrincipal implements UserDetails, java.security.Principal {
         private final User user;
 
         public UserPrincipal(User user) {
@@ -52,6 +52,11 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         public User getUser() {
             return user;
+        }
+
+        @Override
+        public String getName() {
+            return user.getEmail(); // or user.getId().toString() if you prefer
         }
 
         @Override

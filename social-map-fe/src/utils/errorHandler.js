@@ -18,6 +18,10 @@ export function handleError(error) {
             case 400:
                 return new Error(data?.message || 'Dữ liệu không hợp lệ');
             case 401:
+                // Redirect to login on unauthorized
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('userInfo');
+                window.location.href = '/login';
                 return new Error('Phiên đăng nhập đã hết hạn');
             case 403:
                 return new Error('Bạn không có quyền thực hiện hành động này');

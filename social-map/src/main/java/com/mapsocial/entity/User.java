@@ -43,6 +43,10 @@ public class User {
     @Column(name = "citizen_id", unique = true, length = 12)
     private String citizenId; // số CCCD (12 số)
 
+    @Column(name = "is_online")
+    @Builder.Default
+    private Boolean isOnline = false;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserShop> userShops = new ArrayList<>();
 

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChatService, webSocketService } from '../../services/ChatService';
 import './ChatWindows.css';
 
-export default function ChatWindow({ conversation, minimized, currentUserId, onClose, onMinimize, onNewMessage }) {
+export default function ChatWindow({ conversation, minimized, currentUserId, onClose, onMinimize, onNewMessage, unreadCount = 0, onMarkAsRead }) {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +17,7 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
     const typingTimeoutRef = useRef(null);
     const lastScrollHeightRef = useRef(0);
     const isLoadingMoreRef = useRef(false);
+    const navigate = useNavigate();
 
     // Get display info
     const getDisplayInfo = useCallback(() => {
@@ -30,9 +32,9 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
         } else {
             const otherUser = conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
             return {
-                name: otherUser?.displayName || 'User',
+                name: otherUser?.fullName || 'User',
                 avatar: otherUser?.avatarUrl || '/channels/myprofile.jpg',
-                status: otherUser?.online ? 'Đang hoạt động' : 'Không hoạt động',
+                status: otherUser?.isOnline ? 'Đang hoạt động' : 'Không hoạt động',
             };
         }
     }, [conversation, currentUserId]);
@@ -104,6 +106,16 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             loadMessages(0);
         }
     }, [conversation?.id, loadMessages]);
+
+    // Mark as read when conversation opens or unminimizes
+    useEffect(() => {
+        if (conversation?.id && !minimized) {
+            ChatService.markAsRead(conversation.id).catch(console.error);
+            if (onMarkAsRead) {
+                onMarkAsRead(conversation.id);
+            }
+        }
+    }, [conversation?.id, minimized, onMarkAsRead]);
 
     // Subscribe to WebSocket updates
     useEffect(() => {
@@ -260,8 +272,21 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             className={`chat-window ${minimized ? 'minimized' : 'open'}`}
             data-conversation-id={conversation?.id}
         >
-            <div className="chat-window-header" onClick={onMinimize}>
-                <img src={displayInfo.avatar} alt="Avatar" className="chat-window-avatar" />
+            <div className={`chat-window-header ${unreadCount > 0 ? 'unread' : ''}`} onClick={onMinimize}>
+                <img
+                    src={displayInfo.avatar}
+                    alt="Avatar"
+                    className="chat-window-avatar"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (!conversation.isGroup) {
+                            const otherUser = conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
+                            if (otherUser?.userId) {
+                                navigate(`/profile/${otherUser.userId}`);
+                            }
+                        }
+                    }}
+                />
                 <div className="chat-window-info">
                     <div className="chat-window-name">{displayInfo.name}</div>
                     <div className="chat-window-status">{displayInfo.status}</div>

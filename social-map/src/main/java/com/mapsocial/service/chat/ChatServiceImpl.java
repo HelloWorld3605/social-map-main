@@ -81,7 +81,7 @@ public class ChatServiceImpl implements ChatService {
 
         ConversationMember senderMember = conversationMemberRepository
                 .findByConversationIdAndUserId(request.getConversationId(), senderId)
-                .orElseThrow(() -> new ChatException("Người gửi không tìm thấy trong cuộc trò chuyện"));
+                .orElseThrow(() -> new ChatException("Người gửi không tìm thấy trong cu��c trò chuyện"));
         senderMember.setLastActiveAt(LocalDateTime.now());
         conversationMemberRepository.save(senderMember);
 
@@ -129,7 +129,7 @@ public class ChatServiceImpl implements ChatService {
 
         if (!request.isGroup() && request.getMemberIds().size() == 1 &&
             request.getMemberIds().get(0).equals(createdBy)) {
-            throw new ChatException("Không thể tạo cuộc trò chuyện riêng với chính mình");
+            throw new ChatException("Không thể tạo cuộc trò chuyện ri��ng với chính mình");
         }
 
         if (!request.getMemberIds().contains(createdBy)) {
@@ -523,7 +523,7 @@ public class ChatServiceImpl implements ChatService {
                 .map(this::mapToConversationMemberDTO)
                 .collect(Collectors.toList());
 
-        Optional<Message> lastMessage = messageRepository.findFirstByConversationIdAndDeletedFalseOrderByCreatedAtDesc(
+        Optional<Message> lastMessage = messageRepository.findTop1ByConversationIdAndDeletedFalseOrderByCreatedAtDesc(
                 conversation.getId());
 
         String lastMessageContent = null;
@@ -566,12 +566,13 @@ public class ChatServiceImpl implements ChatService {
                 .userId(member.getUserId())
                 .username(displayName)
                 .fullName(displayName)
-                .avatar(avatar)
+                .avatarUrl(avatar)
                 .role(member.getRole())
                 .lastReadAt(member.getLastReadAt())
                 .joinedAt(member.getJoinedAt())
                 .isActive(member.isActive())
                 .isTyping(member.isTyping())
+                .isOnline(user != null ? Boolean.TRUE.equals(user.getIsOnline()) : false)
                 .build();
     }
 
