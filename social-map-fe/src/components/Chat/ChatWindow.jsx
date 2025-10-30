@@ -50,9 +50,41 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             const response = await ChatService.getMessages(conversation.id, { page, size: 20 });
 
             if (page === 0) {
-                setMessages(response.content.reverse());
+                const processedMessages = response.content.map(msg => {
+                    if (msg.content && msg.content.startsWith('LOCATION:')) {
+                        try {
+                            const locationData = JSON.parse(msg.content.substring(9));
+                            return {
+                                ...msg,
+                                content: locationData,
+                                isLocation: true
+                            };
+                        } catch (e) {
+                            console.error('Failed to parse location message:', e);
+                            return msg;
+                        }
+                    }
+                    return msg;
+                }).reverse();
+                setMessages(processedMessages);
             } else {
-                setMessages(prev => [...response.content.reverse(), ...prev]);
+                const processedMessages = response.content.map(msg => {
+                    if (msg.content && msg.content.startsWith('LOCATION:')) {
+                        try {
+                            const locationData = JSON.parse(msg.content.substring(9));
+                            return {
+                                ...msg,
+                                content: locationData,
+                                isLocation: true
+                            };
+                        } catch (e) {
+                            console.error('Failed to parse location message:', e);
+                            return msg;
+                        }
+                    }
+                    return msg;
+                }).reverse();
+                setMessages(prev => [...processedMessages, ...prev]);
             }
 
             setHasMore(!response.last);
@@ -126,17 +158,33 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             conversation.id,
             (message) => {
                 // New message
-                setMessages(prev => [...prev, message]);
+                let processedMessage = message;
+
+                // Handle location messages
+                if (message.content && message.content.startsWith('LOCATION:')) {
+                    try {
+                        const locationData = JSON.parse(message.content.substring(9));
+                        processedMessage = {
+                            ...message,
+                            content: locationData,
+                            isLocation: true
+                        };
+                    } catch (e) {
+                        console.error('Failed to parse location message:', e);
+                    }
+                }
+
+                setMessages(prev => [...prev, processedMessage]);
                 scrollToBottom(true);
 
                 // Notify parent
                 if (onNewMessage) {
-                    onNewMessage(message);
+                    onNewMessage(processedMessage);
                 }
 
                 // Mark as read if window is open
                 if (!minimized) {
-                    ChatService.markAsRead(conversation.id).catch(console.error);
+                    webSocketService.sendMarkAsRead({ conversationId: conversation.id });
                 }
             },
             (typingDTO) => {
@@ -206,9 +254,8 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
         try {
             setIsSending(true);
 
-            // Send via WebSocket - backend will get senderId from JWT
-            webSocketService.sendChatMessage({
-                conversationId: conversation.id,
+            // Send via REST API - backend will save to DB and broadcast via WebSocket
+            await ChatService.sendMessage(conversation.id, {
                 content: messageText,
                 messageType: 'TEXT'
             });
@@ -271,6 +318,7 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
         <div
             className={`chat-window ${minimized ? 'minimized' : 'open'}`}
             data-conversation-id={conversation?.id}
+            data-friend-id={conversation?.id}
         >
             <div className={`chat-window-header ${unreadCount > 0 ? 'unread' : ''}`} onClick={onMinimize}>
                 <img
@@ -354,10 +402,29 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
                                 {!isSent && showAvatar && (
                                     <div className="chat-window-message-sender">{msg.senderName}</div>
                                 )}
-                                <div
-                                    className="chat-window-message-text"
-                                    dangerouslySetInnerHTML={{ __html: linkify(msg.content) }}
-                                />
+                                {msg.isLocation ? (
+                                    <div className="location-message-card">
+                                        <div className="location-card-image">
+                                            <img src={msg.content.image} alt={msg.content.name} />
+                                            <div className="location-card-overlay">📍</div>
+                                        </div>
+                                        <div className="location-card-content">
+                                            <div className="location-card-title">{msg.content.name}</div>
+                                            <div className="location-card-description">{msg.content.description}</div>
+                                            <button
+                                                className="location-card-button"
+                                                onClick={() => window.focusLocation?.(msg.content.coordinates[0], msg.content.coordinates[1], msg.content.name)}
+                                            >
+                                                🗺️ Xem trên bản đồ
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div
+                                        className="chat-window-message-text"
+                                        dangerouslySetInnerHTML={{ __html: linkify(msg.content) }}
+                                    />
+                                )}
                                 <div className="chat-window-message-time">
                                     {formatTime(msg.timestamp)}
                                     {msg.edited && <span className="edited-indicator"> (đã chỉnh sửa)</span>}

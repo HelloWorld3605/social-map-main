@@ -6,6 +6,7 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapContext } from '../../context/MapContext';
 import { useLocationSharing } from '../../hooks/useLocationSharing';
 import { HANOI_MARKER, generateMarkerPopupHTML } from '../../constants/markers';
+import LocationSharing from '../../js/location-sharing';
 
 mapboxgl.accessToken = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
 
@@ -98,6 +99,9 @@ export default function MapSection() {
                     markerRef.current = marker;
                     window.mapboxManager.hanoiMarker = marker;
 
+                    // Set global marker data
+                    window.HANOI_MARKER = HANOI_MARKER;
+
                     // Add marker drag functionality
                     const markerEl = marker.getElement();
                     markerEl.style.cursor = 'grab';
@@ -111,9 +115,9 @@ export default function MapSection() {
                         description: HANOI_MARKER.description
                     };
 
-                    markerEl.addEventListener('mousedown', (e) => {
-                        handleMarkerMouseDown(e, markerEl, markerData);
-                    });
+                    // markerEl.addEventListener('mousedown', (e) => {
+                    //     handleMarkerMouseDown(e, markerEl, markerData);
+                    // });
 
                     // Add attribution
                     map.addControl(new mapboxgl.AttributionControl({
@@ -124,6 +128,10 @@ export default function MapSection() {
                     window.dispatchEvent(new CustomEvent('mapLoaded', {
                         detail: { map }
                     }));
+
+                    // Init location sharing
+                    window.locationSharing = new LocationSharing(map);
+                    console.log('LocationSharing ready (no duplicate listeners)');
                 }, 500);
             });
 

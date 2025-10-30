@@ -21,7 +21,25 @@ export default function SideChat() {
         try {
             setIsLoading(true);
             const data = await ChatService.getUserConversations();
-            setConversations(data);
+            // Parse location messages in lastMessage
+            const processedData = data.map(conv => {
+                if (conv.lastMessage && conv.lastMessage.startsWith('LOCATION:')) {
+                    try {
+                        const locationData = JSON.parse(conv.lastMessage.substring(9));
+                        return {
+                            ...conv,
+                            lastMessage: `📍 ${locationData.name}`
+                        };
+                    } catch (e) {
+                        return {
+                            ...conv,
+                            lastMessage: 'Vị trí'
+                        };
+                    }
+                }
+                return conv;
+            });
+            setConversations(processedData);
         } catch (error) {
             console.error('Failed to load conversations:', error);
         } finally {
@@ -61,11 +79,21 @@ export default function SideChat() {
                     webSocketService.subscribeToConversationUpdates(
                         (updateDTO) => {
                             // Update conversation with new last message and unread count
+                            let lastMessageContent = updateDTO.lastMessageContent;
+                            if (updateDTO.lastMessageContent && updateDTO.lastMessageContent.startsWith('LOCATION:')) {
+                                try {
+                                    const locationData = JSON.parse(updateDTO.lastMessageContent.substring(9));
+                                    lastMessageContent = `📍 ${locationData.name}`;
+                                } catch (e) {
+                                    lastMessageContent = 'Vị trí';
+                                }
+                            }
+
                             setConversations(prev => prev.map(conv =>
                                 conv.id === updateDTO.conversationId
                                     ? {
                                         ...conv,
-                                        lastMessage: updateDTO.lastMessageContent,
+                                        lastMessage: lastMessageContent,
                                         lastMessageSenderId: updateDTO.lastMessageSenderId,
                                         lastMessageAt: updateDTO.lastMessageAt,
                                         unreadCount: updateDTO.unreadCount
@@ -192,11 +220,21 @@ export default function SideChat() {
 
     // Handle new messages from WebSocket
     const handleNewMessage = useCallback((conversationId, message) => {
+        let lastMessageContent = message.content;
+        if (message.content && message.content.startsWith('LOCATION:')) {
+            try {
+                const locationData = JSON.parse(message.content.substring(9));
+                lastMessageContent = `📍 ${locationData.name}`;
+            } catch (e) {
+                lastMessageContent = 'Vị trí';
+            }
+        }
+
         setConversations(prev => prev.map(conv => {
             if (conv.id === conversationId) {
                 return {
                     ...conv,
-                    lastMessage: message.content,
+                    lastMessage: lastMessageContent,
                     lastMessageTime: message.timestamp,
                     lastMessageSender: message.senderName,
                 };
@@ -261,9 +299,9 @@ export default function SideChat() {
             );
         }
 
-        if (conv.lastMessageContent) {
+        if (conv.lastMessage) {
             const prefix = conv.lastMessageSenderId === currentUserId ? 'Bạn: ' : '';
-            return `${prefix}${conv.lastMessageContent}`;
+            return `${prefix}${conv.lastMessage}`;
         }
 
         return 'Bắt đầu trò chuyện';
@@ -324,6 +362,7 @@ export default function SideChat() {
                                     role="button"
                                     tabIndex={0}
                                     onKeyDown={(e) => e.key === 'Enter' && handleFriendClick(conv)}
+                                    data-friend={conv.id}
                                 >
                                     <img src={display.avatar} alt="Avatar" className="friend-avatar" />
                                     <div className="friend-info">

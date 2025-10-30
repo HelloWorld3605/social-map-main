@@ -18,6 +18,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.socket.config.annotation.*;
 
+import java.util.List;
+
 @Configuration
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
@@ -51,6 +53,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 if (accessor != null && accessor.getCommand() != null) {
                     if (StompCommand.CONNECT.equals(accessor.getCommand())) {
                         System.out.println("[WebSocket] CONNECT received. Authorization header: " + accessor.getFirstNativeHeader("Authorization"));
+                        System.out.println("[WebSocket] All headers: " + accessor.toNativeHeaderMap());
                         handleConnect(accessor);
                     } else if (StompCommand.SEND.equals(accessor.getCommand()) ||
                                StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
@@ -72,7 +75,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             }
 
             private void handleConnect(StompHeaderAccessor accessor) {
-                String authToken = accessor.getFirstNativeHeader("Authorization");
+                List<String> authHeaders = accessor.getNativeHeader("Authorization");
+                String authToken = (authHeaders != null && !authHeaders.isEmpty()) ? authHeaders.get(0) : null;
 
                 if (authToken != null && authToken.startsWith("Bearer ")) {
                     String token = authToken.substring(7);

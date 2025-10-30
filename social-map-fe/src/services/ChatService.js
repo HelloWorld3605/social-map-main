@@ -179,7 +179,9 @@ class WebSocketChatService {
             return;
         }
 
-        const socket = new SockJS(`${BASE_URL}/ws`);
+        const socket = new SockJS(`${BASE_URL}/ws`, null, {
+            transports: ['websocket', 'xhr-streaming', 'xhr-polling']
+        });
         this.stompClient = Stomp.over(socket);
         this.stompClient.debug = () => { };
 
@@ -351,3 +353,6 @@ class WebSocketChatService {
 }
 
 export const webSocketService = new WebSocketChatService();
+
+// Make ChatService available globally for location sharing
+// window.ChatService = ChatService;

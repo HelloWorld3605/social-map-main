@@ -3,6 +3,7 @@ class LocationSharing {
         this.map = map;
         this.isDragging = false;
         this.draggedMarker = null;
+        this.draggedPopup = null;
         this.dragPreview = null;
 
         // Delay Detection Pattern properties
@@ -16,6 +17,7 @@ class LocationSharing {
 
     init() {
         this.attachMarkerEventsOnce();
+        this.attachPopupEventsOnce();
         this.setupGlobalDragEvents();
     }
 
@@ -35,8 +37,9 @@ class LocationSharing {
                 markerEl.dataset.hasListener = 'true';
                 markerEl.dataset.markerId = `marker-${index}`;
                 markerEl.style.cursor = 'grab';
+                markerEl.style.pointerEvents = 'auto';
 
-                markerEl.addEventListener('mousedown', (e) => this.startDrag(e, markerEl));
+                markerEl.addEventListener('mousedown', (e) => this.startDrag(e, markerEl), { passive: false });
             });
 
             console.log(`[LocationSharing] Attached drag events to ${markers.length} markers`);
@@ -45,7 +48,40 @@ class LocationSharing {
         attachEvents();
     }
 
+    attachPopupEventsOnce() {
+        const attachEvents = () => {
+            const popups = document.querySelectorAll('.mapboxgl-popup');
+
+            if (!popups.length) {
+                console.log('[LocationSharing] Waiting for popups...');
+                return setTimeout(attachEvents, 800);
+            }
+
+            popups.forEach((popupEl, index) => {
+                if (popupEl.dataset.hasListener === 'true') return; // ⚡ tránh gắn lại
+                popupEl.dataset.hasListener = 'true';
+                popupEl.dataset.popupId = `popup-${index}`;
+
+                // Attach drag event to popup content
+                const popupContent = popupEl.querySelector('.mapboxgl-popup-content');
+                if (popupContent) {
+                    popupContent.style.cursor = 'grab';
+                    popupContent.addEventListener('mousedown', (e) => this.startDragPopup(e, popupEl), { capture: true });
+                }
+            });
+
+            console.log(`[LocationSharing] Attached drag events to ${popups.length} popups`);
+        };
+
+        attachEvents();
+    }
+
     setupGlobalDragEvents() {
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.mapboxgl-marker')) {
+                this.startDrag(e, e.target.closest('.mapboxgl-marker'));
+            }
+        });
         document.addEventListener('mousemove', (e) => this.onDrag(e));
         document.addEventListener('mouseup', (e) => this.stopDrag(e));
     }
@@ -53,6 +89,8 @@ class LocationSharing {
     startDrag(e, markerEl) {
         e.preventDefault();
         e.stopPropagation();
+
+        console.log('startDrag: called for marker');
 
         if (this.isDragging) return; // tránh double-trigger
 
@@ -75,8 +113,11 @@ class LocationSharing {
             const deltaY = Math.abs(moveEvent.clientY - startY);
             const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
 
+            console.log('onMouseMove: distance', distance);
+
             // Nếu di chuyển vượt ngưỡng, bắt đầu kéo
             if (distance > this.dragThreshold && !this.dragStarted) {
+                console.log('initiating drag');
                 this.initiateDrag(moveEvent, markerEl);
                 hasMoved = true;
                 isClick = false;
@@ -118,7 +159,14 @@ class LocationSharing {
             coordinates: window.HANOI_MARKER.coordinates,
             image: window.HANOI_MARKER.image,
             description: window.HANOI_MARKER.description
-        } : markerData;
+        } : {
+            name: 'Unknown Location',
+            coordinates: [0, 0],
+            image: '',
+            description: ''
+        };
+
+        console.log('initiateDrag: draggedMarker', this.draggedMarker);
 
         this.isDragging = true;
         document.body.style.cursor = 'grabbing';
@@ -127,6 +175,97 @@ class LocationSharing {
         this.createDragPreview(e);
         this.highlightChats(true);
         console.log(`[LocationSharing] Dragging started for ${this.draggedMarker.name}`);
+    }
+
+    startDragPopup(e, popupEl) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (this.isDragging) return; // tránh double-trigger
+
+        // Record click start time
+        this.clickStartTime = Date.now();
+        this.dragStarted = false;
+
+        // Set up drag detection with delay
+        this.setupDragDetectionPopup(e, popupEl);
+    }
+
+    setupDragDetectionPopup(e, popupEl) {
+        const startX = e.clientX;
+        const startY = e.clientY;
+        let hasMoved = false;
+        let isClick = true;
+
+        const onMouseMove = (moveEvent) => {
+            const deltaX = Math.abs(moveEvent.clientX - startX);
+            const deltaY = Math.abs(moveEvent.clientY - startY);
+            const distance = Math.sqrt(deltaX ** 2 + deltaY ** 2);
+
+            // Nếu di chuyển vượt ngưỡng, bắt đầu kéo
+            if (distance > this.dragThreshold && !this.dragStarted) {
+                this.initiateDragPopup(moveEvent, popupEl);
+                hasMoved = true;
+                isClick = false;
+            }
+
+            if (this.dragStarted) {
+                this.onDrag(moveEvent);
+            }
+        };
+
+        const onMouseUp = (upEvent) => {
+            const clickDuration = Date.now() - this.clickStartTime;
+
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+
+            // Nếu không di chuyển và click nhanh → xem là click
+            if (!hasMoved && clickDuration < this.clickThreshold && isClick) {
+                // Do nothing for popup click
+            }
+            // Nếu đã kéo → xử lý thả
+            else if (this.dragStarted) {
+                this.stopDrag(upEvent);
+            }
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    initiateDragPopup(e, popupEl) {
+        this.dragStarted = true;
+        this.toggleMapInteractions(false);
+
+        // Extract data from popup
+        this.draggedPopup = this.extractPopupData(popupEl);
+
+        this.isDragging = true;
+        document.body.style.cursor = 'grabbing';
+        popupEl.style.transform += ' scale(1.05)';
+
+        this.createDragPreviewPopup(e);
+        this.highlightChats(true);
+        console.log(`[LocationSharing] Dragging started for popup ${this.draggedPopup.name}`);
+    }
+
+    extractPopupData(popupEl) {
+        console.log('extractPopupData: popupEl', popupEl);
+        console.log('extractPopupData: window.HANOI_MARKER', window.HANOI_MARKER);
+
+        // For popup, use the same data as marker
+        return window.HANOI_MARKER ? {
+            name: window.HANOI_MARKER.name,
+            coordinates: window.HANOI_MARKER.coordinates,
+            image: window.HANOI_MARKER.image,
+            description: window.HANOI_MARKER.description
+        } : {
+            name: 'Unknown Location',
+            coordinates: [0, 0],
+            image: '',
+            description: ''
+        };
     }
 
     handleMarkerClick(markerEl) {
@@ -169,14 +308,24 @@ class LocationSharing {
         const chatWindow = dropTarget?.closest('.chat-window');
         const sideChat = dropTarget?.closest('.side-chat');
 
+        console.log('stopDrag: dropTarget', dropTarget);
+        console.log('stopDrag: chatWindow', chatWindow);
+        console.log('stopDrag: sideChat', sideChat);
+
         if (chatWindow) {
-            this.shareLocation(chatWindow.dataset.friendId, 'chat-window');
+            const friendId = chatWindow.dataset.friendId;
+            console.log('stopDrag: friendId from chatWindow', friendId);
+            this.shareLocation(friendId, 'chat-window');
         } else if (sideChat) {
             const activeFriend = document.querySelector('.friend-item.active');
-            if (activeFriend)
-                this.shareLocation(activeFriend.dataset.friend, 'side-chat');
-            else
+            console.log('stopDrag: activeFriend', activeFriend);
+            if (activeFriend) {
+                const friendId = activeFriend.dataset.friend;
+                console.log('stopDrag: friendId from activeFriend', friendId);
+                this.shareLocation(friendId, 'side-chat');
+            } else {
                 this.showMessage('Vui lòng chọn người bạn để chia sẻ vị trí', 'warning');
+            }
         }
 
         this.cleanupDrag();
@@ -185,6 +334,7 @@ class LocationSharing {
     cleanupDrag() {
         this.isDragging = false;
         this.draggedMarker = null;
+        this.draggedPopup = null;
         this.dragStarted = false;
         this.clickStartTime = 0;
 
@@ -200,6 +350,10 @@ class LocationSharing {
         document.querySelectorAll('.mapboxgl-marker').forEach(el => {
             el.style.transform = el.style.transform.replace(' scale(1.1)', '');
             el.style.cursor = 'grab';
+        });
+
+        document.querySelectorAll('.mapboxgl-popup').forEach(el => {
+            el.style.transform = el.style.transform.replace(' scale(1.05)', '');
         });
 
         console.log('[LocationSharing] Drag cleanup completed');
@@ -230,28 +384,66 @@ class LocationSharing {
         this.onDrag(e);
     }
 
+    createDragPreviewPopup(e) {
+        const { name, image } = this.draggedPopup;
+        const preview = document.createElement('div');
+        preview.className = 'location-drag-preview';
+        preview.innerHTML = `
+            <div class="drag-preview-content">
+                <img src="${image}" alt="${name}" class="drag-preview-image">
+                <div class="drag-preview-info"><span>${name}</span></div>
+            </div>`;
+        document.body.appendChild(preview);
+        this.dragPreview = preview;
+        this.onDrag(e);
+    }
+
     highlightChats(state) {
         document.querySelectorAll('.chat-window, .side-chat')
             .forEach(el => el.classList.toggle('location-drop-zone', state));
     }
 
     shareLocation(friendId, type) {
-        if (!friendId || !this.draggedMarker) return;
-        const msg = {
-            id: `loc_${Date.now()}`,
-            location: this.draggedMarker,
-            timestamp: new Date()
-        };
+        const draggedItem = this.draggedMarker || this.draggedPopup;
+        if (!friendId || !draggedItem) {
+            console.error('shareLocation: missing friendId or draggedItem', { friendId, draggedItem });
+            return;
+        }
 
-        const container = type === 'chat-window'
-            ? document.querySelector(`[data-friend-id="${friendId}"] .chat-window-messages`)
-            : document.querySelector('.messages-container');
+        console.log('shareLocation: sending location', { friendId, draggedItem, type });
 
-        if (!container) return;
+        // Gửi qua REST API để backend save và broadcast qua WebSocket
+        if (window.ChatService) {
+            console.log('shareLocation: using ChatService');
+            window.ChatService.sendMessage(friendId, {
+                content: 'LOCATION:' + JSON.stringify(draggedItem),
+                messageType: 'TEXT'
+            }).then((response) => {
+                console.log('shareLocation: success', response);
+                this.showMessage(`Đã chia sẻ vị trí "${draggedItem.name}"`, 'success');
+            }).catch((error) => {
+                console.error('shareLocation: failed', error);
+                this.showMessage('Không thể chia sẻ vị trí', 'warning');
+            });
+        } else {
+            console.error('shareLocation: ChatService not available');
+            // Fallback: hiển thị local nếu không có ChatService
+            const msg = {
+                id: `loc_${Date.now()}`,
+                location: draggedItem,
+                timestamp: new Date()
+            };
 
-        container.insertAdjacentHTML('beforeend', this.renderLocationMessage(msg));
-        container.scrollTop = container.scrollHeight;
-        this.showMessage(`Đã chia sẻ vị trí "${msg.location.name}"`, 'success');
+            const container = type === 'chat-window'
+                ? document.querySelector(`[data-friend-id="${friendId}"] .chat-window-messages`)
+                : document.querySelector('.messages-container');
+
+            if (container) {
+                container.insertAdjacentHTML('beforeend', this.renderLocationMessage(msg));
+                container.scrollTop = container.scrollHeight;
+            }
+            this.showMessage(`Đã chia sẻ vị trí "${msg.location.name}"`, 'success');
+        }
     }
 
     //Giao diện tin nhắn đẹp hơn
@@ -296,7 +488,9 @@ window.focusLocation = (lng, lat, name) => {
 };
 
 // ==== Init ====
-window.addEventListener('mapLoaded', (e) => {
-    window.locationSharing = new LocationSharing(e.detail.map);
-    console.log('LocationSharing ready (no duplicate listeners)');
-});
+// window.addEventListener('mapLoaded', (e) => {
+//     window.locationSharing = new LocationSharing(e.detail.map);
+//     console.log('LocationSharing ready (no duplicate listeners)');
+// });
+
+export default LocationSharing;
