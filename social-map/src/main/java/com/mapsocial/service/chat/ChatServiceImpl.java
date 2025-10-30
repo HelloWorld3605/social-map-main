@@ -399,7 +399,7 @@ public class ChatServiceImpl implements ChatService {
         LocalDateTime lastReadAt = member.getLastReadAt() != null ?
                 member.getLastReadAt() : member.getJoinedAt();
 
-        return (int) messageRepository.countUnreadMessages(conversationId, lastReadAt);
+        return (int) messageRepository.countUnreadMessages(conversationId, lastReadAt, userId);
     }
 
     @Override

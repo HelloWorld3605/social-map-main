@@ -23,17 +23,17 @@ export default function SideChat() {
             const data = await ChatService.getUserConversations();
             // Parse location messages in lastMessage
             const processedData = data.map(conv => {
-                if (conv.lastMessage && conv.lastMessage.startsWith('LOCATION:')) {
+                if (conv.lastMessageContent && conv.lastMessageContent.startsWith('LOCATION:')) {
                     try {
-                        const locationData = JSON.parse(conv.lastMessage.substring(9));
+                        const locationData = JSON.parse(conv.lastMessageContent.substring(9));
                         return {
                             ...conv,
-                            lastMessage: `📍 ${locationData.name}`
+                            lastMessageContent: `📍 ${locationData.name}`
                         };
                     } catch (e) {
                         return {
                             ...conv,
-                            lastMessage: 'Vị trí'
+                            lastMessageContent: 'Vị trí'
                         };
                     }
                 }
@@ -93,7 +93,7 @@ export default function SideChat() {
                                 conv.id === updateDTO.conversationId
                                     ? {
                                         ...conv,
-                                        lastMessage: lastMessageContent,
+                                        lastMessageContent: lastMessageContent,
                                         lastMessageSenderId: updateDTO.lastMessageSenderId,
                                         lastMessageAt: updateDTO.lastMessageAt,
                                         unreadCount: updateDTO.unreadCount
@@ -234,7 +234,7 @@ export default function SideChat() {
             if (conv.id === conversationId) {
                 return {
                     ...conv,
-                    lastMessage: lastMessageContent,
+                    lastMessageContent: lastMessageContent,
                     lastMessageTime: message.timestamp,
                     lastMessageSender: message.senderName,
                 };
@@ -299,9 +299,9 @@ export default function SideChat() {
             );
         }
 
-        if (conv.lastMessage) {
+        if (conv.lastMessageContent) {
             const prefix = conv.lastMessageSenderId === currentUserId ? 'Bạn: ' : '';
-            return `${prefix}${conv.lastMessage}`;
+            return `${prefix}${conv.lastMessageContent}`;
         }
 
         return 'Bắt đầu trò chuyện';

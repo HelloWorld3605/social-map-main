@@ -17,6 +17,7 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
     const typingTimeoutRef = useRef(null);
     const lastScrollHeightRef = useRef(0);
     const isLoadingMoreRef = useRef(false);
+    const inputRef = useRef(null);
     const navigate = useNavigate();
 
     // Get display info
@@ -267,6 +268,9 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             if (typingTimeoutRef.current) {
                 clearTimeout(typingTimeoutRef.current);
             }
+
+            // Focus back to input
+            setTimeout(() => inputRef.current?.focus(), 0);
         } catch (error) {
             console.error('Failed to send message:', error);
         } finally {
@@ -459,6 +463,7 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
                     disabled={isSending}
+                    ref={inputRef}
                 />
                 <button
                     className="chat-window-send"
