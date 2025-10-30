@@ -23,19 +23,11 @@ export default function SideChat() {
             const data = await ChatService.getUserConversations();
             // Parse location messages in lastMessage
             const processedData = data.map(conv => {
-                if (conv.lastMessageContent && conv.lastMessageContent.startsWith('LOCATION:')) {
-                    try {
-                        const locationData = JSON.parse(conv.lastMessageContent.substring(9));
-                        return {
-                            ...conv,
-                            lastMessageContent: `📍 ${locationData.name}`
-                        };
-                    } catch (e) {
-                        return {
-                            ...conv,
-                            lastMessageContent: 'Vị trí'
-                        };
-                    }
+                if (conv.lastMessageContent?.startsWith('LOCATION:')) {
+                    return {
+                        ...conv,
+                        lastMessageContent: 'Vị trí'
+                    };
                 }
                 return conv;
             });
@@ -80,13 +72,8 @@ export default function SideChat() {
                         (updateDTO) => {
                             // Update conversation with new last message and unread count
                             let lastMessageContent = updateDTO.lastMessageContent;
-                            if (updateDTO.lastMessageContent && updateDTO.lastMessageContent.startsWith('LOCATION:')) {
-                                try {
-                                    const locationData = JSON.parse(updateDTO.lastMessageContent.substring(9));
-                                    lastMessageContent = `📍 ${locationData.name}`;
-                                } catch (e) {
-                                    lastMessageContent = 'Vị trí';
-                                }
+                            if (updateDTO.lastMessageContent?.startsWith('LOCATION:')) {
+                                lastMessageContent = 'Vị trí';
                             }
 
                             setConversations(prev => prev.map(conv =>
@@ -221,13 +208,8 @@ export default function SideChat() {
     // Handle new messages from WebSocket
     const handleNewMessage = useCallback((conversationId, message) => {
         let lastMessageContent = message.content;
-        if (message.content && message.content.startsWith('LOCATION:')) {
-            try {
-                const locationData = JSON.parse(message.content.substring(9));
-                lastMessageContent = `📍 ${locationData.name}`;
-            } catch (e) {
-                lastMessageContent = 'Vị trí';
-            }
+        if (message.content?.startsWith('LOCATION:')) {
+            lastMessageContent = 'Vị trí';
         }
 
         setConversations(prev => prev.map(conv => {
