@@ -205,9 +205,37 @@ export default function SideChat() {
 
             // Create typing callback
             const typingCallback = (typingDTO) => {
-                console.log('SideChat received typing:', typingDTO);
+                console.log('🎯 SideChat received typing from WebSocket:', typingDTO);
+
+                // Handle both 'typing' and 'isTyping' field names from backend
+                const isTyping = typingDTO.typing ?? typingDTO.isTyping ?? false;
+
+                // Update typingUsers directly for THIS conversation
+                setConversations(prev => prev.map(c => {
+                    if (c.id === conv.id) {
+                        let newTypingUsers = [...(c.typingUsers || [])];
+
+                        if (isTyping) {
+                            // User started typing
+                            if (!newTypingUsers.includes(typingDTO.userId)) {
+                                newTypingUsers.push(typingDTO.userId);
+                                console.log(`✍️ User ${typingDTO.userId} started typing in conv ${conv.id}`);
+                            }
+                        } else {
+                            // User stopped typing
+                            newTypingUsers = newTypingUsers.filter(id => id !== typingDTO.userId);
+                            console.log(`⏹️ User ${typingDTO.userId} stopped typing in conv ${conv.id}`);
+                        }
+
+                        console.log(`📝 Updated typingUsers for conv ${conv.id}:`, newTypingUsers);
+                        return { ...c, typingUsers: newTypingUsers };
+                    }
+                    return c;
+                }));
+
+                // Also dispatch event for ChatWindow to handle
                 window.dispatchEvent(new CustomEvent('typingStatus', {
-                    detail: { conversationId: conv.id, isTyping: typingDTO.typing, userId: typingDTO.userId }
+                    detail: { conversationId: conv.id, isTyping: isTyping, userId: typingDTO.userId }
                 }));
             };
 

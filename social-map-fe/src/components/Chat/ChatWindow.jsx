@@ -190,32 +190,46 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
 
         const typingCallback = (typingDTO) => {
             // Typing indicator
-            console.log('ChatWindow received typing:', typingDTO);
+            console.log('🎯 ChatWindow received typing from WebSocket:', typingDTO, 'currentUserId:', currentUserId);
+
+            // Handle both 'typing' and 'isTyping' field names from backend
+            const isTyping = typingDTO.typing ?? typingDTO.isTyping ?? false;
+
             if (typingDTO.userId !== currentUserId) {
-                if (typingDTO.typing) {
+                if (isTyping) {
+                    // User started typing
                     const user = conversation.isGroup
                         ? conversation.members?.find(m => m.userId === typingDTO.userId)
                         : conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
                     const avatar = user?.avatarUrl || '/channels/myprofile.jpg';
                     const name = user?.fullName || typingDTO.username || 'User';
+
                     setTypingUsers(prev => {
-                        const newUsers = prev.some(u => u.userId === typingDTO.userId) ? prev : [...prev, { userId: typingDTO.userId, avatar, name }];
-                        console.log('typingUsers after add:', newUsers);
+                        const alreadyTyping = prev.some(u => u.userId === typingDTO.userId);
+                        if (alreadyTyping) {
+                            console.log(`⏭️ User ${typingDTO.userId} already in typingUsers, skipping`);
+                            return prev;
+                        }
+                        const newUsers = [...prev, { userId: typingDTO.userId, avatar, name }];
+                        console.log(`✍️ Added user ${typingDTO.userId} (${name}) to typingUsers:`, newUsers);
                         return newUsers;
                     });
                 } else {
+                    // User stopped typing
                     setTypingUsers(prev => {
-                        console.log('before remove, typingUsers:', prev.map(u => u.userId));
                         const newUsers = prev.filter(u => u.userId !== typingDTO.userId);
-                        console.log('after remove, typingUsers:', newUsers.map(u => u.userId));
+                        console.log(`⏹️ Removed user ${typingDTO.userId} from typingUsers. Before:`, prev.length, 'After:', newUsers.length);
                         return newUsers;
                     });
                 }
-                // Dispatch event to update SideChat
-                console.log('ChatWindow dispatching typingStatus:', { conversationId: conversation.id, isTyping: typingDTO.typing, userId: typingDTO.userId });
+
+                // Dispatch event to update SideChat (if needed)
+                console.log('📡 ChatWindow dispatching typingStatus event');
                 window.dispatchEvent(new CustomEvent('typingStatus', {
-                    detail: { conversationId: conversation.id, isTyping: typingDTO.typing, userId: typingDTO.userId }
+                    detail: { conversationId: conversation.id, isTyping: isTyping, userId: typingDTO.userId }
                 }));
+            } else {
+                console.log('⏭️ Skipping typing from self (currentUser)');
             }
         };
 
@@ -247,11 +261,18 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
     // Send typing indicator
     const sendTypingIndicator = useCallback((isTyping) => {
         if (!conversation?.id) return;
-        console.log('sendTypingIndicator called with isTyping:', isTyping, 'conversationId:', conversation.id);
+        console.log('⌨️ sendTypingIndicator called:', {
+            isTyping,
+            conversationId: conversation.id,
+            wsConnected: webSocketService?.stompClient?.connected
+        });
+
         webSocketService.sendTypingStatus({
             conversationId: conversation.id,
             isTyping
         });
+
+        console.log('✅ Typing status sent to backend');
     }, [conversation?.id]);
 
     // Handle input change

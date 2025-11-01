@@ -397,11 +397,12 @@ class WebSocketChatService {
                 destination: '/app/typing',
                 body: JSON.stringify({
                     conversationId,
-                    isTyping
+                    typing: isTyping,   // ← Send both fields as workaround
+                    isTyping: isTyping  // ← In case backend expects one or the other
                     // Không cần userId - backend sẽ lấy từ SecurityContext
                 })
             });
-            console.log('Publish successful');
+            console.log('Publish successful - sent both "typing" and "isTyping" fields:', isTyping);
         } catch (error) {
             console.error('Publish failed:', error);
         }
