@@ -19,6 +19,9 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
     const inputRef = useRef(null);
     const navigate = useNavigate();
 
+    // Track if user is currently typing to avoid unnecessary cleanup messages
+    const isTypingRef = useRef(false);
+
     // Get display info
     const getDisplayInfo = useCallback(() => {
         if (!conversation) return { name: '', avatar: '', status: '' };
@@ -250,17 +253,55 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
         );
 
         return () => {
-            // Cleanup: Unsubscribe ONLY ChatWindow's callbacks (not SideChat's!)
+            // Cleanup: Send typing stopped ONLY if user was typing
+            if (isTypingRef.current) {
+                console.log('🧹 ChatWindow cleanup: user was typing, sending stopped');
+                webSocketService.sendTypingStatus({
+                    conversationId: conversation.id,
+                    isTyping: false
+                });
+                isTypingRef.current = false;
+            }
+
+            // Unsubscribe ONLY ChatWindow's callbacks (not SideChat's!)
             console.log('🧹 ChatWindow cleanup: unsubscribing callbacks for', conversation.id);
             webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, messageCallback);
             webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, typingCallback);
             webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, updateCallback);
         };
-    }, [conversation?.id, currentUserId, minimized, onNewMessage, scrollToBottom]);
+    }, [conversation?.id, currentUserId]);
+
+    // Handle page reload/close - cleanup typing indicator
+    useEffect(() => {
+        if (!conversation?.id) return;
+
+        const handleBeforeUnload = () => {
+            // Only send if user was actually typing
+            if (isTypingRef.current) {
+                console.log('⚠️ Page unloading, user was typing, sending stopped');
+                if (webSocketService?.stompClient?.connected) {
+                    webSocketService.sendTypingStatus({
+                        conversationId: conversation.id,
+                        isTyping: false
+                    });
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+        };
+    }, [conversation?.id]);
 
     // Send typing indicator
     const sendTypingIndicator = useCallback((isTyping) => {
         if (!conversation?.id) return;
+
+        // Track typing state
+        isTypingRef.current = isTyping;
+
         console.log('⌨️ sendTypingIndicator called:', {
             isTyping,
             conversationId: conversation.id,

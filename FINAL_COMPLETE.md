@@ -27,6 +27,11 @@
 - Ensure deserialization
 - **Status:** WORKAROUND APPLIED ✅
 
+### 6. ✅ Typing Indicator - Cleanup on Reload
+- Send isTyping: false when unmount
+- Handle beforeunload event
+- **Status:** FIXED ✅
+
 ---
 
 ## 📝 FILES ĐÃ SỬA:
@@ -73,6 +78,12 @@
 - [ ] User B thấy typing indicator trong ChatWindow ✅
 - [ ] User A gửi/xóa
 - [ ] Typing indicator biến mất ✅
+
+### ✅ Test 5: Typing Cleanup on Reload
+- [ ] User A gõ tin nhắn
+- [ ] User B thấy typing indicator ✅
+- [ ] User A reload trang (F5)
+- [ ] User B: Typing indicator biến mất ngay ✅
 
 ---
 
@@ -200,7 +211,7 @@ Nếu typing indicator vẫn không hoạt động → **Chỉ cần fix backend
 ---
 
 **Date:** November 1, 2025  
-**Total Fixes:** 5  
+**Total Fixes:** 6  
 **Status:** 🎉 COMPLETE - READY TO TEST! 🎉
 
 ---
