@@ -5,5 +5,7 @@ public enum MessageType {
     IMAGE,
     FILE,
     LOCATION,
-    SYSTEM
+    SYSTEM,
+    STICKER,
+    GIF
 }

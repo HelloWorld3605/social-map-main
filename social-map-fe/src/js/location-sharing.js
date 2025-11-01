@@ -417,7 +417,7 @@ class LocationSharing {
             console.log('shareLocation: using ChatService');
             window.ChatService.sendMessage(friendId, {
                 content: 'LOCATION:' + JSON.stringify(draggedItem),
-                messageType: 'TEXT'
+                messageType: 'LOCATION'  // ✅ Changed from TEXT to LOCATION
             }).then((response) => {
                 console.log('shareLocation: success', response);
                 this.showMessage(`Đã chia sẻ vị trí "${draggedItem.name}"`, 'success');

@@ -246,6 +246,11 @@
     color: #666;
 }
 
+.message-time {
+    color: #65676b;
+    font-size: 11px;
+}
+
 /* Typing Indicator Inline (for friend list) */
 .typing-indicator-text {
     display: inline-flex;
@@ -284,16 +289,74 @@
 
 /* Unread Count Badge */
 .unread-count {
-    background: #EC5E95;
+    background: #e41e3f;
     color: white;
     border-radius: 12px;
     padding: 2px 8px;
-    font-size: 12px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
     min-width: 20px;
     text-align: center;
     margin-left: auto;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
+
+/* Facebook-Style Unread Indicators */
+.friend-item.unread {
+    background-color: #f0f8ff;
+    position: relative;
+}
+
+.friend-item.unread:hover {
+    background-color: #e6f3ff;
+}
+
+.friend-item.unread .friend-name {
+    font-weight: 700;
+    color: #050505;
+}
+
+.friend-item.unread .friend-status {
+    font-weight: 600;
+    color: #050505;
+}
+
+/* Blue Dot Indicator */
+.unread-dot {
+    width: 12px;
+    height: 12px;
+    background: #0084ff;
+    border-radius: 50%;
+    position: absolute;
+    left: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    box-shadow: 0 1px 3px rgba(0, 132, 255, 0.4);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: translateY(-50%) scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: translateY(-50%) scale(1.1);
+    }
+}
+
+/* Adjust friend-item padding when has blue dot */
+.friend-item.unread.has-dot {
+    padding-left: 24px;
+}
+
+/* Badge for 99+ messages */
+.unread-count.large {
+    font-size: 10px;
+    padding: 2px 6px;
+}
+
 
 /* Chat Loading State */
 .chat-loading,

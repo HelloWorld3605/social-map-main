@@ -20,7 +20,18 @@
     height: 400px;
     pointer-events: auto;
     transform: translateY(100%);
-    transition: transform 0.3s ease;
+    transition: transform 0.3s ease, box-shadow 0.2s ease;
+}
+
+/* Active window (Facebook-style) - stronger shadow */
+.chat-window.active {
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+    z-index: 10;
+}
+
+/* Inactive windows - lighter shadow only, keep background bright */
+.chat-window:not(.active) {
+    box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.08);
 }
 
 .chat-window.open {
@@ -28,7 +39,7 @@
 }
 
 .chat-window.minimized {
-    transform: translateY(calc(100% - 50px));
+    transform: translateY(calc(100% - 58px));
 }
 
 .chat-window-header {
@@ -40,10 +51,27 @@
     border-radius: 8px 8px 0 0;
     cursor: pointer;
     user-select: none;
+    transition: background 0.2s ease, opacity 0.2s ease;
+}
+
+/* Inactive window header - slightly transparent */
+.chat-window:not(.active) .chat-window-header {
+    opacity: 0.75;
+}
+
+/* Brighter header for active window */
+.chat-window.active .chat-window-header {
+    background: #f06ba3;
+    opacity: 1;
 }
 
 .chat-window-header.unread {
     background: #d14d85;
+}
+
+.chat-window.active .chat-window-header.unread {
+    background: #e05893;
+    opacity: 1;
 }
 
 .chat-window-avatar {
@@ -58,6 +86,15 @@
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
     cursor: pointer;
     transition: opacity 0.2s;
+}
+
+/* Dim avatar when inactive */
+.chat-window:not(.active) .chat-window-avatar {
+    opacity: 0.6;
+}
+
+.chat-window.active .chat-window-avatar {
+    opacity: 1;
 }
 
 .chat-window-avatar:hover {
@@ -76,16 +113,38 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    transition: opacity 0.2s;
+}
+
+/* Slightly dim name when inactive */
+.chat-window:not(.active) .chat-window-name {
+    opacity: 0.85;
 }
 
 .chat-window-status {
     font-size: 11px;
     opacity: 0.9;
+    transition: opacity 0.2s;
+}
+
+/* Dim status when inactive */
+.chat-window:not(.active) .chat-window-status {
+    opacity: 0.7;
 }
 
 .chat-window-controls {
     display: flex;
     gap: 5px;
+    transition: opacity 0.2s;
+}
+
+/* Dim controls when inactive */
+.chat-window:not(.active) .chat-window-controls {
+    opacity: 0.5;
+}
+
+.chat-window.active .chat-window-controls {
+    opacity: 1;
 }
 
 .chat-window-minimize,
@@ -164,6 +223,8 @@
     gap: 8px;
     align-items: flex-end;
     max-width: 85%;
+    cursor: default;
+    position: relative;
 }
 
 .chat-window-message.sent {
@@ -184,6 +245,16 @@
     background: #f0f2f5;
     border: 2px solid #fff;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    transition: opacity 0.2s;
+}
+
+/* Dim message avatars when inactive */
+.chat-window:not(.active) .chat-window-message-avatar {
+    opacity: 0.5;
+}
+
+.chat-window.active .chat-window-message-avatar {
+    opacity: 1;
 }
 
 .chat-window-message-avatar-spacer {
@@ -218,6 +289,16 @@
     word-break: break-word;
     white-space: pre-wrap;
     overflow-wrap: break-word;
+    transition: opacity 0.2s;
+}
+
+/* Slightly dim messages when inactive */
+.chat-window:not(.active) .chat-window-message-text {
+    opacity: 0.75;
+}
+
+.chat-window.active .chat-window-message-text {
+    opacity: 1;
 }
 
 .chat-window-message.sent .chat-window-message-text {
@@ -234,10 +315,55 @@
     font-size: 10px;
     color: #65676b;
     margin: 0 4px;
+    transition: opacity 0.2s;
+}
+
+/* Dim timestamps when inactive */
+.chat-window:not(.active) .chat-window-message-time {
+    opacity: 0.5;
 }
 
 .edited-indicator {
     font-style: italic;
+}
+
+/* Timestamp Separator (between message groups) */
+.message-timestamp-separator {
+    text-align: center;
+    font-size: 11px;
+    color: #65676b;
+    margin: 12px 0 8px;
+    padding: 4px 0;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.message-timestamp-separator::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #e4e6ea 20%, #e4e6ea 80%, transparent);
+    z-index: 0;
+}
+
+.message-timestamp-separator span,
+.message-timestamp-separator::after {
+    background: #fff;
+    padding: 0 12px;
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+}
+
+/* Tooltip on message hover */
+
+.chat-window-message:hover .chat-window-message-text {
+    opacity: 0.95;
 }
 
 /* Typing Indicator */
@@ -295,6 +421,16 @@
     border-top: 1px solid #e4e6ea;
     gap: 8px;
     background: #fff;
+    transition: opacity 0.2s;
+}
+
+/* Dim input area when inactive */
+.chat-window:not(.active) .chat-window-input-container {
+    opacity: 0.6;
+}
+
+.chat-window.active .chat-window-input-container {
+    opacity: 1;
 }
 
 .chat-window-input {
@@ -305,7 +441,7 @@
     font-size: 13px;
     outline: none;
     background: #f0f2f5;
-    transition: background 0.2s;
+    transition: background 0.2s, border-color 0.2s;
 }
 
 .chat-window-input:focus {

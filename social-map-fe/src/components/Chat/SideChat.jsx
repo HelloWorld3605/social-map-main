@@ -9,6 +9,7 @@ export default function SideChat() {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeFriend, setActiveFriend] = useState(null);
     const [openChatWindows, setOpenChatWindows] = useState(new Map());
+    const [activeChatWindow, setActiveChatWindow] = useState(null); // Track active window (Facebook-style)
     const [conversations, setConversations] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -16,6 +17,7 @@ export default function SideChat() {
     const [currentUserId, setCurrentUserId] = useState(null);
     const wsConnectedRef = useRef(false);
     const conversationIdsRef = useRef(new Set()); // Track conversation IDs to detect new conversations
+    const activeChatWindowRef = useRef(null); // Track active window with ref for immediate access
 
     // Load conversations from backend
     const loadConversations = useCallback(async () => {
@@ -58,12 +60,15 @@ export default function SideChat() {
                     // Subscribe to user queue for unread counts
                     webSocketService.subscribeToUserQueue(
                         (unreadDTO) => {
+                            console.log('📊 Received unread count update:', unreadDTO);
                             // Update unread count for conversation
-                            setConversations(prev => prev.map(conv =>
-                                conv.id === unreadDTO.conversationId
-                                    ? { ...conv, unreadCount: unreadDTO.count }
-                                    : conv
-                            ));
+                            setConversations(prev => prev.map(conv => {
+                                if (conv.id === unreadDTO.conversationId) {
+                                    console.log(`📊 Updating unread count for conv ${conv.id}: ${conv.unreadCount} → ${unreadDTO.count}`);
+                                    return { ...conv, unreadCount: unreadDTO.count };
+                                }
+                                return conv;
+                            }));
                         },
                         (error) => {
                             console.error('WebSocket error:', error);
@@ -73,23 +78,26 @@ export default function SideChat() {
                     // Subscribe to conversation updates
                     webSocketService.subscribeToConversationUpdates(
                         (updateDTO) => {
+                            console.log('🔄 Received conversation update:', updateDTO);
                             // Update conversation with new last message and unread count
                             let lastMessageContent = updateDTO.lastMessageContent;
                             if (updateDTO.lastMessageContent?.startsWith('LOCATION:')) {
                                 lastMessageContent = 'Vị trí';
                             }
 
-                            setConversations(prev => prev.map(conv =>
-                                conv.id === updateDTO.conversationId
-                                    ? {
+                            setConversations(prev => prev.map(conv => {
+                                if (conv.id === updateDTO.conversationId) {
+                                    console.log(`🔄 Updating conversation ${conv.id} with unread count: ${updateDTO.unreadCount}`);
+                                    return {
                                         ...conv,
                                         lastMessageContent: lastMessageContent,
                                         lastMessageSenderId: updateDTO.lastMessageSenderId,
                                         lastMessageAt: updateDTO.lastMessageAt,
                                         unreadCount: updateDTO.unreadCount
-                                    }
-                                    : conv
-                            ));
+                                    };
+                                }
+                                return conv;
+                            }));
                         },
                         (error) => {
                             console.error('Conversation update error:', error);
@@ -120,6 +128,14 @@ export default function SideChat() {
         console.log('🔄 Loading conversations on mount');
         loadConversations();
     }, [loadConversations]);
+
+    // ✅ Reload conversations when SideChat opens to get latest data
+    useEffect(() => {
+        if (isChatOpen) {
+            console.log('📂 SideChat opened - reloading conversations to get latest messages');
+            loadConversations();
+        }
+    }, [isChatOpen, loadConversations]);
 
     // Subscribe to all conversations for both messages and typing
     // Only re-run when isConnected changes, NOT when conversations state updates
@@ -192,11 +208,21 @@ export default function SideChat() {
                 setConversations(prev => prev.map(c => {
                     if (c.id === conv.id) {
                         console.log(`✏️ Updating last message for conv ${conv.id}:`, lastMessageContent);
+
+                        // Increment unread count if message is from someone else
+                        const isFromOthers = message.senderId !== currentUserId;
+                        const newUnreadCount = isFromOthers ? (c.unreadCount || 0) + 1 : c.unreadCount;
+
+                        if (isFromOthers) {
+                            console.log(`📬 Incrementing unread count for conv ${conv.id}: ${c.unreadCount} → ${newUnreadCount}`);
+                        }
+
                         return {
                             ...c,
                             lastMessageContent: lastMessageContent,
                             lastMessageSenderId: message.senderId,
-                            lastMessageAt: message.timestamp || new Date().toISOString(),
+                            lastMessageAt: message.createdAt || message.timestamp || new Date().toISOString(),
+                            unreadCount: newUnreadCount
                         };
                     }
                     return c;
@@ -214,21 +240,31 @@ export default function SideChat() {
                 setConversations(prev => prev.map(c => {
                     if (c.id === conv.id) {
                         let newTypingUsers = [...(c.typingUsers || [])];
+                        let hasChanged = false;
 
                         if (isTyping) {
                             // User started typing
                             if (!newTypingUsers.includes(typingDTO.userId)) {
                                 newTypingUsers.push(typingDTO.userId);
+                                hasChanged = true;
                                 console.log(`✍️ User ${typingDTO.userId} started typing in conv ${conv.id}`);
                             }
                         } else {
                             // User stopped typing
+                            const beforeLength = newTypingUsers.length;
                             newTypingUsers = newTypingUsers.filter(id => id !== typingDTO.userId);
-                            console.log(`⏹️ User ${typingDTO.userId} stopped typing in conv ${conv.id}`);
+                            hasChanged = beforeLength !== newTypingUsers.length;
+                            if (hasChanged) {
+                                console.log(`⏹️ User ${typingDTO.userId} stopped typing in conv ${conv.id}`);
+                            }
                         }
 
-                        console.log(`📝 Updated typingUsers for conv ${conv.id}:`, newTypingUsers);
-                        return { ...c, typingUsers: newTypingUsers };
+                        // Only update if actually changed to prevent unnecessary re-renders
+                        if (hasChanged) {
+                            console.log(`📝 Updated typingUsers for conv ${conv.id}:`, newTypingUsers);
+                            return { ...c, typingUsers: newTypingUsers };
+                        }
+                        return c; // No change, return same reference
                     }
                     return c;
                 }));
@@ -338,17 +374,12 @@ export default function SideChat() {
         setActiveFriend(conversation.id);
         setIsChatOpen(false);
 
-        // Mark as read
-        try {
-            await ChatService.markAsRead(conversation.id);
-            setConversations(prev => prev.map(conv =>
-                conv.id === conversation.id ? { ...conv, unreadCount: 0 } : conv
-            ));
-        } catch (error) {
-            console.error('Failed to mark as read:', error);
-        }
+        // Set as active chat window (Facebook-style) - both state and ref
+        console.log('🎯 Setting active chat window (handleFriendClick):', conversation.id);
+        setActiveChatWindow(conversation.id);
+        activeChatWindowRef.current = conversation.id; // Immediate update via ref
 
-        // Open chat window
+        // Open chat window (mark as read will be handled by ChatWindow when it becomes active)
         setOpenChatWindows(prev => {
             const newMap = new Map(prev);
             if (!newMap.has(conversation.id)) {
@@ -374,10 +405,44 @@ export default function SideChat() {
             const newMap = new Map(prev);
             const chatWindow = newMap.get(conversationId);
             if (chatWindow) {
-                newMap.set(conversationId, { ...chatWindow, minimized: !chatWindow.minimized });
+                const willBeMinimized = !chatWindow.minimized;
+
+                // ✅ IMPORTANT: ANY minimized window should NOT be active
+                if (willBeMinimized) {
+                    // Minimizing - always clear active if this window is active
+                    if (activeChatWindow === conversationId) {
+                        console.log('🔽 Minimizing window, clearing active state:', conversationId);
+                        setActiveChatWindow(null);
+                        activeChatWindowRef.current = null;
+                    } else {
+                        console.log('🔽 Minimizing inactive window:', conversationId);
+                    }
+                } else {
+                    // Un-minimizing - set as active
+                    console.log('🔼 Un-minimizing window, setting as active:', conversationId);
+                    setActiveChatWindow(conversationId);
+                    activeChatWindowRef.current = conversationId;
+                }
+
+                newMap.set(conversationId, { ...chatWindow, minimized: willBeMinimized });
             }
             return newMap;
         });
+    }, [activeChatWindow]);
+
+    // Handle chat window click to set as active (Facebook-style)
+    const handleChatWindowClick = useCallback((conversationId) => {
+        console.log('🎯 Setting active chat window (handleChatWindowClick):', conversationId);
+        setActiveChatWindow(conversationId);
+        activeChatWindowRef.current = conversationId; // Immediate update via ref
+    }, []);
+
+    // Handle mark as read callback from ChatWindow
+    const handleMarkAsRead = useCallback((conversationId) => {
+        console.log('📖 Mark as read callback for:', conversationId);
+        setConversations(prev => prev.map(conv =>
+            conv.id === conversationId ? { ...conv, unreadCount: 0 } : conv
+        ));
     }, []);
 
     // Handle new messages from WebSocket
@@ -392,7 +457,7 @@ export default function SideChat() {
                 return {
                     ...conv,
                     lastMessageContent: lastMessageContent,
-                    lastMessageTime: message.timestamp,
+                    lastMessageTime: message.createdAt || message.timestamp,
                     lastMessageSender: message.senderName,
                 };
             }
@@ -458,7 +523,7 @@ export default function SideChat() {
         }
     };
 
-    // Format last message display
+    // Format last message display with truncation
     const getLastMessageDisplay = (conv) => {
         if (conv.typingUsers && conv.typingUsers.length > 0) {
             return (
@@ -473,10 +538,53 @@ export default function SideChat() {
 
         if (conv.lastMessageContent) {
             const prefix = conv.lastMessageSenderId === currentUserId ? 'Bạn: ' : '';
-            return `${prefix}${conv.lastMessageContent}`;
+            const maxLength = 30; // Maximum characters to display
+
+            let displayContent = conv.lastMessageContent;
+            if (displayContent.length > maxLength) {
+                displayContent = displayContent.substring(0, maxLength) + '...';
+            }
+
+            return `${prefix}${displayContent}`;
         }
 
         return 'Bắt đầu trò chuyện';
+    };
+
+    // Format time ago like Facebook (e.g., "6 giờ", "2 phút", "vừa xong")
+    const formatTimeAgo = (timestamp) => {
+        if (!timestamp) return '';
+
+        const now = new Date();
+        const messageTime = new Date(timestamp);
+        const diffInSeconds = Math.floor((now - messageTime) / 1000);
+
+        if (diffInSeconds < 60) {
+            return 'vừa xong';
+        }
+
+        const diffInMinutes = Math.floor(diffInSeconds / 60);
+        if (diffInMinutes < 60) {
+            return `${diffInMinutes} phút`;
+        }
+
+        const diffInHours = Math.floor(diffInMinutes / 60);
+        if (diffInHours < 24) {
+            return `${diffInHours} giờ`;
+        }
+
+        const diffInDays = Math.floor(diffInHours / 24);
+        if (diffInDays < 7) {
+            return `${diffInDays} ngày`;
+        }
+
+        const diffInWeeks = Math.floor(diffInDays / 7);
+        if (diffInWeeks < 4) {
+            return `${diffInWeeks} tuần`;
+        }
+
+        // For messages older than 4 weeks, show date
+        return messageTime.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
     };
 
     return (
@@ -526,25 +634,36 @@ export default function SideChat() {
                     ) : (
                         filteredConversations.map((conv) => {
                             const display = getConversationDisplay(conv);
+                            const hasUnread = conv.unreadCount > 0;
+                            const showBlueDot = hasUnread && conv.unreadCount <= 5; // Show dot for 1-5 unread
+
                             return (
                                 <div
                                     key={conv.id}
-                                    className={`friend-item ${activeFriend === conv.id ? 'active' : ''}`}
+                                    className={`friend-item ${activeFriend === conv.id ? 'active' : ''} ${hasUnread ? 'unread' : ''} ${showBlueDot ? 'has-dot' : ''}`}
                                     onClick={() => handleFriendClick(conv)}
                                     role="button"
                                     tabIndex={0}
                                     onKeyDown={(e) => e.key === 'Enter' && handleFriendClick(conv)}
                                     data-friend={conv.id}
                                 >
+                                    {/* Blue Dot Indicator for new messages */}
+                                    {showBlueDot && <div className="unread-dot"></div>}
+
                                     <img src={display.avatar} alt="Avatar" className="friend-avatar" />
                                     <div className="friend-info">
                                         <div className="friend-name">{display.name}</div>
                                         <div className="friend-status">
                                             {getLastMessageDisplay(conv)}
+                                            {conv.lastMessageAt && conv.lastMessageContent && (
+                                                <span className="message-time"> · {formatTimeAgo(conv.lastMessageAt)}</span>
+                                            )}
                                         </div>
                                     </div>
-                                    {conv.unreadCount > 0 && (
-                                        <div className="unread-count">{conv.unreadCount}</div>
+                                    {hasUnread && (
+                                        <div className={`unread-count ${conv.unreadCount > 99 ? 'large' : ''}`}>
+                                            {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
+                                        </div>
                                     )}
                                 </div>
                             );
@@ -564,16 +683,31 @@ export default function SideChat() {
             <div className="chat-windows-container" id="chatWindowsContainer">
                 {Array.from(openChatWindows.entries()).map(([conversationId, chatData]) => {
                     const conversation = conversations.find(c => c.id === conversationId) || chatData;
+
+                    // ✅ IMPORTANT: Minimized windows should NEVER be active
+                    const isActive = chatData.minimized ? false : (activeChatWindow === conversationId);
+
+                    // DEBUG: Log render to verify isActive state
+                    console.log('🎨 Rendering ChatWindow:', {
+                        conversationId: conversationId.substring(0, 8) + '...',
+                        isActive,
+                        activeChatWindow: activeChatWindow ? activeChatWindow.substring(0, 8) + '...' : 'null',
+                        minimized: chatData.minimized
+                    });
+
                     return (
                         <ChatWindow
                             key={conversationId}
                             conversation={conversation}
                             minimized={chatData.minimized}
+                            isActive={isActive}
                             currentUserId={currentUserId}
                             unreadCount={conversation.unreadCount || 0}
                             onClose={() => handleCloseChatWindow(conversationId)}
                             onMinimize={() => handleMinimizeChatWindow(conversationId)}
                             onNewMessage={(message) => handleNewMessage(conversationId, message)}
+                            onMarkAsRead={handleMarkAsRead}
+                            onWindowClick={() => handleChatWindowClick(conversationId)}
                         />
                     );
                 })}

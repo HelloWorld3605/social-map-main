@@ -3,7 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { ChatService, webSocketService } from '../../services/ChatService';
 import './ChatWindows.css';
 
-export default function ChatWindow({ conversation, minimized, currentUserId, onClose, onMinimize, onNewMessage, unreadCount = 0, onMarkAsRead }) {
+export default function ChatWindow({
+    conversation,
+    minimized,
+    isActive,
+    currentUserId,
+    onClose,
+    onMinimize,
+    onNewMessage,
+    onMarkAsRead,
+    onWindowClick,
+    unreadCount = 0
+}) {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -143,15 +154,46 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
         }
     }, [conversation?.id, loadMessages]);
 
-    // Mark as read when conversation opens or unminimizes
+    // Track previous isActive state to detect actual changes
+    // ✅ IMPORTANT: Start with false so first active=true will be detected as transition
+    const prevIsActiveRef = useRef(false);
+
+    // Mark as read ONLY when isActive changes to true (not just when window opens)
     useEffect(() => {
-        if (conversation?.id && !minimized) {
+        const wasActive = prevIsActiveRef.current;
+        const isNowActive = isActive;
+
+        console.log('🔍 Mark as read check:', {
+            conversationId: conversation?.id,
+            minimized,
+            wasActive,
+            isNowActive,
+            isActiveChanged: wasActive !== isNowActive,
+            shouldMark: conversation?.id && !minimized && isNowActive && !wasActive
+        });
+
+        // Only mark as read when:
+        // 1. Window becomes active (wasActive = false → isNowActive = true)
+        // 2. AND window is not minimized
+        if (conversation?.id && !minimized && isNowActive && !wasActive) {
+            console.log('✅ Marking as read (window became active):', conversation.id);
             ChatService.markAsRead(conversation.id).catch(console.error);
             if (onMarkAsRead) {
                 onMarkAsRead(conversation.id);
             }
+        } else {
+            console.log('⏭️ Skipping mark as read:', {
+                hasId: !!conversation?.id,
+                minimized,
+                wasActive,
+                isNowActive,
+                reason: !isNowActive ? 'not active' : wasActive ? 'already was active' : 'minimized'
+            });
         }
-    }, [conversation?.id, minimized, onMarkAsRead]);
+
+        // Update previous state
+        prevIsActiveRef.current = isNowActive;
+    }, [conversation?.id, minimized, isActive, onMarkAsRead]);
 
     // Subscribe to WebSocket updates
     useEffect(() => {
@@ -185,9 +227,30 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
                 onNewMessage(processedMessage);
             }
 
-            // Mark as read if window is open
-            if (!minimized) {
+            // Auto mark as read if window is ACTIVE, not minimized, and message is from others
+            console.log('🔍 Auto mark check:', {
+                conversationId: conversation.id,
+                isActive,
+                minimized,
+                isFromOthers: message.senderId !== currentUserId,
+                senderId: message.senderId,
+                currentUserId,
+                shouldAutoMark: isActive && !minimized && message.senderId !== currentUserId
+            });
+
+            if (isActive && !minimized && message.senderId !== currentUserId) {
+                console.log('✅ Auto-marking as read (window ACTIVE, not minimized, message from others)');
+                console.log('⚠️ VERIFY: Is this window actually active? Check visual state!');
+                // Send via WebSocket for real-time
                 webSocketService.sendMarkAsRead({ conversationId: conversation.id });
+                // Also call REST API as backup
+                ChatService.markAsRead(conversation.id).catch(console.error);
+                // Update parent state
+                if (onMarkAsRead) {
+                    onMarkAsRead(conversation.id);
+                }
+            } else {
+                console.log('⏭️ Skipping auto mark as read - window not active or message from self');
             }
         };
 
@@ -269,7 +332,7 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, typingCallback);
             webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, updateCallback);
         };
-    }, [conversation?.id, currentUserId]);
+    }, [conversation?.id, currentUserId, isActive, minimized, onMarkAsRead]); // ✅ FIXED: Add deps to prevent stale closure
 
     // Handle page reload/close - cleanup typing indicator
     useEffect(() => {
@@ -375,7 +438,7 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
         });
     };
 
-    // Format message time
+    // Format message time (short version)
     const formatTime = (timestamp) => {
         if (!timestamp) return '';
         const date = new Date(timestamp);
@@ -389,11 +452,38 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
         }
     };
 
+    // Format detailed time for tooltip
+    const formatDetailedTime = (timestamp) => {
+        if (!timestamp) return '';
+        const date = new Date(timestamp);
+        return date.toLocaleString('vi-VN', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    };
+
+    // Check if should show timestamp separator between messages
+    const shouldShowTimestamp = (currentMsg, prevMsg) => {
+        if (!prevMsg) return true; // First message
+
+        const currentTime = new Date(currentMsg.createdAt || currentMsg.timestamp);
+        const prevTime = new Date(prevMsg.createdAt || prevMsg.timestamp);
+
+        // Show timestamp if messages are more than 5 minutes apart
+        const diffInMinutes = (currentTime - prevTime) / (1000 * 60);
+        return diffInMinutes > 5;
+    };
+
     return (
         <div
-            className={`chat-window ${minimized ? 'minimized' : 'open'}`}
+            className={`chat-window ${minimized ? 'minimized' : 'open'} ${isActive ? 'active' : ''}`}
             data-conversation-id={conversation?.id}
             data-friend-id={conversation?.id}
+            onClick={onWindowClick}
         >
             <div className={`chat-window-header ${unreadCount > 0 ? 'unread' : ''}`} onClick={onMinimize}>
                 <img
@@ -458,54 +548,66 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
                 {messages.map((msg, index) => {
                     const isSent = msg.senderId === currentUserId;
                     const showAvatar = !isSent && (index === 0 || messages[index - 1].senderId !== msg.senderId);
+                    const showTimestamp = shouldShowTimestamp(msg, messages[index - 1]);
 
                     return (
-                        <div
-                            key={msg.id || index}
-                            className={`chat-window-message ${isSent ? 'sent' : 'received'}`}
-                        >
-                            {showAvatar && !isSent && (
-                                <img
-                                    src={msg.senderAvatar || displayInfo.avatar}
-                                    alt="Avatar"
-                                    className="chat-window-message-avatar"
-                                />
+                        <React.Fragment key={msg.id || index}>
+                            {/* Timestamp Separator */}
+                            {showTimestamp && (
+                                <div className="message-timestamp-separator">
+                                    <span>{formatTime(msg.createdAt || msg.timestamp)}</span>
+                                </div>
                             )}
-                            {!showAvatar && !isSent && <div className="chat-window-message-avatar-spacer" />}
 
-                            <div className="chat-window-message-content">
-                                {!isSent && showAvatar && (
-                                    <div className="chat-window-message-sender">{msg.senderName}</div>
-                                )}
-                                {msg.isLocation ? (
-                                    <div className="location-message-card">
-                                        <div className="location-card-image">
-                                            <img src={msg.content.image} alt={msg.content.name} />
-                                            <div className="location-card-overlay">📍</div>
-                                        </div>
-                                        <div className="location-card-content">
-                                            <div className="location-card-title">{msg.content.name}</div>
-                                            <div className="location-card-description">{msg.content.description}</div>
-                                            <button
-                                                className="location-card-button"
-                                                onClick={() => window.focusLocation?.(msg.content.coordinates[0], msg.content.coordinates[1], msg.content.name)}
-                                            >
-                                                🗺️ Xem trên bản đồ
-                                            </button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div
-                                        className="chat-window-message-text"
-                                        dangerouslySetInnerHTML={{ __html: linkify(msg.content) }}
+                            {/* Message */}
+                            <div
+                                className={`chat-window-message ${isSent ? 'sent' : 'received'}`}
+                                title={formatDetailedTime(msg.createdAt || msg.timestamp)}
+                            >
+                                {showAvatar && !isSent && (
+                                    <img
+                                        src={msg.senderAvatar || displayInfo.avatar}
+                                        alt="Avatar"
+                                        className="chat-window-message-avatar"
                                     />
                                 )}
-                                <div className="chat-window-message-time">
-                                    {formatTime(msg.timestamp)}
-                                    {msg.edited && <span className="edited-indicator"> (đã chỉnh sửa)</span>}
+                                {!showAvatar && !isSent && <div className="chat-window-message-avatar-spacer" />}
+
+                                <div className="chat-window-message-content">
+                                    {!isSent && showAvatar && (
+                                        <div className="chat-window-message-sender">{msg.senderName}</div>
+                                    )}
+                                    {msg.isLocation ? (
+                                        <div className="location-message-card">
+                                            <div className="location-card-image">
+                                                <img src={msg.content.image} alt={msg.content.name} />
+                                                <div className="location-card-overlay">📍</div>
+                                            </div>
+                                            <div className="location-card-content">
+                                                <div className="location-card-title">{msg.content.name}</div>
+                                                <div className="location-card-description">{msg.content.description}</div>
+                                                <button
+                                                    className="location-card-button"
+                                                    onClick={() => window.focusLocation?.(msg.content.coordinates[0], msg.content.coordinates[1], msg.content.name)}
+                                                >
+                                                    🗺️ Xem trên bản đồ
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className="chat-window-message-text"
+                                            dangerouslySetInnerHTML={{ __html: linkify(msg.content) }}
+                                        />
+                                    )}
+                                    {msg.edited && (
+                                        <div className="chat-window-message-time">
+                                            <span className="edited-indicator">(đã chỉnh sửa)</span>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                        </div>
+                        </React.Fragment>
                     );
                 })}
 
