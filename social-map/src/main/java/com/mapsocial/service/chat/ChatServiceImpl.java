@@ -1,5 +1,7 @@
 package com.mapsocial.service.chat;
 
+import com.mapsocial.dto.ReadReceiptDTO;
+import com.mapsocial.dto.UnreadCountDTO;
 import com.mapsocial.dto.request.CreateConversationRequest;
 import com.mapsocial.dto.request.SendMessageRequest;
 import com.mapsocial.dto.response.ConversationDTO;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,7 @@ public class ChatServiceImpl implements ChatService {
     private final ConversationMemberRepository conversationMemberRepository;
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     private static final String CONVERSATION_NOT_FOUND = "Không tìm thấy cuộc trò chuyện";
     private static final String USER_NOT_IN_CONVERSATION = "Không tìm thấy người dùng trong cuộc trò chuyện";
@@ -381,6 +385,7 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public void markMessagesAsRead(String conversationId, String userId) {
+        // 1. Update member lastReadAt
         ConversationMember member = conversationMemberRepository
                 .findByConversationIdAndUserId(conversationId, userId)
                 .orElseThrow(() -> new ChatException(USER_NOT_IN_CONVERSATION));
@@ -388,6 +393,60 @@ public class ChatServiceImpl implements ChatService {
         member.setLastReadAt(LocalDateTime.now());
         member.setLastActiveAt(LocalDateTime.now());
         conversationMemberRepository.save(member);
+
+        // 2. Get user info for read receipt
+        User currentUser = userRepository.findById(UUID.fromString(userId)).orElse(null);
+        String userName = UNKNOWN_USER;
+        String userAvatar = null;
+        if (currentUser != null) {
+            userName = currentUser.getDisplayName() != null ? currentUser.getDisplayName() : currentUser.getEmail();
+            userAvatar = currentUser.getAvatarUrl();
+        }
+
+        // 3. Get last message in conversation to broadcast read receipt
+        Optional<Message> lastMessage = messageRepository
+                .findTop1ByConversationIdAndDeletedFalseOrderByCreatedAtDesc(conversationId);
+
+        ReadReceiptDTO receipt = null;
+        if (lastMessage.isPresent() && !lastMessage.get().getSenderId().equals(userId)) {
+            // Create read receipt
+            receipt = new ReadReceiptDTO(
+                    conversationId,
+                    lastMessage.get().getId(),
+                    userId,
+                    userName,
+                    userAvatar,
+                    LocalDateTime.now()
+            );
+
+            // Broadcast read receipt to message sender
+            messagingTemplate.convertAndSendToUser(
+                    lastMessage.get().getSenderId(),
+                    "/queue/read-receipt",
+                    receipt
+            );
+        }
+
+        // 4. Broadcast unread count = 0 to current user
+        UnreadCountDTO unreadDTO = new UnreadCountDTO(conversationId, 0);
+        messagingTemplate.convertAndSendToUser(userId, "/queue/unread", unreadDTO);
+
+        // 5. Broadcast to all members that conversation was updated (for last seen status)
+        if (receipt != null) {
+            List<ConversationMember> allMembers = conversationMemberRepository
+                    .findByConversationId(conversationId);
+
+            for (ConversationMember mem : allMembers) {
+                if (!mem.getUserId().equals(userId)) {
+                    // Notify other members that this user read the messages
+                    messagingTemplate.convertAndSendToUser(
+                            mem.getUserId(),
+                            "/queue/conversation-read",
+                            receipt
+                    );
+                }
+            }
+        }
     }
 
     @Override

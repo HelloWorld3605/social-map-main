@@ -6,6 +6,7 @@ import com.mapsocial.dto.ConversationUpdateDTO;
 import com.mapsocial.dto.TypingDTO;
 import com.mapsocial.dto.UnreadCountDTO;
 import com.mapsocial.dto.request.CreateConversationRequest;
+import com.mapsocial.dto.request.MarkAsReadRequest;
 import com.mapsocial.dto.request.SendMessageRequest;
 import com.mapsocial.dto.response.ConversationDTO;
 import com.mapsocial.dto.response.MessageDTO;
@@ -120,6 +121,29 @@ public class ChatController {
                 );
             }
             System.err.println("Error in sendMessage: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * WebSocket endpoint - Mark messages as read
+     */
+    @MessageMapping("/markAsRead")
+    public void handleMarkAsRead(@Payload MarkAsReadRequest request,
+                                 @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            if (userPrincipal == null || userPrincipal.getUser() == null) {
+                System.err.println("No authenticated user in markAsRead");
+                return;
+            }
+
+            String userId = userPrincipal.getUser().getId().toString();
+            System.out.println("📖 Mark as read: conversationId=" + request.getConversationId() + " userId=" + userId);
+
+            chatService.markMessagesAsRead(request.getConversationId(), userId);
+
+        } catch (Exception e) {
+            System.err.println("Error in markAsRead: " + e.getMessage());
             e.printStackTrace();
         }
     }
