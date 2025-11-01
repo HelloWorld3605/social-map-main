@@ -163,6 +163,7 @@ export default function SideChat() {
         console.log('🔄 Effect 2 triggered:', {
             isConnected,
             conversationsLength: conversations.length,
+            currentUserId,
             trackedIds: Array.from(conversationIdsRef.current)
         });
 
@@ -173,6 +174,11 @@ export default function SideChat() {
 
         if (conversations.length === 0) {
             console.log('⏸️ No conversations yet, waiting...');
+            return;
+        }
+
+        if (!currentUserId) {
+            console.log('⏸️ Waiting for currentUserId...');
             return;
         }
 
@@ -288,13 +294,37 @@ export default function SideChat() {
             subscribedCount++;
 
             console.log(`🔔 SideChat subscribed to conversation ${conv.id}`);
+
+            // ✅ IMPORTANT: Fetch current typing users after subscribing
+            // This ensures we see typing status from users who started typing BEFORE we subscribed
+            ChatService.getTypingUsers(conv.id)
+                .then(typingUserIds => {
+                    console.log(`📋 Fetched current typing users for conv ${conv.id}:`, typingUserIds);
+
+                    if (typingUserIds && typingUserIds.length > 0) {
+                        setConversations(prev => prev.map(c => {
+                            if (c.id === conv.id) {
+                                // Filter out duplicates and current user
+                                const uniqueTypingUsers = [...new Set([...(c.typingUsers || []), ...typingUserIds])]
+                                    .filter(userId => userId !== currentUserId);
+
+                                console.log(`✍️ Setting initial typing users for conv ${conv.id}:`, uniqueTypingUsers);
+                                return { ...c, typingUsers: uniqueTypingUsers };
+                            }
+                            return c;
+                        }));
+                    }
+                })
+                .catch(error => {
+                    console.error(`Failed to fetch typing users for conv ${conv.id}:`, error);
+                });
         });
 
         console.log(`📊 Subscribe summary: ${subscribedCount} new, ${skippedCount} skipped, ${conversationIdsRef.current.size} total tracked`);
 
         // NO cleanup function here - subscriptions persist across state updates
         // Cleanup only happens in the isConnected effect above
-    }, [conversations, isConnected]);
+    }, [conversations, isConnected, currentUserId]); // ✅ Add currentUserId to deps
 
     // Listen for openChatWindow event from Profile Page
     useEffect(() => {

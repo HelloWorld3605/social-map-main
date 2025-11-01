@@ -315,6 +315,40 @@ export default function ChatWindow({
             updateCallback
         );
 
+        // ✅ IMPORTANT: Fetch current typing users after subscribing
+        // This ensures we see typing status from users who started typing BEFORE we subscribed
+        const fetchTypingUsers = async () => {
+            try {
+                const typingUserIds = await ChatService.getTypingUsers(conversation.id);
+                console.log('📋 Fetched current typing users:', typingUserIds);
+
+                if (typingUserIds && typingUserIds.length > 0) {
+                    // Filter out current user and map to typing user objects
+                    const typingUsersData = typingUserIds
+                        .filter(userId => userId !== currentUserId)
+                        .map(userId => {
+                            const user = conversation.isGroup
+                                ? conversation.members?.find(m => m.userId === userId)
+                                : conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
+                            return {
+                                userId: userId,
+                                avatar: user?.avatarUrl || '/channels/myprofile.jpg',
+                                name: user?.fullName || 'User'
+                            };
+                        });
+
+                    if (typingUsersData.length > 0) {
+                        console.log('✍️ Setting initial typing users:', typingUsersData);
+                        setTypingUsers(typingUsersData);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch typing users:', error);
+            }
+        };
+
+        fetchTypingUsers();
+
         return () => {
             // Cleanup: Send typing stopped ONLY if user was typing
             if (isTypingRef.current) {

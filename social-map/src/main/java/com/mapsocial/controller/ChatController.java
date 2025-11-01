@@ -273,6 +273,19 @@ public class ChatController {
         return ResponseEntity.ok(count);
     }
 
+    @GetMapping("/api/conversations/{conversationId}/typing")
+    public ResponseEntity<List<String>> getTypingUsers(
+            @PathVariable String conversationId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        String userId = userPrincipal.getUser().getId().toString();
+        // Verify user is member of conversation
+        if (!chatService.isMemberOfConversation(conversationId, userId)) {
+            return ResponseEntity.status(403).build();
+        }
+        List<String> typingUserIds = chatService.getTypingUsers(conversationId);
+        return ResponseEntity.ok(typingUserIds);
+    }
+
     @PostMapping("/api/conversations/{conversationId}/read")
     public ResponseEntity<Void> markAsRead(
             @PathVariable String conversationId,
