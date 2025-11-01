@@ -15,6 +15,9 @@ export default function SideChat() {
     const [isConnected, setIsConnected] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
     const wsConnectedRef = useRef(false);
+    const subscribedConversationsRef = useRef(new Set()); // Track subscribed conversations
+    const messageCallbacksRef = useRef(new Map()); // Track message callbacks for cleanup
+    const typingCallbacksRef = useRef(new Map()); // Track typing callbacks for cleanup
 
     // Load conversations from backend
     const loadConversations = useCallback(async () => {
@@ -30,7 +33,7 @@ export default function SideChat() {
                     };
                 }
                 return conv;
-            });
+            }).map(conv => ({ ...conv, typingUsers: [] })); // Add typingUsers array
             setConversations(processedData);
         } catch (error) {
             console.error('Failed to load conversations:', error);
@@ -114,6 +117,86 @@ export default function SideChat() {
         loadConversations();
     }, [loadConversations]);
 
+    // Subscribe to all conversations for both messages and typing
+    useEffect(() => {
+        if (!isConnected || conversations.length === 0) return;
+
+        conversations.forEach(conv => {
+            // Skip if already subscribed
+            if (subscribedConversationsRef.current.has(conv.id)) {
+                return;
+            }
+
+            // Create message callback
+            const messageCallback = (message) => {
+                console.log('SideChat received new message for conv', conv.id, ':', message);
+
+                // Process location messages
+                let lastMessageContent = message.content;
+                if (message.content && message.content.startsWith('LOCATION:')) {
+                    lastMessageContent = 'Vị trí';
+                } else if (message.isLocation) {
+                    lastMessageContent = 'Vị trí';
+                }
+
+                // Update conversation's last message
+                setConversations(prev => prev.map(c => {
+                    if (c.id === conv.id) {
+                        return {
+                            ...c,
+                            lastMessageContent: lastMessageContent,
+                            lastMessageSenderId: message.senderId,
+                            lastMessageAt: message.timestamp || new Date().toISOString(),
+                            // Don't update unreadCount here - backend will send via /user/queue/unread
+                        };
+                    }
+                    return c;
+                }));
+            };
+
+            // Create typing callback
+            const typingCallback = (typingDTO) => {
+                // Dispatch event to update SideChat
+                console.log('SideChat received typing:', typingDTO);
+                window.dispatchEvent(new CustomEvent('typingStatus', {
+                    detail: { conversationId: conv.id, isTyping: typingDTO.typing, userId: typingDTO.userId }
+                }));
+            };
+
+            // Save callbacks for cleanup
+            messageCallbacksRef.current.set(conv.id, messageCallback);
+            typingCallbacksRef.current.set(conv.id, typingCallback);
+
+            // Subscribe to messages AND typing for this conversation
+            webSocketService.subscribeToConversation(
+                conv.id,
+                messageCallback,
+                typingCallback,
+                null // no update callback
+            );
+
+            // Mark as subscribed
+            subscribedConversationsRef.current.add(conv.id);
+        });
+
+        // Cleanup function - only unsubscribe when component unmounts
+        return () => {
+            conversations.forEach(conv => {
+                if (subscribedConversationsRef.current.has(conv.id)) {
+                    const messageCallback = messageCallbacksRef.current.get(conv.id);
+                    const typingCallback = typingCallbacksRef.current.get(conv.id);
+
+                    webSocketService.unsubscribe(`/topic/conversation/${conv.id}`, messageCallback);
+                    webSocketService.unsubscribe(`/topic/conversation/${conv.id}/typing`, typingCallback);
+
+                    subscribedConversationsRef.current.delete(conv.id);
+                    messageCallbacksRef.current.delete(conv.id);
+                    typingCallbacksRef.current.delete(conv.id);
+                }
+            });
+        };
+    }, [conversations, isConnected]);
+
     // Listen for openChatWindow event from Profile Page
     useEffect(() => {
         const handleOpenChatWindow = (event) => {
@@ -144,6 +227,35 @@ export default function SideChat() {
 
         return () => {
             window.removeEventListener('openChatWindow', handleOpenChatWindow);
+        };
+    }, []);
+
+    // Listen for typing status updates from ChatWindow
+    useEffect(() => {
+        const handleTypingStatus = (event) => {
+            const { conversationId, isTyping, userId } = event.detail;
+            console.log('SideChat handling typingStatus:', { conversationId, isTyping, userId });
+            setConversations(prev => prev.map(conv => {
+                if (conv.id === conversationId) {
+                    let newTypingUsers = [...conv.typingUsers];
+                    if (isTyping) {
+                        if (!newTypingUsers.includes(userId)) {
+                            newTypingUsers.push(userId);
+                        }
+                    } else {
+                        newTypingUsers = newTypingUsers.filter(id => id !== userId);
+                    }
+                    console.log('Updated typingUsers for conv', conv.id, ':', newTypingUsers);
+                    return { ...conv, typingUsers: newTypingUsers };
+                }
+                return conv;
+            }));
+        };
+
+        window.addEventListener('typingStatus', handleTypingStatus);
+
+        return () => {
+            window.removeEventListener('typingStatus', handleTypingStatus);
         };
     }, []);
 

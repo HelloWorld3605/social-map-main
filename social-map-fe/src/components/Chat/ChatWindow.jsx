@@ -14,7 +14,6 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
 
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
-    const typingTimeoutRef = useRef(null);
     const lastScrollHeightRef = useRef(0);
     const isLoadingMoreRef = useRef(false);
     const inputRef = useRef(null);
@@ -82,9 +81,10 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
                             console.error('Failed to parse location message:', e);
                             return msg;
                         }
-                    }
+                    } // ✅ thêm dấu đóng if
                     return msg;
                 }).reverse();
+
                 setMessages(prev => [...processedMessages, ...prev]);
             }
 
@@ -190,17 +190,32 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             },
             (typingDTO) => {
                 // Typing indicator
+                console.log('ChatWindow received typing:', typingDTO);
                 if (typingDTO.userId !== currentUserId) {
-                    if (typingDTO.isTyping) {
+                    if (typingDTO.typing) {
+                        const user = conversation.isGroup
+                            ? conversation.members?.find(m => m.userId === typingDTO.userId)
+                            : conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
+                        const avatar = user?.avatarUrl || '/channels/myprofile.jpg';
+                        const name = user?.fullName || typingDTO.username || 'User';
                         setTypingUsers(prev => {
-                            if (!prev.includes(typingDTO.userId)) {
-                                return [...prev, typingDTO.userId];
-                            }
-                            return prev;
+                            const newUsers = prev.some(u => u.userId === typingDTO.userId) ? prev : [...prev, { userId: typingDTO.userId, avatar, name }];
+                            console.log('typingUsers after add:', newUsers);
+                            return newUsers;
                         });
                     } else {
-                        setTypingUsers(prev => prev.filter(id => id !== typingDTO.userId));
+                        setTypingUsers(prev => {
+                            console.log('before remove, typingUsers:', prev.map(u => u.userId));
+                            const newUsers = prev.filter(u => u.userId !== typingDTO.userId);
+                            console.log('after remove, typingUsers:', newUsers.map(u => u.userId));
+                            return newUsers;
+                        });
                     }
+                    // Dispatch event to update SideChat
+                    console.log('ChatWindow dispatching typingStatus:', { conversationId: conversation.id, isTyping: typingDTO.typing, userId: typingDTO.userId });
+                    window.dispatchEvent(new CustomEvent('typingStatus', {
+                        detail: { conversationId: conversation.id, isTyping: typingDTO.typing, userId: typingDTO.userId }
+                    }));
                 }
             },
             (updatedMessage) => {
@@ -222,7 +237,7 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
     // Send typing indicator
     const sendTypingIndicator = useCallback((isTyping) => {
         if (!conversation?.id) return;
-
+        console.log('sendTypingIndicator called with isTyping:', isTyping, 'conversationId:', conversation.id);
         webSocketService.sendTypingStatus({
             conversationId: conversation.id,
             isTyping
@@ -231,20 +246,18 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
 
     // Handle input change
     const handleInputChange = useCallback((e) => {
-        setInputValue(e.target.value);
+        const newValue = e.target.value;
+        console.log('handleInputChange: newValue:', JSON.stringify(newValue), 'trim:', newValue.trim(), 'length:', newValue.length);
+        setInputValue(newValue);
 
-        // Send typing indicator
-        sendTypingIndicator(true);
-
-        // Clear existing timeout
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
-
-        // Stop typing after 2 seconds of inactivity
-        typingTimeoutRef.current = setTimeout(() => {
+        // Send typing indicator based on whether there's text
+        const shouldType = newValue.length > 0;
+        console.log('shouldType:', shouldType);
+        if (shouldType) {
+            sendTypingIndicator(true);
+        } else {
             sendTypingIndicator(false);
-        }, 2000);
+        }
     }, [sendTypingIndicator]);
 
     // Send message
@@ -264,11 +277,6 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             setInputValue('');
             sendTypingIndicator(false);
 
-            // Clear typing timeout
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-            }
-
             // Focus back to input
             setTimeout(() => inputRef.current?.focus(), 0);
         } catch (error) {
@@ -285,15 +293,6 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
             handleSend();
         }
     }, [handleSend]);
-
-    // Cleanup typing timeout
-    useEffect(() => {
-        return () => {
-            if (typingTimeoutRef.current) {
-                clearTimeout(typingTimeoutRef.current);
-            }
-        };
-    }, []);
 
     // Linkify text
     const linkify = (text) => {
@@ -440,7 +439,8 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
 
                 {typingUsers.length > 0 && (
                     <div className="chat-window-message received typing-indicator-message">
-                        <img src={displayInfo.avatar} alt="Avatar" className="chat-window-message-avatar" />
+                        {console.log('rendering typing indicator, typingUsers length:', typingUsers.length, 'users:', typingUsers.map(u => u.userId))}
+                        <img src={typingUsers[0].avatar} alt="Avatar" className="chat-window-message-avatar" />
                         <div className="typing-indicator">
                             <div className="typing-dots">
                                 <div className="typing-dot"></div>
@@ -460,8 +460,10 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
                     placeholder="Aa"
                     className="chat-window-input"
                     value={inputValue}
-                    onChange={handleInputChange}
+                    onInput={handleInputChange}
                     onKeyPress={handleKeyPress}
+                    onFocus={() => { if (inputValue.length > 0) sendTypingIndicator(true); }}
+                    onBlur={() => sendTypingIndicator(false)}
                     disabled={isSending}
                     ref={inputRef}
                 />
@@ -476,3 +478,4 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
         </div>
     );
 }
+

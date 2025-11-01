@@ -130,6 +130,7 @@ public class ChatController {
     @MessageMapping("/typing")
     public void handleTyping(@Payload TypingDTO typingDTO,
                              @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        System.out.println("handleTyping called with typingDTO: " + typingDTO + " userPrincipal: " + userPrincipal);
         try {
             if (userPrincipal == null || userPrincipal.getUser() == null) return;
 
@@ -149,6 +150,7 @@ public class ChatController {
                     typingDTO.isTyping()
             );
 
+            System.out.println("Backend sending typing: " + authenticatedTypingDTO);
             messagingTemplate.convertAndSend(
                     "/topic/conversation/" + typingDTO.getConversationId() + "/typing",
                     authenticatedTypingDTO

@@ -92,7 +92,7 @@ export default function Sidebar() {
                 <li><a href="/home">Trang chủ</a></li>
                 <li><a href="#">Bạn bè</a></li>
                 <li><a href="#">Ghi chú</a></li>
-                <li><a href="#">Cài đặt</a></li>
+
             </ul>
 
             {/* Location Control */}

@@ -164,7 +164,8 @@ export const ChatService = {
 class WebSocketChatService {
     constructor() {
         this.stompClient = null;
-        this.subscriptions = new Map();
+        this.subscriptions = new Map(); // Map<destination, subscription>
+        this.callbacks = new Map(); // Map<destination, Set<callback>>
         this.currentUserId = null; // Sẽ được set sau khi connect
     }
 
@@ -180,7 +181,7 @@ class WebSocketChatService {
         }
 
         const socket = new SockJS(`${BASE_URL}/ws`, null, {
-            transports: ['websocket', 'xhr-streaming', 'xhr-polling']
+            transports: ['websocket']
         });
         this.stompClient = Stomp.over(socket);
         this.stompClient.debug = () => { };
@@ -239,7 +240,7 @@ class WebSocketChatService {
                     const response = await api.get('/users/me');
                     this.currentUserId = response.id;
                     console.log('✅ Current user ID from API:', this.currentUserId);
-                } catch (error) {
+                } catch {
                     console.error('Failed to fetch user from API, using email as fallback');
                     // Fallback: dùng email (sub) nếu không có userId
                     this.currentUserId = payload.sub;
@@ -260,23 +261,58 @@ class WebSocketChatService {
     disconnect() {
         this.stompClient?.deactivate();
         this.subscriptions.clear();
+        this.callbacks.clear();
         this.currentUserId = null;
         console.log('WebSocket disconnected');
     }
 
     subscribe(destination, callback) {
-        if (this.subscriptions.has(destination)) return;
-        const sub = this.stompClient.subscribe(destination, msg => {
-            callback(JSON.parse(msg.body));
-        });
-        this.subscriptions.set(destination, sub);
+        // Add callback to callbacks set
+        if (!this.callbacks.has(destination)) {
+            this.callbacks.set(destination, new Set());
+        }
+        this.callbacks.get(destination).add(callback);
+
+        // Only subscribe to STOMP if not already subscribed
+        if (!this.subscriptions.has(destination)) {
+            const sub = this.stompClient.subscribe(destination, msg => {
+                const data = JSON.parse(msg.body);
+                // Call all registered callbacks for this destination
+                const callbacks = this.callbacks.get(destination);
+                if (callbacks) {
+                    callbacks.forEach(cb => cb(data));
+                }
+            });
+            this.subscriptions.set(destination, sub);
+            console.log(`✅ Subscribed to ${destination}`);
+        } else {
+            console.log(`⚡ Added callback to existing subscription: ${destination}`);
+        }
     }
 
+    unsubscribe(destination, callback) {
+        // If callback provided, remove only that callback
+        if (callback && this.callbacks.has(destination)) {
+            this.callbacks.get(destination).delete(callback);
 
-    unsubscribe(destination) {
-        const sub = this.subscriptions.get(destination);
-        sub?.unsubscribe();
-        this.subscriptions.delete(destination);
+            // If no more callbacks, unsubscribe from STOMP
+            if (this.callbacks.get(destination).size === 0) {
+                this.callbacks.delete(destination);
+                const sub = this.subscriptions.get(destination);
+                sub?.unsubscribe();
+                this.subscriptions.delete(destination);
+                console.log(`🔌 Unsubscribed from ${destination}`);
+            } else {
+                console.log(`🔥 Removed callback from ${destination}, ${this.callbacks.get(destination).size} remaining`);
+            }
+        } else {
+            // Remove all callbacks and unsubscribe
+            this.callbacks.delete(destination);
+            const sub = this.subscriptions.get(destination);
+            sub?.unsubscribe();
+            this.subscriptions.delete(destination);
+            console.log(`🔌 Unsubscribed from ${destination}`);
+        }
     }
 
     /**
@@ -286,13 +322,13 @@ class WebSocketChatService {
         if (!this.stompClient?.connected) return;
 
         const msgPath = `/topic/conversation/${conversationId}`;
-        this.subscribe(msgPath, onMessage);
+        if (onMessage) this.subscribe(msgPath, onMessage);
 
         const typingPath = `/topic/conversation/${conversationId}/typing`;
-        this.subscribe(typingPath, onTyping);
+        if (onTyping) this.subscribe(typingPath, onTyping);
 
         const updatePath = `/topic/conversation/${conversationId}/update`;
-        this.subscribe(updatePath, onUpdate);
+        if (onUpdate) this.subscribe(updatePath, onUpdate);
     }
 
     /**
@@ -341,14 +377,49 @@ class WebSocketChatService {
      * Backend sẽ tự động lấy userId từ JWT token
      */
     sendTypingStatus({ conversationId, isTyping }) {
-        this.stompClient?.publish({
-            destination: '/app/typing',
-            body: JSON.stringify({
-                conversationId,
-                isTyping
-                // Không cần userId - backend sẽ lấy từ SecurityContext
-            })
-        });
+        console.log('WebSocket sendTypingStatus called:', { conversationId, isTyping });
+        if (!this.stompClient?.connected) {
+            console.error('STOMP client not connected, cannot send typing status');
+            return;
+        }
+        const token = localStorage.getItem('authToken');
+        console.log('Publishing typing status to /app/typing with token:', !!token);
+        try {
+            this.stompClient.publish({
+                destination: '/app/typing',
+                body: JSON.stringify({
+                    conversationId,
+                    isTyping
+                    // Không cần userId - backend sẽ lấy từ SecurityContext
+                })
+            });
+            console.log('Publish successful');
+        } catch (error) {
+            console.error('Publish failed:', error);
+        }
+    }
+
+    /**
+     * Gửi mark as read request qua WebSocket
+     * Backend sẽ tự động lấy userId từ JWT token
+     */
+    sendMarkAsRead({ conversationId }) {
+        if (!this.stompClient?.connected) {
+            console.error('STOMP client not connected, cannot send mark as read');
+            return;
+        }
+        try {
+            this.stompClient.publish({
+                destination: '/app/markAsRead',
+                body: JSON.stringify({
+                    conversationId
+                    // Không cần userId - backend sẽ lấy từ SecurityContext
+                })
+            });
+            console.log('Mark as read sent for conversation:', conversationId);
+        } catch (error) {
+            console.error('Failed to send mark as read:', error);
+        }
     }
 }
 
