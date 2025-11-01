@@ -154,83 +154,93 @@ export default function ChatWindow({ conversation, minimized, currentUserId, onC
     useEffect(() => {
         if (!conversation?.id) return;
 
-        // Subscribe to new messages
+        // Create callbacks with stable references for cleanup
+        const messageCallback = (message) => {
+            console.log('📨 ChatWindow received new message:', message);
+            // New message
+            let processedMessage = message;
+
+            // Handle location messages
+            if (message.content && message.content.startsWith('LOCATION:')) {
+                try {
+                    const locationData = JSON.parse(message.content.substring(9));
+                    processedMessage = {
+                        ...message,
+                        content: locationData,
+                        isLocation: true
+                    };
+                } catch (e) {
+                    console.error('Failed to parse location message:', e);
+                }
+            }
+
+            setMessages(prev => [...prev, processedMessage]);
+            scrollToBottom(true);
+
+            // Notify parent
+            if (onNewMessage) {
+                onNewMessage(processedMessage);
+            }
+
+            // Mark as read if window is open
+            if (!minimized) {
+                webSocketService.sendMarkAsRead({ conversationId: conversation.id });
+            }
+        };
+
+        const typingCallback = (typingDTO) => {
+            // Typing indicator
+            console.log('ChatWindow received typing:', typingDTO);
+            if (typingDTO.userId !== currentUserId) {
+                if (typingDTO.typing) {
+                    const user = conversation.isGroup
+                        ? conversation.members?.find(m => m.userId === typingDTO.userId)
+                        : conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
+                    const avatar = user?.avatarUrl || '/channels/myprofile.jpg';
+                    const name = user?.fullName || typingDTO.username || 'User';
+                    setTypingUsers(prev => {
+                        const newUsers = prev.some(u => u.userId === typingDTO.userId) ? prev : [...prev, { userId: typingDTO.userId, avatar, name }];
+                        console.log('typingUsers after add:', newUsers);
+                        return newUsers;
+                    });
+                } else {
+                    setTypingUsers(prev => {
+                        console.log('before remove, typingUsers:', prev.map(u => u.userId));
+                        const newUsers = prev.filter(u => u.userId !== typingDTO.userId);
+                        console.log('after remove, typingUsers:', newUsers.map(u => u.userId));
+                        return newUsers;
+                    });
+                }
+                // Dispatch event to update SideChat
+                console.log('ChatWindow dispatching typingStatus:', { conversationId: conversation.id, isTyping: typingDTO.typing, userId: typingDTO.userId });
+                window.dispatchEvent(new CustomEvent('typingStatus', {
+                    detail: { conversationId: conversation.id, isTyping: typingDTO.typing, userId: typingDTO.userId }
+                }));
+            }
+        };
+
+        const updateCallback = (updatedMessage) => {
+            // Message edited/deleted
+            setMessages(prev => prev.map(msg =>
+                msg.id === updatedMessage.id ? updatedMessage : msg
+            ));
+        };
+
+        // Subscribe with callback references
+        console.log('🔔 ChatWindow subscribing to conversation:', conversation.id);
         webSocketService.subscribeToConversation(
             conversation.id,
-            (message) => {
-                // New message
-                let processedMessage = message;
-
-                // Handle location messages
-                if (message.content && message.content.startsWith('LOCATION:')) {
-                    try {
-                        const locationData = JSON.parse(message.content.substring(9));
-                        processedMessage = {
-                            ...message,
-                            content: locationData,
-                            isLocation: true
-                        };
-                    } catch (e) {
-                        console.error('Failed to parse location message:', e);
-                    }
-                }
-
-                setMessages(prev => [...prev, processedMessage]);
-                scrollToBottom(true);
-
-                // Notify parent
-                if (onNewMessage) {
-                    onNewMessage(processedMessage);
-                }
-
-                // Mark as read if window is open
-                if (!minimized) {
-                    webSocketService.sendMarkAsRead({ conversationId: conversation.id });
-                }
-            },
-            (typingDTO) => {
-                // Typing indicator
-                console.log('ChatWindow received typing:', typingDTO);
-                if (typingDTO.userId !== currentUserId) {
-                    if (typingDTO.typing) {
-                        const user = conversation.isGroup
-                            ? conversation.members?.find(m => m.userId === typingDTO.userId)
-                            : conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
-                        const avatar = user?.avatarUrl || '/channels/myprofile.jpg';
-                        const name = user?.fullName || typingDTO.username || 'User';
-                        setTypingUsers(prev => {
-                            const newUsers = prev.some(u => u.userId === typingDTO.userId) ? prev : [...prev, { userId: typingDTO.userId, avatar, name }];
-                            console.log('typingUsers after add:', newUsers);
-                            return newUsers;
-                        });
-                    } else {
-                        setTypingUsers(prev => {
-                            console.log('before remove, typingUsers:', prev.map(u => u.userId));
-                            const newUsers = prev.filter(u => u.userId !== typingDTO.userId);
-                            console.log('after remove, typingUsers:', newUsers.map(u => u.userId));
-                            return newUsers;
-                        });
-                    }
-                    // Dispatch event to update SideChat
-                    console.log('ChatWindow dispatching typingStatus:', { conversationId: conversation.id, isTyping: typingDTO.typing, userId: typingDTO.userId });
-                    window.dispatchEvent(new CustomEvent('typingStatus', {
-                        detail: { conversationId: conversation.id, isTyping: typingDTO.typing, userId: typingDTO.userId }
-                    }));
-                }
-            },
-            (updatedMessage) => {
-                // Message edited/deleted
-                setMessages(prev => prev.map(msg =>
-                    msg.id === updatedMessage.id ? updatedMessage : msg
-                ));
-            }
+            messageCallback,
+            typingCallback,
+            updateCallback
         );
 
         return () => {
-            // Cleanup subscriptions when conversation changes
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`);
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`);
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`);
+            // Cleanup: Unsubscribe ONLY ChatWindow's callbacks (not SideChat's!)
+            console.log('🧹 ChatWindow cleanup: unsubscribing callbacks for', conversation.id);
+            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, messageCallback);
+            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, typingCallback);
+            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, updateCallback);
         };
     }, [conversation?.id, currentUserId, minimized, onNewMessage, scrollToBottom]);
 

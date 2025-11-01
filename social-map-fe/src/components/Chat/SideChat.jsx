@@ -15,9 +15,7 @@ export default function SideChat() {
     const [isConnected, setIsConnected] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
     const wsConnectedRef = useRef(false);
-    const subscribedConversationsRef = useRef(new Set()); // Track subscribed conversations
-    const messageCallbacksRef = useRef(new Map()); // Track message callbacks for cleanup
-    const typingCallbacksRef = useRef(new Map()); // Track typing callbacks for cleanup
+    const conversationIdsRef = useRef(new Set()); // Track conversation IDs to detect new conversations
 
     // Load conversations from backend
     const loadConversations = useCallback(async () => {
@@ -44,6 +42,8 @@ export default function SideChat() {
 
     // Connect to WebSocket
     useEffect(() => {
+        const conversationIdsRefCurrent = conversationIdsRef.current; // Copy ref for cleanup
+
         if (!wsConnectedRef.current) {
             webSocketService.connect(
                 () => {
@@ -108,28 +108,77 @@ export default function SideChat() {
             if (wsConnectedRef.current) {
                 webSocketService.disconnect();
                 wsConnectedRef.current = false;
+                // Clear subscription tracking to force re-subscribe on next connect
+                conversationIdsRefCurrent.clear();
+                console.log('🔌 WebSocket disconnected, cleared subscription tracking');
             }
         };
     }, []);
 
-    // Load conversations on mount
+    // Load conversations on mount - CRITICAL: Load BEFORE subscribing
     useEffect(() => {
+        console.log('🔄 Loading conversations on mount');
         loadConversations();
     }, [loadConversations]);
 
     // Subscribe to all conversations for both messages and typing
+    // Only re-run when isConnected changes, NOT when conversations state updates
     useEffect(() => {
-        if (!isConnected || conversations.length === 0) return;
+        if (!isConnected) return;
+
+        console.log('🔄 Subscribe effect running (on connection change):', {
+            isConnected,
+            trackedIds: Array.from(conversationIdsRef.current)
+        });
+
+        // This effect should NOT re-run when conversations state changes
+        // We'll use a separate effect to handle new conversations
+
+        // Cleanup when component unmounts or connection changes
+        return () => {
+            console.log('🧹 Cleaning up all subscriptions due to unmount/disconnect');
+            // Clear all tracked IDs to force re-subscribe on reconnect
+            conversationIdsRef.current.clear();
+        };
+    }, [isConnected]);
+
+    // Separate effect to subscribe to NEW conversations when they appear
+    useEffect(() => {
+        console.log('🔄 Effect 2 triggered:', {
+            isConnected,
+            conversationsLength: conversations.length,
+            trackedIds: Array.from(conversationIdsRef.current)
+        });
+
+        if (!isConnected) {
+            console.log('⏸️ Waiting for connection...');
+            return;
+        }
+
+        if (conversations.length === 0) {
+            console.log('⏸️ No conversations yet, waiting...');
+            return;
+        }
+
+        console.log('✅ Ready to subscribe! Processing conversations...');
+
+        let subscribedCount = 0;
+        let skippedCount = 0;
 
         conversations.forEach(conv => {
-            // Skip if already subscribed
-            if (subscribedConversationsRef.current.has(conv.id)) {
+            // Only subscribe to NEW conversations (not already in ref)
+            if (conversationIdsRef.current.has(conv.id)) {
+                // Already subscribed, do nothing
+                console.log(`⏭️ Skipping ${conv.id} (already subscribed)`);
+                skippedCount++;
                 return;
             }
 
-            // Create message callback
+            console.log(`🆕 New conversation detected: ${conv.id}, will subscribe`);
+
+            // Create message callback with closure over conv.id
             const messageCallback = (message) => {
-                console.log('SideChat received new message for conv', conv.id, ':', message);
+                console.log('📨 SideChat received new message for conv', conv.id, ':', message);
 
                 // Process location messages
                 let lastMessageContent = message.content;
@@ -142,12 +191,12 @@ export default function SideChat() {
                 // Update conversation's last message
                 setConversations(prev => prev.map(c => {
                     if (c.id === conv.id) {
+                        console.log(`✏️ Updating last message for conv ${conv.id}:`, lastMessageContent);
                         return {
                             ...c,
                             lastMessageContent: lastMessageContent,
                             lastMessageSenderId: message.senderId,
                             lastMessageAt: message.timestamp || new Date().toISOString(),
-                            // Don't update unreadCount here - backend will send via /user/queue/unread
                         };
                     }
                     return c;
@@ -156,45 +205,31 @@ export default function SideChat() {
 
             // Create typing callback
             const typingCallback = (typingDTO) => {
-                // Dispatch event to update SideChat
                 console.log('SideChat received typing:', typingDTO);
                 window.dispatchEvent(new CustomEvent('typingStatus', {
                     detail: { conversationId: conv.id, isTyping: typingDTO.typing, userId: typingDTO.userId }
                 }));
             };
 
-            // Save callbacks for cleanup
-            messageCallbacksRef.current.set(conv.id, messageCallback);
-            typingCallbacksRef.current.set(conv.id, typingCallback);
-
             // Subscribe to messages AND typing for this conversation
             webSocketService.subscribeToConversation(
                 conv.id,
                 messageCallback,
                 typingCallback,
-                null // no update callback
+                null
             );
 
-            // Mark as subscribed
-            subscribedConversationsRef.current.add(conv.id);
+            // Mark as subscribed (IMPORTANT: callbacks will persist via WebSocketService)
+            conversationIdsRef.current.add(conv.id);
+            subscribedCount++;
+
+            console.log(`🔔 SideChat subscribed to conversation ${conv.id}`);
         });
 
-        // Cleanup function - only unsubscribe when component unmounts
-        return () => {
-            conversations.forEach(conv => {
-                if (subscribedConversationsRef.current.has(conv.id)) {
-                    const messageCallback = messageCallbacksRef.current.get(conv.id);
-                    const typingCallback = typingCallbacksRef.current.get(conv.id);
+        console.log(`📊 Subscribe summary: ${subscribedCount} new, ${skippedCount} skipped, ${conversationIdsRef.current.size} total tracked`);
 
-                    webSocketService.unsubscribe(`/topic/conversation/${conv.id}`, messageCallback);
-                    webSocketService.unsubscribe(`/topic/conversation/${conv.id}/typing`, typingCallback);
-
-                    subscribedConversationsRef.current.delete(conv.id);
-                    messageCallbacksRef.current.delete(conv.id);
-                    typingCallbacksRef.current.delete(conv.id);
-                }
-            });
-        };
+        // NO cleanup function here - subscriptions persist across state updates
+        // Cleanup only happens in the isConnected effect above
     }, [conversations, isConnected]);
 
     // Listen for openChatWindow event from Profile Page

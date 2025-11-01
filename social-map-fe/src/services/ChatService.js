@@ -173,6 +173,14 @@ class WebSocketChatService {
      * Kết nối tới WebSocket với JWT token
      */
     connect(onConnectedCallback, onErrorCallback) {
+        // Check if already connected
+        if (this.stompClient?.connected) {
+            console.log('⚡ WebSocket already connected, triggering callback');
+            // Already connected, just trigger callback
+            onConnectedCallback?.();
+            return;
+        }
+
         const token = localStorage.getItem('authToken');
         if (!token) {
             console.error('No auth token found');
