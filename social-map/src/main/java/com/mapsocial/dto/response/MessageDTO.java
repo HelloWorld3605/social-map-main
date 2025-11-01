@@ -23,14 +23,14 @@ public class MessageDTO {
     private String content;
     private MessageType type;
 
-    // ✅ Reply feature
+    // Reply feature
     private String replyToMessageId;
     private MessageDTO replyToMessage; // Nested message info
 
-    // ✅ Attachments
+    // Attachments
     private List<String> attachmentUrls;
 
-    // ✅ Edit status
+    // Edit status
     private boolean isEdited;
     private LocalDateTime updatedAt;
 
