@@ -18,6 +18,7 @@ export default function SideChat() {
     const wsConnectedRef = useRef(false);
     const conversationIdsRef = useRef(new Set()); // Track conversation IDs to detect new conversations
     const activeChatWindowRef = useRef(null); // Track active window with ref for immediate access
+    const conversationsRef = useRef([]); // Track latest conversations for callbacks
 
     // Load conversations from backend
     const loadConversations = useCallback(async () => {
@@ -35,6 +36,7 @@ export default function SideChat() {
                 return conv;
             }).map(conv => ({ ...conv, typingUsers: [] })); // Add typingUsers array
             setConversations(processedData);
+            conversationsRef.current = processedData; // Keep ref in sync
         } catch (error) {
             console.error('Failed to load conversations:', error);
         } finally {
@@ -158,6 +160,11 @@ export default function SideChat() {
         };
     }, [isConnected]);
 
+    // Keep conversationsRef in sync with conversations state
+    useEffect(() => {
+        conversationsRef.current = conversations;
+    }, [conversations]);
+
     // Separate effect to subscribe to NEW conversations when they appear
     useEffect(() => {
         console.log('🔄 Effect 2 triggered:', {
@@ -210,13 +217,69 @@ export default function SideChat() {
                     lastMessageContent = 'Vị trí';
                 }
 
+                // Check if message is from someone else
+                const isFromOthers = message.senderId !== currentUserId;
+
+                // 🆕 Facebook-style: Auto-open ChatWindow if message is from others and window not opened yet
+                if (isFromOthers) {
+                    setOpenChatWindows(prev => {
+                        // Only open if not already opened
+                        if (!prev.has(conv.id)) {
+                            console.log(`💬 Auto-opening ChatWindow for conv ${conv.id} (new message from others)`);
+
+                            // Set this conversation as active immediately
+                            setActiveChatWindow(conv.id);
+                            activeChatWindowRef.current = conv.id;
+                            setActiveFriend(conv.id);
+
+                            // First, try to get from current conversations state (in-memory, fast)
+                            const cachedConv = conversationsRef.current.find(c => c.id === conv.id);
+
+                            if (cachedConv) {
+                                // Use cached data immediately - Open EXPANDED (not minimized) like Facebook
+                                console.log('📋 Using cached conversation data for auto-open (expanded & active)');
+                                const newMap = new Map(prev);
+                                newMap.set(conv.id, { ...cachedConv, minimized: false });
+                                return newMap;
+                            } else {
+                                // Fetch fresh conversation data from API (Facebook approach)
+                                console.log('🔄 Fetching conversation data from API for auto-open');
+                                ChatService.getConversation(conv.id)
+                                    .then(fetchedConv => {
+                                        console.log('✅ Fetched conversation data:', fetchedConv);
+
+                                        // Add to conversations list if not exists
+                                        setConversations(prevConvs => {
+                                            const exists = prevConvs.find(c => c.id === conv.id);
+                                            if (!exists) {
+                                                return [{ ...fetchedConv, typingUsers: [] }, ...prevConvs];
+                                            }
+                                            return prevConvs;
+                                        });
+
+                                        // Open chat window EXPANDED (not minimized) like Facebook
+                                        setOpenChatWindows(prevWindows => {
+                                            const newMap = new Map(prevWindows);
+                                            newMap.set(conv.id, { ...fetchedConv, minimized: false });
+                                            return newMap;
+                                        });
+                                    })
+                                    .catch(error => {
+                                        console.error('Failed to fetch conversation for auto-open:', error);
+                                    });
+
+                                return prev; // Return unchanged while fetching
+                            }
+                        }
+                        return prev;
+                    });
+                }
+
                 // Update conversation's last message
                 setConversations(prev => prev.map(c => {
                     if (c.id === conv.id) {
                         console.log(`✏️ Updating last message for conv ${conv.id}:`, lastMessageContent);
 
-                        // Increment unread count if message is from someone else
-                        const isFromOthers = message.senderId !== currentUserId;
                         const newUnreadCount = isFromOthers ? (c.unreadCount || 0) + 1 : c.unreadCount;
 
                         if (isFromOthers) {
