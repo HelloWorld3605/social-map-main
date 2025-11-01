@@ -62,7 +62,7 @@ public class ChatServiceImpl implements ChatService {
         Message message = Message.builder()
                 .conversationId(request.getConversationId())
                 .senderId(senderId)
-                .content(request.getContent())
+                .content(request.getContent().trim())
                 .type(request.getType() != null ? request.getType() : MessageType.TEXT)
                 .replyToMessageId(request.getReplyToMessageId())
                 .attachmentUrls(request.getAttachmentUrls())
@@ -98,7 +98,11 @@ public class ChatServiceImpl implements ChatService {
             throw new ChatException("Bạn chỉ có thể sửa tin nhắn của mình");
         }
 
-        message.setContent(newContent);
+        if (newContent == null || newContent.trim().isEmpty()) {
+            throw new ChatException("Nội dung tin nhắn không được để trống");
+        }
+
+        message.setContent(newContent.trim());
         message.setEdited(true);
         message.setUpdatedAt(LocalDateTime.now());
 
