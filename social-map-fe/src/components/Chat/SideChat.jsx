@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import './Chat.css';
 import './ChatWindows.css';
 import './LocationMessage.css';
@@ -419,8 +419,23 @@ export default function SideChat() {
         return () => document.removeEventListener('keydown', handleEscape);
     }, [isChatOpen]);
 
+    // Sort conversations by lastMessageAt (newest first) - REAL-TIME SORTING
+    const sortedConversations = useMemo(() => {
+        return [...conversations].sort((a, b) => {
+            // Handle null/undefined lastMessageAt
+            if (!a.lastMessageAt && !b.lastMessageAt) return 0;
+            if (!a.lastMessageAt) return 1; // a goes to bottom
+            if (!b.lastMessageAt) return -1; // b goes to bottom
+
+            // Compare dates - newest first (descending order)
+            const dateA = new Date(a.lastMessageAt);
+            const dateB = new Date(b.lastMessageAt);
+            return dateB - dateA;
+        });
+    }, [conversations]);
+
     // Filter conversations based on search query
-    const filteredConversations = conversations.filter(conv => {
+    const filteredConversations = sortedConversations.filter(conv => {
         const displayName = conv.isGroup ? conv.groupName : conv.otherUser?.displayName || '';
         return displayName.toLowerCase().includes(searchQuery.toLowerCase());
     });

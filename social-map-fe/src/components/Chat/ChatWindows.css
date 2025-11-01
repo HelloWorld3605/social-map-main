@@ -216,6 +216,8 @@
     line-height: 1.4;
     word-wrap: break-word;
     word-break: break-word;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
 }
 
 .chat-window-message.sent .chat-window-message-text {
