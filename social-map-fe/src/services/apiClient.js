@@ -13,8 +13,13 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('authToken');
+        console.log('API Request:', config.method?.toUpperCase(), config.url);
+        console.log('Token from localStorage:', token ? 'EXISTS' : 'NOT FOUND');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log('Authorization header set');
+        } else {
+            console.warn('⚠️ No token found in localStorage!');
         }
         return config;
     },
@@ -29,13 +34,33 @@ apiClient.interceptors.response.use(
         return response;
     },
     (error) => {
+        // Lấy error message
+        const errorMessage = error.response?.data?.message || error.response?.data || error.message || '';
+
+        // Xử lý lỗi tài khoản bị xóa
+        if (errorMessage.includes('đã bị xóa trong hệ thống') || errorMessage.includes('liên hệ admin')) {
+            // Clear localStorage
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+
+            // Show alert
+            alert('⚠️ Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.');
+
+            // Redirect to login
+            window.location.href = '/login';
+            return Promise.reject(error);
+        }
+
         // Xử lý lỗi 401 - token hết hạn
         if (error.response?.status === 401) {
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('userInfo');
-            // Redirect to login page if needed
-            window.location.href = '/login';
+            // Kiểm tra nếu không phải từ trang login
+            if (!window.location.pathname.includes('/login')) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('user');
+                window.location.href = '/login';
+            }
         }
+
         return Promise.reject(error);
     }
 );

@@ -29,7 +29,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         if (user.getDeletedAt() != null) {
-            throw new RuntimeException("Tài khoản đã bị xóa");
+            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
         }
 
         return userMapper.toUserResponse(user);
@@ -42,7 +42,7 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
 
         if (user.getDeletedAt() != null) {
-            throw new RuntimeException("Tài khoản đã bị xóa");
+            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
         }
 
         // Cập nhật các thông tin có thể thay đổi

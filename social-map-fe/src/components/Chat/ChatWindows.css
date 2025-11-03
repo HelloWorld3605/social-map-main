@@ -4,19 +4,9 @@
     bottom: 0;
     right: 20px;
     display: flex;
-    flex-direction: row-reverse; /* Stack from right to left like Facebook */
     gap: 10px;
     z-index: 1001;
     pointer-events: none;
-    max-width: calc(100vw - 100px); /* Prevent overflow on small screens */
-    overflow-x: auto; /* Allow scrolling if too many windows */
-    padding-left: 20px;
-}
-
-/* Hide scrollbar but keep functionality */
-.chat-windows-container::-webkit-scrollbar {
-    height: 0;
-    display: none;
 }
 
 .chat-window {

@@ -74,9 +74,13 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-resources/**").permitAll()
                 .requestMatchers("/webjars/**").permitAll()
 
-                    .requestMatchers("/ws/**").permitAll() // Cho phép kết nối WS
-                    .requestMatchers("/app/**").permitAll() // Cho phép gửi message STOMP
-                    .requestMatchers("/topic/**").permitAll() // Cho phép subscribe
+                // WebSocket endpoints
+                .requestMatchers("/ws/**").permitAll() // Cho phép kết nối WS
+                .requestMatchers("/app/**").permitAll() // Cho phép gửi message STOMP
+                .requestMatchers("/topic/**").permitAll() // Cho phép subscribe
+
+                // Seller requests - require authentication (USER role)
+                .requestMatchers("/api/seller-requests/**").authenticated()
 
                 // Health check endpoints
                 .requestMatchers("/actuator/health").permitAll()

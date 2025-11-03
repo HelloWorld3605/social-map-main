@@ -95,12 +95,22 @@ export default function LoginPage() {
             // Xử lý lỗi từ API
             console.error('Lỗi đăng nhập:', error);
 
-            if (error.response && error.response.data && error.response.data.message) {
-                setError(error.response.data.message);
+            let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
+
+            if (error.response && error.response.data) {
+                // Backend trả về error message
+                errorMessage = error.response.data.message || error.response.data || errorMessage;
             } else if (error.message) {
-                setError(error.message);
+                errorMessage = error.message;
+            }
+
+            // Kiểm tra xem có phải lỗi tài khoản bị xóa không
+            if (errorMessage.includes('đã bị xóa trong hệ thống') || errorMessage.includes('liên hệ admin')) {
+                // Hiển thị alert cho tài khoản bị xóa
+                alert('⚠️ ' + errorMessage);
             } else {
-                setError('Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.');
+                // Hiển thị lỗi bình thường
+                setError(errorMessage);
             }
         } finally {
             setLoading(false);

@@ -7,6 +7,9 @@ import ValidateTokenPage from './pages/Auth/validate-token-page';
 import CompleteRegistrationPage from './pages/Auth/complete-registration-page';
 import HomePage from './pages/HomePage/HomePage';
 import ProfilePage from './pages/ProfilePage/ProfilePage';
+import DashboardPage from './pages/DashboardPage/DashboardPage';
+import SellerRequestsPage from './pages/DashboardPage/SellerRequestsPage';
+import UsersManagementPage from './pages/DashboardPage/UsersManagementPage';
 import MainLayout from './components/Layout/MainLayout';
 
 function App() {
@@ -18,6 +21,28 @@ function App() {
   // Component bảo vệ route - chỉ cho phép truy cập nếu đã đăng nhập
   const ProtectedRoute = ({ children }) => {
     return isAuthenticated() ? children : <Navigate to="/login" replace />;
+  };
+
+  // Component bảo vệ route cho admin
+  const AdminRoute = ({ children }) => {
+    if (!isAuthenticated()) {
+      return <Navigate to="/login" replace />;
+    }
+
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+          return children;
+        }
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+
+    // Nếu không phải admin, redirect về home
+    return <Navigate to="/home" replace />;
   };
 
   return (
@@ -42,6 +67,42 @@ function App() {
             <ProtectedRoute>
               <HomePage />
             </ProtectedRoute>
+          }
+        />
+
+        {/* Trang Dashboard cho Admin */}
+        <Route
+          path="/dashboard"
+          element={
+            <AdminRoute>
+              <MainLayout>
+                <DashboardPage />
+              </MainLayout>
+            </AdminRoute>
+          }
+        />
+
+        {/* Trang Seller Requests cho Admin */}
+        <Route
+          path="/dashboard/seller-requests"
+          element={
+            <AdminRoute>
+              <MainLayout>
+                <SellerRequestsPage />
+              </MainLayout>
+            </AdminRoute>
+          }
+        />
+
+        {/* Trang Users Management cho Admin */}
+        <Route
+          path="/dashboard/users"
+          element={
+            <AdminRoute>
+              <MainLayout>
+                <UsersManagementPage />
+              </MainLayout>
+            </AdminRoute>
           }
         />
 
@@ -85,3 +146,4 @@ function App() {
 }
 
 export default App
+

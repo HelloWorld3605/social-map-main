@@ -26,13 +26,19 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     @Transactional
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+        // Kiểm tra xem user có tồn tại không (bao gồm cả deleted)
+        User userCheck = userRepository.findByEmail(email).orElse(null);
+
+        // Nếu user đã bị xóa, throw message cụ thể
+        if (userCheck != null && userCheck.getDeletedAt() != null) {
+            throw new UsernameNotFoundException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
+        }
+
+        // ✅ Sử dụng findActiveByEmail để chỉ lấy user chưa bị xóa
+        User user = userRepository.findActiveByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Không tìm thấy người dùng với email: " + email));
 
-        // Kiểm tra user có bị soft delete không
-        if (user.getDeletedAt() != null) {
-            throw new UsernameNotFoundException("Tài khoản đã bị xóa: " + email);
-        }
+        // Không cần kiểm tra deletedAt nữa vì findActiveByEmail đã lọc rồi
 
         return UserPrincipal.create(user);
     }

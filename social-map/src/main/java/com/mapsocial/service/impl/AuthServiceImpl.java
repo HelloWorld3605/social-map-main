@@ -123,14 +123,26 @@ public class AuthServiceImpl implements AuthService {
     // ----------------- LOGIN -----------------
     @Override
     public LoginResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        // Kiểm tra xem email có tồn tại không (bao gồm cả deleted users)
+        User userCheck = userRepository.findByEmail(request.getEmail())
+                .orElse(null);
+
+        // Nếu user đã bị xóa, trả về thông báo cụ thể
+        if (userCheck != null && userCheck.getDeletedAt() != null) {
+            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
+        }
+
+        // Sử dụng findActiveByEmail để chỉ lấy user chưa bị xóa
+        User user = userRepository.findActiveByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Email hoặc mật khẩu không đúng"));
+
+        // Không cần kiểm tra deletedAt nữa vì findActiveByEmail đã lọc rồi
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new RuntimeException("Email hoặc mật khẩu không đúng");
         }
 
-        // ✅ Sử dụng generateToken(User) để thêm userId vào JWT token
+        // Sử dụng generateToken(User) để thêm userId vào JWT token
         String accessToken = jwtUtils.generateToken(user);
 
         return LoginResponse.builder()
@@ -153,6 +165,11 @@ public class AuthServiceImpl implements AuthService {
     public void changePassword(UUID userId, ChangePasswordRequest request) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng"));
+
+        // Kiểm tra user đã bị xóa mềm chưa
+        if (user.getDeletedAt() != null) {
+            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
+        }
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
             throw new RuntimeException("Mật khẩu hiện tại không đúng");
@@ -187,6 +204,11 @@ public class AuthServiceImpl implements AuthService {
     public void resendEmailVerification(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy người dùng với email này"));
+
+        // Kiểm tra user đã bị xóa mềm chưa
+        if (user.getDeletedAt() != null) {
+            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
+        }
 
         if (user.getIsEmailVerified()) {
             throw new RuntimeException("Email đã được xác thực rồi");

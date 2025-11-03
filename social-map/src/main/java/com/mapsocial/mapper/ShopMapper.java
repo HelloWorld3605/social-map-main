@@ -5,8 +5,6 @@ import com.mapsocial.dto.response.shop.ShopResponse;
 import com.mapsocial.entity.Shop;
 import com.mapsocial.entity.Tag;
 
-import java.util.stream.Collectors;
-
 public class ShopMapper {
 
     private ShopMapper() {
@@ -14,16 +12,19 @@ public class ShopMapper {
     }
 
     public static Shop toShop(CreateShopRequest request) {
-        return Shop.builder()
+        Shop shop = Shop.builder()
                 .name(request.getName())
                 .address(request.getAddress())
-                .latitude(request.getLatitude())
-                .longitude(request.getLongitude())
                 .description(request.getDescription())
                 .phoneNumber(request.getPhoneNumber())
                 .openingTime(request.getOpeningTime())
                 .closingTime(request.getClosingTime())
                 .build();
+
+        // Set coordinates từ lớp cha Marker bằng MarkerMapper
+        MarkerMapper.setCoordinates(shop, request.getLatitude(), request.getLongitude());
+
+        return shop;
     }
 
     public static ShopResponse toShopResponse(Shop shop) {
@@ -39,7 +40,10 @@ public class ShopMapper {
                 .closingTime(shop.getClosingTime())
                 .rating(shop.getRating())
                 .reviewCount(shop.getReviewCount())
-                .tags(shop.getTags().stream().map(Tag::getName).collect(Collectors.toList()))
+                .tags(shop.getTags()
+                        .stream()
+                        .map(Tag::getName)
+                        .toList())
                 .build();
     }
 }

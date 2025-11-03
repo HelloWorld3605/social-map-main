@@ -30,6 +30,13 @@ public interface FriendshipRepository extends JpaRepository<Friendship, Long> {
         ELSE f1.sender.id
     END)
     FROM Friendship f1
+    WHERE (f1.sender.id = :userId OR f1.receiver.id = :userId)
+    AND f1.status = 'ACCEPTED'
+    """)
+    Long countFriendsByUserId(@Param("userId") UUID userId);
+
+    @Query("""  
+    FROM Friendship f1
     WHERE f1.status = 'ACCEPTED'
       AND (
         CASE WHEN f1.sender.id = :userId THEN f1.receiver.id ELSE f1.sender.id END

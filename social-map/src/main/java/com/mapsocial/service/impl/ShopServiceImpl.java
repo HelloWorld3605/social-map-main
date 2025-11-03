@@ -3,17 +3,12 @@ package com.mapsocial.service.impl;
 import com.mapsocial.dto.request.shop.CreateShopRequest;
 import com.mapsocial.dto.request.shop.UpdateShopRequest;
 import com.mapsocial.dto.response.shop.ShopResponse;
-import com.mapsocial.entity.Shop;
-import com.mapsocial.entity.Tag;
-import com.mapsocial.entity.User;
-import com.mapsocial.entity.UserShop;
+import com.mapsocial.entity.*;
 import com.mapsocial.enums.ShopRole;
 import com.mapsocial.enums.UserRole;
+import com.mapsocial.mapper.MarkerMapper;
 import com.mapsocial.mapper.ShopMapper;
-import com.mapsocial.repository.ShopRepository;
-import com.mapsocial.repository.TagRepository;
-import com.mapsocial.repository.UserRepository;
-import com.mapsocial.repository.UserShopRepository;
+import com.mapsocial.repository.*;
 import com.mapsocial.service.ShopService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -44,13 +39,16 @@ public class ShopServiceImpl implements ShopService {
 
         Shop shop = ShopMapper.toShop(request);
 
+        // Gắn tag nếu có
         if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
             List<Tag> tags = tagRepository.findAllById(request.getTagIds());
             shop.setTags(tags);
         }
 
+        // Lưu shop (sẽ tự set location trong @PrePersist)
         Shop savedShop = shopRepository.save(shop);
 
+        // Gắn quan hệ user-shop (vai trò OWNER)
         UserShop userShop = UserShop.builder()
                 .user(user)
                 .shop(savedShop)
@@ -75,10 +73,13 @@ public class ShopServiceImpl implements ShopService {
             throw new SecurityException("Chỉ chủ shop (OWNER) hoặc quản lý (MANAGER) mới được cập nhật shop");
         }
 
+        // Cập nhật thông tin từ request
         shop.setName(request.getName());
         shop.setAddress(request.getAddress());
-        shop.setLatitude(request.getLatitude());
-        shop.setLongitude(request.getLongitude());
+
+        // Sử dụng MarkerMapper để set coordinates
+        MarkerMapper.setCoordinates(shop, request.getLatitude(), request.getLongitude());
+
         shop.setDescription(request.getDescription());
         shop.setPhoneNumber(request.getPhoneNumber());
         shop.setOpeningTime(request.getOpeningTime());
@@ -89,7 +90,9 @@ public class ShopServiceImpl implements ShopService {
             shop.setTags(tags);
         }
 
-        return ShopMapper.toShopResponse(shopRepository.save(shop));
+        Shop updatedShop = shopRepository.save(shop);
+
+        return ShopMapper.toShopResponse(updatedShop);
     }
 
     @Override
@@ -103,6 +106,7 @@ public class ShopServiceImpl implements ShopService {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
+
         if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.SUPER_ADMIN) {
             shopRepository.delete(shop);
             return;

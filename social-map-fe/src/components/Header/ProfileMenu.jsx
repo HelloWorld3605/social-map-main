@@ -20,7 +20,7 @@ export default function ProfileMenu() {
     }
   }, []);
 
-  // Đóng dropdown khi click bên ngoài
+    // Đóng dropdown khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -62,7 +62,7 @@ export default function ProfileMenu() {
   };
 
   const handleDashboard = () => {
-    // TODO: Chuyển đến trang dashboard
+    // Chuyển đến trang dashboard
     console.log('Mở dashboard');
     navigate('/dashboard');
     setIsDropdownOpen(false);
@@ -72,7 +72,7 @@ export default function ProfileMenu() {
   const avatarUrl = user?.avatarUrl || '/channels/myprofile.jpg';
   const displayName = user?.displayName || 'Người dùng';
   const email = user?.email || 'user@example.com';
-  const isAdmin = user?.role === 'ADMIN';
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   return (
     <>
