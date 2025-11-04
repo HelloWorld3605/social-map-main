@@ -195,17 +195,17 @@ export default function ChatWindow({
         prevIsActiveRef.current = isNowActive;
     }, [conversation?.id, minimized, isActive, onMarkAsRead]);
 
-    // Subscribe to WebSocket updates
-    useEffect(() => {
-        if (!conversation?.id) return;
+    // Create stable callback refs to avoid recreating subscriptions
+    const messageCallbackRef = useRef();
+    const typingCallbackRef = useRef();
+    const updateCallbackRef = useRef();
 
-        // Create callbacks with stable references for cleanup
-        const messageCallback = (message) => {
+    // Update callback refs when dependencies change
+    useEffect(() => {
+        messageCallbackRef.current = (message) => {
             console.log('📨 ChatWindow received new message:', message);
-            // New message
             let processedMessage = message;
 
-            // Handle location messages
             if (message.content && message.content.startsWith('LOCATION:')) {
                 try {
                     const locationData = JSON.parse(message.content.substring(9));
@@ -222,48 +222,26 @@ export default function ChatWindow({
             setMessages(prev => [...prev, processedMessage]);
             scrollToBottom(true);
 
-            // Notify parent
             if (onNewMessage) {
                 onNewMessage(processedMessage);
             }
 
-            // Auto mark as read if window is ACTIVE, not minimized, and message is from others
-            console.log('🔍 Auto mark check:', {
-                conversationId: conversation.id,
-                isActive,
-                minimized,
-                isFromOthers: message.senderId !== currentUserId,
-                senderId: message.senderId,
-                currentUserId,
-                shouldAutoMark: isActive && !minimized && message.senderId !== currentUserId
-            });
-
             if (isActive && !minimized && message.senderId !== currentUserId) {
-                console.log('✅ Auto-marking as read (window ACTIVE, not minimized, message from others)');
-                console.log('⚠️ VERIFY: Is this window actually active? Check visual state!');
-                // Send via WebSocket for real-time
+                console.log('✅ Auto-marking as read');
                 webSocketService.sendMarkAsRead({ conversationId: conversation.id });
-                // Also call REST API as backup
                 ChatService.markAsRead(conversation.id).catch(console.error);
-                // Update parent state
                 if (onMarkAsRead) {
                     onMarkAsRead(conversation.id);
                 }
-            } else {
-                console.log('⏭️ Skipping auto mark as read - window not active or message from self');
             }
         };
 
-        const typingCallback = (typingDTO) => {
-            // Typing indicator
-            console.log('🎯 ChatWindow received typing from WebSocket:', typingDTO, 'currentUserId:', currentUserId);
-
-            // Handle both 'typing' and 'isTyping' field names from backend
+        typingCallbackRef.current = (typingDTO) => {
+            console.log('🎯 ChatWindow received typing:', typingDTO);
             const isTyping = typingDTO.typing ?? typingDTO.isTyping ?? false;
 
             if (typingDTO.userId !== currentUserId) {
                 if (isTyping) {
-                    // User started typing
                     const user = conversation.isGroup
                         ? conversation.members?.find(m => m.userId === typingDTO.userId)
                         : conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
@@ -271,42 +249,35 @@ export default function ChatWindow({
                     const name = user?.fullName || typingDTO.username || 'User';
 
                     setTypingUsers(prev => {
-                        const alreadyTyping = prev.some(u => u.userId === typingDTO.userId);
-                        if (alreadyTyping) {
-                            console.log(`⏭️ User ${typingDTO.userId} already in typingUsers, skipping`);
-                            return prev;
-                        }
-                        const newUsers = [...prev, { userId: typingDTO.userId, avatar, name }];
-                        console.log(`✍️ Added user ${typingDTO.userId} (${name}) to typingUsers:`, newUsers);
-                        return newUsers;
+                        if (prev.some(u => u.userId === typingDTO.userId)) return prev;
+                        return [...prev, { userId: typingDTO.userId, avatar, name }];
                     });
                 } else {
-                    // User stopped typing
-                    setTypingUsers(prev => {
-                        const newUsers = prev.filter(u => u.userId !== typingDTO.userId);
-                        console.log(`⏹️ Removed user ${typingDTO.userId} from typingUsers. Before:`, prev.length, 'After:', newUsers.length);
-                        return newUsers;
-                    });
+                    setTypingUsers(prev => prev.filter(u => u.userId !== typingDTO.userId));
                 }
 
-                // Dispatch event to update SideChat (if needed)
-                console.log('📡 ChatWindow dispatching typingStatus event');
                 window.dispatchEvent(new CustomEvent('typingStatus', {
-                    detail: { conversationId: conversation.id, isTyping: isTyping, userId: typingDTO.userId }
+                    detail: { conversationId: conversation.id, isTyping, userId: typingDTO.userId }
                 }));
-            } else {
-                console.log('⏭️ Skipping typing from self (currentUser)');
             }
         };
 
-        const updateCallback = (updatedMessage) => {
-            // Message edited/deleted
+        updateCallbackRef.current = (updatedMessage) => {
             setMessages(prev => prev.map(msg =>
                 msg.id === updatedMessage.id ? updatedMessage : msg
             ));
         };
+    }, [conversation, currentUserId, isActive, minimized, onNewMessage, onMarkAsRead, scrollToBottom]);
 
-        // Subscribe with callback references
+    // Subscribe to WebSocket updates
+    useEffect(() => {
+        if (!conversation?.id) return;
+
+        // Wrapper functions that call the refs
+        const messageCallback = (msg) => messageCallbackRef.current?.(msg);
+        const typingCallback = (dto) => typingCallbackRef.current?.(dto);
+        const updateCallback = (msg) => updateCallbackRef.current?.(msg);
+
         console.log('🔔 ChatWindow subscribing to conversation:', conversation.id);
         webSocketService.subscribeToConversation(
             conversation.id,
@@ -315,15 +286,13 @@ export default function ChatWindow({
             updateCallback
         );
 
-        // ✅ IMPORTANT: Fetch current typing users after subscribing
-        // This ensures we see typing status from users who started typing BEFORE we subscribed
+        // Fetch current typing users
         const fetchTypingUsers = async () => {
             try {
                 const typingUserIds = await ChatService.getTypingUsers(conversation.id);
                 console.log('📋 Fetched current typing users:', typingUserIds);
 
                 if (typingUserIds && typingUserIds.length > 0) {
-                    // Filter out current user and map to typing user objects
                     const typingUsersData = typingUserIds
                         .filter(userId => userId !== currentUserId)
                         .map(userId => {
@@ -350,9 +319,8 @@ export default function ChatWindow({
         fetchTypingUsers();
 
         return () => {
-            // Cleanup: Send typing stopped ONLY if user was typing
             if (isTypingRef.current) {
-                console.log('🧹 ChatWindow cleanup: user was typing, sending stopped');
+                console.log('🧹 ChatWindow cleanup: sending typing stopped');
                 webSocketService.sendTypingStatus({
                     conversationId: conversation.id,
                     isTyping: false
@@ -360,13 +328,15 @@ export default function ChatWindow({
                 isTypingRef.current = false;
             }
 
-            // Unsubscribe ONLY ChatWindow's callbacks (not SideChat's!)
-            console.log('🧹 ChatWindow cleanup: unsubscribing callbacks for', conversation.id);
+            console.log('🧹 ChatWindow cleanup: unsubscribing for', conversation.id);
             webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, messageCallback);
             webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, typingCallback);
             webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, updateCallback);
+
+            // Clear typing users on unmount
+            setTypingUsers([]);
         };
-    }, [conversation?.id, currentUserId, isActive, minimized, onMarkAsRead]); // ✅ FIXED: Add deps to prevent stale closure
+    }, [conversation?.id, currentUserId]); // Only re-subscribe when conversation or user changes
 
     // Handle page reload/close - cleanup typing indicator
     useEffect(() => {
