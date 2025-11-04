@@ -46,25 +46,32 @@ public class SellerRequestServiceImpl implements SellerRequestService {
             throw new IllegalStateException("Bạn đã có yêu cầu đang chờ xét duyệt");
         }
 
-        // Kiểm tra CCCD
-        if (request.getCitizenId() == null || request.getCitizenId().trim().isEmpty()) {
-            throw new IllegalStateException("CCCD không được để trống");
-        }
+        // Xác định CCCD sẽ sử dụng
+        String citizenIdToUse;
 
-        // Kiểm tra CCCD đã được sử dụng chưa
-        if (userRepository.existsByCitizenId(request.getCitizenId())) {
-            throw new IllegalStateException("CCCD này đã được sử dụng bởi tài khoản khác");
-        }
+        if (user.getCitizenId() != null && !user.getCitizenId().trim().isEmpty()) {
+            // User đã có CCCD → Sử dụng CCCD có sẵn, bỏ qua input từ request
+            citizenIdToUse = user.getCitizenId();
+        } else {
+            // User chưa có CCCD → Yêu cầu phải nhập
+            if (request.getCitizenId() == null || request.getCitizenId().trim().isEmpty()) {
+                throw new IllegalStateException("CCCD không được để trống");
+            }
 
-        // Lưu CCCD vào user nếu chưa có
-        if (user.getCitizenId() == null || user.getCitizenId().trim().isEmpty()) {
+            // Kiểm tra CCCD đã được sử dụng chưa
+            if (userRepository.existsByCitizenId(request.getCitizenId())) {
+                throw new IllegalStateException("CCCD này đã được sử dụng bởi tài khoản khác");
+            }
+
+            // Lưu CCCD vào user
             user.setCitizenId(request.getCitizenId());
             userRepository.save(user);
+            citizenIdToUse = request.getCitizenId();
         }
 
         SellerRequest sellerRequest = SellerRequest.builder()
                 .user(user)
-                .citizenId(request.getCitizenId())
+                .citizenId(citizenIdToUse)
                 .status(RequestStatus.PENDING)
                 .build();
 
@@ -140,6 +147,13 @@ public class SellerRequestServiceImpl implements SellerRequestService {
         SellerRequest request = sellerRequestRepository.findById(requestId)
                 .orElseThrow(() -> new EntityNotFoundException("Request not found"));
         return toResponse(request);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SellerRequestResponse> getMyRequests(UUID userId) {
+        List<SellerRequest> requests = sellerRequestRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        return requests.stream().map(this::toResponse).toList();
     }
 
     private SellerRequestResponse toResponse(SellerRequest request) {

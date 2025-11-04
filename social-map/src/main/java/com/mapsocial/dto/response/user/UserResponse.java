@@ -31,6 +31,9 @@ public class UserResponse {
     @Schema(description = "URL ảnh bìa của người dùng", example = "https://example.com/cover.jpg")
     private String coverPhoto;
 
+    @Schema(description = "Số CCCD của người dùng", example = "001234567890")
+    private String citizenId;
+
     @Schema(description = "Trạng thái xác thực email", example = "true")
     private Boolean isEmailVerified;
 

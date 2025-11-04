@@ -38,8 +38,10 @@ public class SellerRequestController {
     @Operation(summary = "Lấy các yêu cầu của tôi", description = "Lấy danh sách seller requests của user hiện tại")
     public ResponseEntity<List<SellerRequestResponse>> getMySellerRequests(
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
-        // TODO: Implement get user's requests
-        return ResponseEntity.ok(List.of());
+        List<SellerRequestResponse> requests = sellerRequestService.getMyRequests(
+                userPrincipal.getUser().getId()
+        );
+        return ResponseEntity.ok(requests);
     }
 }
 

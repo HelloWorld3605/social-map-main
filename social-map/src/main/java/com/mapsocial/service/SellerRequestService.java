@@ -13,5 +13,6 @@ public interface SellerRequestService {
     SellerRequestResponse approveRequest(UUID requestId, UUID adminId);
     SellerRequestResponse rejectRequest(UUID requestId, String reason, UUID adminId);
     SellerRequestResponse getRequestById(UUID requestId);
+    List<SellerRequestResponse> getMyRequests(UUID userId);
 }
 

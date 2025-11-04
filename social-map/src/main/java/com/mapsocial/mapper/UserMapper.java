@@ -19,6 +19,7 @@ public class UserMapper {
                 .role(user.getRole())
                 .avatarUrl(user.getAvatarUrl())
                 .coverPhoto(user.getCoverPhoto())
+                .citizenId(user.getCitizenId())
                 .isEmailVerified(user.getIsEmailVerified())
                 .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
                 .build();

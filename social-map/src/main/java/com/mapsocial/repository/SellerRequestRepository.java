@@ -17,6 +17,8 @@ public interface SellerRequestRepository extends JpaRepository<SellerRequest, UU
 
     List<SellerRequest> findAllByOrderByCreatedAtDesc();
 
+    List<SellerRequest> findByUserIdOrderByCreatedAtDesc(UUID userId);
+
     Optional<SellerRequest> findByUserIdAndStatus(UUID userId, RequestStatus status);
 
     @Query("SELECT COUNT(sr) FROM SellerRequest sr WHERE sr.status = 'PENDING'")
