@@ -19,6 +19,7 @@ public class ShopMapper {
                 .phoneNumber(request.getPhoneNumber())
                 .openingTime(request.getOpeningTime())
                 .closingTime(request.getClosingTime())
+                .imageShopUrl(request.getImageShopUrl() != null ? request.getImageShopUrl() : new java.util.ArrayList<>())
                 .build();
 
         // Set coordinates từ lớp cha Marker bằng MarkerMapper
@@ -38,12 +39,15 @@ public class ShopMapper {
                 .phoneNumber(shop.getPhoneNumber())
                 .openingTime(shop.getOpeningTime())
                 .closingTime(shop.getClosingTime())
+                .status(shop.getStatus())
                 .rating(shop.getRating())
                 .reviewCount(shop.getReviewCount())
-                .tags(shop.getTags()
-                        .stream()
-                        .map(Tag::getName)
-                        .toList())
+                .imageShopUrl(shop.getImageShopUrl())
+                .tags(shop.getTags() != null
+                        ? shop.getTags().stream()
+                                .map(Tag::getName)
+                                .toList()
+                        : new java.util.ArrayList<>())
                 .build();
     }
 }

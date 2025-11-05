@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import './map.css';
 import './PopupMap.css';
+import './shopMarkers.css';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapContext } from '../../context/MapContext';
@@ -9,6 +10,18 @@ import { HANOI_MARKER, generateMarkerPopupHTML } from '../../constants/markers';
 import LocationSharing from '../../js/location-sharing';
 
 mapboxgl.accessToken = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
+
+// Initialize shop markers function
+const initializeShopMarkers = async (map) => {
+    try {
+        const { shopMarkersManager } = await import('../../utils/shopMarkersManager.js');
+        shopMarkersManager.initialize(map);
+        window.shopMarkersManager = shopMarkersManager;
+        console.log('Shop markers initialized');
+    } catch (error) {
+        console.error('Failed to initialize shop markers:', error);
+    }
+};
 
 export default function MapSection() {
     const { setMap } = useMapContext();
@@ -132,6 +145,9 @@ export default function MapSection() {
                     // Init location sharing
                     window.locationSharing = new LocationSharing(map);
                     console.log('LocationSharing ready (no duplicate listeners)');
+
+                    // Initialize shop markers
+                    initializeShopMarkers(map);
                 }, 500);
             });
 

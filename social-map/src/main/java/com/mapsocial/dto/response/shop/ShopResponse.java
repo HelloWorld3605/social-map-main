@@ -1,5 +1,6 @@
 package com.mapsocial.dto.response.shop;
 
+import com.mapsocial.enums.ShopStatus;
 import lombok.Builder;
 import lombok.Data;
 
@@ -19,7 +20,9 @@ public class ShopResponse {
     private String phoneNumber;
     private LocalTime openingTime;
     private LocalTime closingTime;
+    private ShopStatus status; // trạng thái shop
     private Double rating;
     private Integer reviewCount;
+    private List<String> imageShopUrl; // danh sách URL ảnh của shop
     private List<String> tags; // tên tag
 }

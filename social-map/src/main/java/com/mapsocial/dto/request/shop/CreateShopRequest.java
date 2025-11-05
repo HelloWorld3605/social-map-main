@@ -41,5 +41,8 @@ public class CreateShopRequest {
     @NotNull(message = "Giờ đóng cửa là bắt buộc")
     private LocalTime closingTime;
 
+    @Size(max = 10, message = "Tối đa 10 ảnh cho shop")
+    private List<String> imageShopUrl; // danh sách URL ảnh của shop
+
     private List<UUID> tagIds; // danh sách tag nếu có
 }

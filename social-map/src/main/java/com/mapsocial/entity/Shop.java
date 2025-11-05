@@ -31,15 +31,27 @@ public class Shop extends Marker {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private ShopStatus status = ShopStatus.OPEN;
 
+    @Builder.Default
     private Double rating = 0.0;
+
+    @Builder.Default
     private Integer reviewCount = 0;
 
+    @ElementCollection
+    @CollectionTable(name = "shop_images", joinColumns = @JoinColumn(name = "shop_id"))
+    @Column(name = "image_url", length = 1000)
+    @Builder.Default
+    private List<String> imageShopUrl = new ArrayList<>();
+
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<Menu> menus = new ArrayList<>();
 
     @OneToMany(mappedBy = "shop", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<UserShop> userShops = new ArrayList<>();
 
     @ManyToMany
@@ -48,5 +60,6 @@ public class Shop extends Marker {
             joinColumns = @JoinColumn(name = "shop_id"),
             inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
+    @Builder.Default
     private List<Tag> tags = new ArrayList<>();
 }

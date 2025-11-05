@@ -28,10 +28,12 @@ export default function ChatWindow({
     const lastScrollHeightRef = useRef(0);
     const isLoadingMoreRef = useRef(false);
     const inputRef = useRef(null);
+    const dropZoneRef = useRef(null);
     const navigate = useNavigate();
 
     // Track if user is currently typing to avoid unnecessary cleanup messages
     const isTypingRef = useRef(false);
+    const [isDragOver, setIsDragOver] = useState(false);
 
     // Get display info
     const getDisplayInfo = useCallback(() => {
@@ -425,6 +427,87 @@ export default function ChatWindow({
         }
     }, [inputValue, isSending, conversation?.id, sendTypingIndicator]);
 
+    // Send shop message
+    const sendShopMessage = useCallback(async (shopData) => {
+        if (isSending || !conversation?.id) return;
+
+        try {
+            setIsSending(true);
+
+            // Format shop content as JSON string with SHOP: prefix
+            const shopContent = `SHOP:${JSON.stringify({
+                shopId: shopData.shopId,
+                shopName: shopData.shopName,
+                address: shopData.address,
+                latitude: shopData.latitude,
+                longitude: shopData.longitude,
+                phoneNumber: shopData.phoneNumber,
+                imageUrl: shopData.imageUrl,
+                rating: shopData.rating,
+                status: shopData.status
+            })}`;
+
+            // Send via REST API
+            await ChatService.sendMessage(conversation.id, {
+                content: shopContent,
+                messageType: 'TEXT'
+            });
+
+            console.log('✅ Shop shared successfully:', shopData.shopName);
+        } catch (error) {
+            console.error('Failed to send shop message:', error);
+        } finally {
+            setIsSending(false);
+        }
+    }, [isSending, conversation?.id]);
+
+    // Handle drop events for shop sharing
+    useEffect(() => {
+        const dropZone = dropZoneRef.current;
+        if (!dropZone) return;
+
+        const handleDragOver = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragOver(true);
+        };
+
+        const handleDragLeave = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragOver(false);
+        };
+
+        const handleDrop = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setIsDragOver(false);
+
+            try {
+                const data = e.dataTransfer.getData('application/json');
+                if (!data) return;
+
+                const shopData = JSON.parse(data);
+                if (shopData.type === 'SHOP') {
+                    console.log('🏪 Dropped shop:', shopData);
+                    sendShopMessage(shopData);
+                }
+            } catch (error) {
+                console.error('Failed to handle shop drop:', error);
+            }
+        };
+
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('dragleave', handleDragLeave);
+        dropZone.addEventListener('drop', handleDrop);
+
+        return () => {
+            dropZone.removeEventListener('dragover', handleDragOver);
+            dropZone.removeEventListener('dragleave', handleDragLeave);
+            dropZone.removeEventListener('drop', handleDrop);
+        };
+    }, [sendShopMessage]);
+
     // Handle key press
     const handleKeyPress = useCallback((e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -432,6 +515,29 @@ export default function ChatWindow({
             handleSend();
         }
     }, [handleSend]);
+
+    // Handle shop click - zoom to shop on map
+    const handleShopClick = useCallback((shopData) => {
+        console.log('🏪 Clicked shop:', shopData);
+
+        // Focus on map and zoom to shop location
+        if (window.shopMarkersManager && shopData.shopId) {
+            window.shopMarkersManager.focusOnShop(shopData.shopId);
+        } else if (shopData.latitude && shopData.longitude) {
+            // Fallback: zoom to coordinates
+            const map = window.mapboxManager?.map;
+            if (map) {
+                map.flyTo({
+                    center: [shopData.longitude, shopData.latitude],
+                    zoom: 16,
+                    duration: 1500
+                });
+            }
+        }
+
+        // Optionally navigate to shop detail page
+        // navigate(`/shop/${shopData.shopId}`);
+    }, []);
 
     // Linkify text
     const linkify = (text) => {
@@ -581,7 +687,41 @@ export default function ChatWindow({
                                     {!isSent && showAvatar && (
                                         <div className="chat-window-message-sender">{msg.senderName}</div>
                                     )}
-                                    {msg.isLocation ? (
+                                    {msg.content && typeof msg.content === 'string' && msg.content.startsWith('SHOP:') ? (
+                                        (() => {
+                                            try {
+                                                const shopData = JSON.parse(msg.content.substring(5));
+                                                return (
+                                                    <div className="shop-message-card" onClick={() => handleShopClick(shopData)}>
+                                                        {shopData.imageUrl && (
+                                                            <div className="shop-card-image">
+                                                                <img src={shopData.imageUrl} alt={shopData.shopName} />
+                                                                <div className="shop-card-overlay">🏪</div>
+                                                            </div>
+                                                        )}
+                                                        <div className="shop-card-content">
+                                                            <div className="shop-card-title">{shopData.shopName}</div>
+                                                            {shopData.address && (
+                                                                <div className="shop-card-detail">📍 {shopData.address}</div>
+                                                            )}
+                                                            {shopData.phoneNumber && (
+                                                                <div className="shop-card-detail">📞 {shopData.phoneNumber}</div>
+                                                            )}
+                                                            {shopData.rating > 0 && (
+                                                                <div className="shop-card-detail">⭐ {shopData.rating.toFixed(1)}</div>
+                                                            )}
+                                                            <button className="shop-card-button">
+                                                                🗺️ Xem trên bản đồ
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            } catch (e) {
+                                                console.error('Failed to parse shop message:', e);
+                                                return <div className="chat-window-message-text" dangerouslySetInnerHTML={{ __html: linkify(msg.content) }} />;
+                                            }
+                                        })()
+                                    ) : msg.isLocation ? (
                                         <div className="location-message-card">
                                             <div className="location-card-image">
                                                 <img src={msg.content.image} alt={msg.content.name} />
@@ -632,7 +772,10 @@ export default function ChatWindow({
                 <div ref={messagesEndRef} />
             </div>
 
-            <div className="chat-window-input-container">
+            <div
+                className={`chat-window-input-container ${isDragOver ? 'drag-over' : ''}`}
+                ref={dropZoneRef}
+            >
                 <input
                     type="text"
                     placeholder="Aa"

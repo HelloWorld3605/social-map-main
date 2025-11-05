@@ -36,5 +36,8 @@ public class UpdateShopRequest {
     private LocalTime openingTime;
     private LocalTime closingTime;
 
+    @Size(max = 10, message = "Tối đa 10 ảnh cho shop")
+    private List<String> imageShopUrl; // danh sách URL ảnh của shop
+
     private List<UUID> tagIds;
 }

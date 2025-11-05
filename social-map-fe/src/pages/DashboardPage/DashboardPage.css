@@ -4,6 +4,7 @@
     max-width: 1400px;
     margin: 0 auto;
     margin-left: 250px; /* Space for sidebar */
+    margin-top: 80px; /* Space for header */
     background: #f5f7fa;
     min-height: 100vh;
 }

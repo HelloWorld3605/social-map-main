@@ -2,9 +2,9 @@
 .admin-sidebar {
     position: fixed;
     left: 0;
-    top: 60px; /* Sau header */
+    top: 90px; /* Sau header */
     width: 250px;
-    height: calc(100vh - 60px);
+    height: calc(100vh - 80px);
     background: #1e293b;
     color: white;
     display: flex;

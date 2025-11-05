@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createSellerRequest, getMySellerRequests } from '../../services/sellerRequestService';
+import CreateShopModal from '../Shop/CreateShopModal';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -8,6 +9,7 @@ export default function Sidebar() {
     const [locationError, setLocationError] = useState(null);
     const [user, setUser] = useState(null);
     const [showSellerRequestModal, setShowSellerRequestModal] = useState(false);
+    const [showCreateShopModal, setShowCreateShopModal] = useState(false);
     const [sellerRequestForm, setSellerRequestForm] = useState({
         citizenId: ''
     });
@@ -267,19 +269,35 @@ export default function Sidebar() {
                     // Hiển thị cho SELLER - Xem thông tin người bán
                     if (user?.role === 'SELLER') {
                         return (
-                            <li>
-                                <a
-                                    href="#"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        setShowSellerRequestModal(true);
-                                    }}
-                                    className="seller-request-link"
-                                >
-                                    <span className="menu-icon">✅</span>
-                                    Thông tin người bán hàng
-                                </a>
-                            </li>
+                            <>
+                                <li>
+                                    <a
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setShowSellerRequestModal(true);
+                                        }}
+                                        className="seller-request-link"
+                                    >
+                                        <span className="menu-icon">✅</span>
+                                        Thông tin người bán hàng
+                                    </a>
+                                </li>
+                                <li>
+                                    <a
+                                        href="#"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            console.log('🏪 Opening CreateShopModal from Sidebar');
+                                            setShowCreateShopModal(true);
+                                        }}
+                                        className="seller-request-link create-shop-link"
+                                    >
+                                        <span className="menu-icon">🏪➕</span>
+                                        Tạo cửa hàng mới
+                                    </a>
+                                </li>
+                            </>
                         );
                     }
 
@@ -672,6 +690,28 @@ export default function Sidebar() {
                     </div>
                 </div>
             )}
+
+            {/* Create Shop Modal */}
+            <CreateShopModal
+                isOpen={showCreateShopModal}
+                onClose={() => {
+                    console.log('🚪 Sidebar closing CreateShopModal');
+                    setShowCreateShopModal(false);
+                }}
+                onShopCreated={(shop) => {
+                    console.log('Shop created:', shop);
+                    alert(`Cửa hàng "${shop.name}" đã được tạo thành công! Vị trí đã được pin lên bản đồ.`);
+
+                    // Reload shop markers on the map without reloading page
+                    if (window.shopMarkersManager) {
+                        console.log('Reloading shop markers...');
+                        window.shopMarkersManager.loadShops();
+                    } else {
+                        // Fallback: reload page if shopMarkersManager is not available
+                        window.location.reload();
+                    }
+                }}
+            />
         </nav>
     );
 }

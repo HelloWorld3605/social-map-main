@@ -305,6 +305,29 @@ body.dark-mode .socialmap-logo {
     font-size: 1.25rem;
 }
 
+.menu-icon {
+    font-size: 1.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Create Shop Link - Special Styling */
+.create-shop-link {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.05) 0%, transparent 100%) !important;
+    border: 2px solid transparent !important;
+}
+
+.create-shop-link::before {
+    background: linear-gradient(180deg, #10b981 0%, #059669 100%) !important;
+}
+
+.create-shop-link:hover {
+    background: linear-gradient(90deg, rgba(16, 185, 129, 0.12) 0%, transparent 100%) !important;
+    color: #10b981 !important;
+    border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
 /* Modal Overlay */
 .modal-overlay {
     position: fixed;

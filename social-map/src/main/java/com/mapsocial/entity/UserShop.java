@@ -29,10 +29,18 @@ public class UserShop {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private ShopRole managerRole = ShopRole.OWNER; // ví dụ: OWNER, STAFF, CASHIER
+    @Builder.Default
+    private ShopRole managerRole = ShopRole.OWNER;
 
     @Column(nullable = false, updatable = false)
-    private LocalDateTime joinedAt = LocalDateTime.now();
+    private LocalDateTime joinedAt;
 
     private LocalDateTime leftAt;
+
+    @PrePersist
+    protected void onCreate() {
+        if (joinedAt == null) {
+            joinedAt = LocalDateTime.now();
+        }
+    }
 }

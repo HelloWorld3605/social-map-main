@@ -85,6 +85,11 @@ public class ShopServiceImpl implements ShopService {
         shop.setOpeningTime(request.getOpeningTime());
         shop.setClosingTime(request.getClosingTime());
 
+        // Cập nhật danh sách ảnh nếu có
+        if (request.getImageShopUrl() != null) {
+            shop.setImageShopUrl(request.getImageShopUrl());
+        }
+
         if (request.getTagIds() != null && !request.getTagIds().isEmpty()) {
             List<Tag> tags = tagRepository.findAllById(request.getTagIds());
             shop.setTags(tags);

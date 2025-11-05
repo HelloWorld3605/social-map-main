@@ -32,17 +32,50 @@ class LocationSharing {
                 return setTimeout(attachEvents, 800);
             }
 
+            let shopMarkerCount = 0;
+            let regularMarkerCount = 0;
+            let skippedCount = 0;
+
             markers.forEach((markerEl, index) => {
-                if (markerEl.dataset.hasListener === 'true') return; // ⚡ tránh gắn lại
+                // Log marker details
+                console.log(`[LocationSharing] Checking marker ${index}:`, {
+                    classes: markerEl.className,
+                    shopCreation: markerEl.dataset.shopCreation,
+                    shopId: markerEl.getAttribute('data-shop-id'),
+                    shopName: markerEl.getAttribute('data-shop-name')
+                });
+
+                // Skip ONLY shop creation markers (in modal), but allow shop markers (on map)
+                if (markerEl.dataset.shopCreation === 'true' ||
+                    markerEl.classList.contains('create-shop-marker')) {
+                    console.log('[LocationSharing] Skipping create-shop marker (modal)');
+                    skippedCount++;
+                    return;
+                }
+
+                if (markerEl.dataset.hasListener === 'true') {
+                    console.log('[LocationSharing] Marker already has listener, skipping');
+                    return;
+                }
+
                 markerEl.dataset.hasListener = 'true';
                 markerEl.dataset.markerId = `marker-${index}`;
                 markerEl.style.cursor = 'grab';
                 markerEl.style.pointerEvents = 'auto';
 
                 markerEl.addEventListener('mousedown', (e) => this.startDrag(e, markerEl), { passive: false });
+
+                // Count marker types
+                if (markerEl.classList.contains('shop-marker')) {
+                    shopMarkerCount++;
+                    console.log(`[LocationSharing] ✅ Attached drag to SHOP marker: ${markerEl.getAttribute('data-shop-name')}`);
+                } else {
+                    regularMarkerCount++;
+                    console.log(`[LocationSharing] ✅ Attached drag to REGULAR marker`);
+                }
             });
 
-            console.log(`[LocationSharing] Attached drag events to ${markers.length} markers`);
+            console.log(`[LocationSharing] Summary: Total=${markers.length}, Shop=${shopMarkerCount}, Regular=${regularMarkerCount}, Skipped=${skippedCount}`);
         };
 
         attachEvents();
@@ -78,8 +111,14 @@ class LocationSharing {
 
     setupGlobalDragEvents() {
         document.addEventListener('mousedown', (e) => {
-            if (e.target.closest('.mapboxgl-marker')) {
-                this.startDrag(e, e.target.closest('.mapboxgl-marker'));
+            const markerEl = e.target.closest('.mapboxgl-marker');
+            if (markerEl) {
+                // Skip ONLY shop creation markers (in modal)
+                if (markerEl.dataset.shopCreation === 'true' ||
+                    markerEl.classList.contains('create-shop-marker')) {
+                    return; // Let the modal marker handle its own events
+                }
+                this.startDrag(e, markerEl);
             }
         });
         document.addEventListener('mousemove', (e) => this.onDrag(e));
@@ -153,20 +192,75 @@ class LocationSharing {
         this.dragStarted = true;
         this.toggleMapInteractions(false);
 
-        // Dữ liệu marker - sử dụng từ shared constants
-        this.draggedMarker = window.HANOI_MARKER ? {
-            name: window.HANOI_MARKER.name,
-            coordinates: window.HANOI_MARKER.coordinates,
-            image: window.HANOI_MARKER.image,
-            description: window.HANOI_MARKER.description
-        } : {
-            name: 'Unknown Location',
-            coordinates: [0, 0],
-            image: '',
-            description: ''
-        };
+        // Check if this is a shop marker
+        if (markerEl.classList.contains('shop-marker')) {
+            const shopId = markerEl.getAttribute('data-shop-id');
+            const shopName = markerEl.getAttribute('data-shop-name');
 
-        console.log('initiateDrag: draggedMarker', this.draggedMarker);
+            // Get full shop data from window.shopMarkersManager if available
+            let shopData = null;
+            if (window.shopMarkersManager && window.shopMarkersManager.shopPopups) {
+                const marker = window.shopMarkersManager.shopPopups.get(shopId);
+                if (marker) {
+                    const lngLat = marker.getLngLat();
+
+                    // Try to get full shop data from shops array
+                    let fullShopData = null;
+                    if (window.shopMarkersManager.shops) {
+                        fullShopData = window.shopMarkersManager.shops.find(s => s.id === shopId);
+                    }
+
+                    // Get image from shop data or use default
+                    const shopImage = (fullShopData && fullShopData.imageShopUrl && fullShopData.imageShopUrl.length > 0)
+                        ? fullShopData.imageShopUrl[0]
+                        : '/icons/location.svg';
+
+                    shopData = {
+                        name: shopName || 'Shop',
+                        coordinates: [lngLat.lng, lngLat.lat],
+                        image: shopImage,
+                        description: fullShopData ? (fullShopData.address || 'Cửa hàng') : 'Cửa hàng',
+                        type: 'shop',
+                        shopId: shopId,
+                        // Additional shop info for rich display
+                        phoneNumber: fullShopData?.phoneNumber,
+                        rating: fullShopData?.rating,
+                        status: fullShopData?.status
+                    };
+                }
+            }
+
+            // Fallback if can't get from manager
+            if (!shopData) {
+                shopData = {
+                    name: shopName || 'Shop',
+                    coordinates: [0, 0],
+                    image: '/icons/location.svg',
+                    description: 'Cửa hàng',
+                    type: 'shop',
+                    shopId: shopId
+                };
+            }
+
+            this.draggedMarker = shopData;
+            console.log('initiateDrag: shop marker', this.draggedMarker);
+        } else {
+            // Regular marker - use from shared constants
+            this.draggedMarker = window.HANOI_MARKER ? {
+                name: window.HANOI_MARKER.name,
+                coordinates: window.HANOI_MARKER.coordinates,
+                image: window.HANOI_MARKER.image,
+                description: window.HANOI_MARKER.description,
+                type: 'location'
+            } : {
+                name: 'Unknown Location',
+                coordinates: [0, 0],
+                image: '',
+                description: '',
+                type: 'location'
+            };
+            console.log('initiateDrag: regular marker', this.draggedMarker);
+        }
 
         this.isDragging = true;
         document.body.style.cursor = 'grabbing';

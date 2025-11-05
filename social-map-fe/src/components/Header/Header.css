@@ -113,14 +113,41 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+    padding: 0;
+    /* Loại bỏ padding mặc định */
+    line-height: 0;
+    /* Loại bỏ line-height ảnh hưởng */
 }
 
+.search-button:hover {
+    opacity: 0.9;
+}
 
-.search-icon {
+.search-button:active {
+    opacity: 0.8;
+}
+
+/* Scoped search icon để tránh conflict với các file CSS khác */
+.search-button .search-icon {
     height: 20px;
     width: 20px;
-    filter: brightness(0) invert(1);
-    /* chuyển icon đen thành trắng */
+    display: block;
+    fill: #ffffff !important;
+    /* SVG inline dùng fill để set màu */
+    pointer-events: none;
+    /* Icon không cản sự kiện click của button */
+    flex-shrink: 0;
+    /* Không bị co lại */
+    position: static !important;
+    /* Override position absolute từ file khác */
+    transform: none !important;
+    /* Override transform từ file khác */
+    left: auto !important;
+    top: auto !important;
+    color: #ffffff !important;
+    /* Override màu từ file khác */
 }
 
 .search-loading-spinner {

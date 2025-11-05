@@ -10,6 +10,7 @@ import ProfilePage from './pages/ProfilePage/ProfilePage';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
 import SellerRequestsPage from './pages/DashboardPage/SellerRequestsPage';
 import UsersManagementPage from './pages/DashboardPage/UsersManagementPage';
+import ShopManagementDashboard from './pages/DashboardPage/ShopManagementDashboard';
 import MainLayout from './components/Layout/MainLayout';
 
 function App() {
@@ -101,6 +102,18 @@ function App() {
             <AdminRoute>
               <MainLayout>
                 <UsersManagementPage />
+              </MainLayout>
+            </AdminRoute>
+          }
+        />
+
+        {/* Trang Shop Management cho Admin */}
+        <Route
+          path="/dashboard/shops"
+          element={
+            <AdminRoute>
+              <MainLayout>
+                <ShopManagementDashboard />
               </MainLayout>
             </AdminRoute>
           }

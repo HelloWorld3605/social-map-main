@@ -274,6 +274,24 @@ class MapboxManager {
         window.dispatchEvent(new CustomEvent('mapLoaded', {
             detail: { map: this.map }
         }));
+
+        // Initialize shop markers
+        this.initializeShopMarkers();
+    }
+
+    async initializeShopMarkers() {
+        try {
+            // Dynamically import shop markers manager
+            const { shopMarkersManager } = await import('../../utils/shopMarkersManager.js');
+            shopMarkersManager.initialize(this.map);
+
+            // Store reference for global access
+            window.shopMarkersManager = shopMarkersManager;
+
+            console.log('Shop markers initialized');
+        } catch (error) {
+            console.error('Failed to initialize shop markers:', error);
+        }
     }
 }
 
