@@ -41,6 +41,7 @@ class ShopMarkersManager {
                 console.log('Re-attaching LocationSharing events after shops loaded...');
                 setTimeout(() => {
                     window.locationSharing.attachMarkerEventsOnce();
+                    window.locationSharing.attachPopupEventsOnce(); // Re-attach popup events (will skip shop popups)
                 }, 500);
             }
         } catch (error) {
@@ -193,13 +194,13 @@ class ShopMarkersManager {
     createShopPopupHTML(shop) {
         const images = shop.imageShopUrl && shop.imageShopUrl.length > 0
             ? shop.imageShopUrl
-            : ['/image/shop-placeholder.jpg'];
+            : [];
 
         const statusText = this.getStatusText(shop.status);
         const statusClass = shop.status.toLowerCase();
 
-        // Generate carousel HTML if there are multiple images
-        const carouselHTML = images.length > 0 ? `
+        // Generate image carousel HTML (without status badge inside)
+        const imageHTML = images.length > 0 ? `
             <div class="shop-popup-image-container">
                 <div class="shop-image-carousel" data-shop-id="${shop.id}">
                     ${images.map((img, index) => `
@@ -226,16 +227,16 @@ class ShopMarkersManager {
                         `).join('')}
                     </div>
                 ` : ''}
-                <div class="shop-status-badge ${statusClass}">
-                    ${statusText}
-                </div>
             </div>
         ` : '';
 
         return `
             <div class="shop-popup-content">
                 <div class="shop-popup-header">
-                    ${carouselHTML}
+                    ${imageHTML}
+                    <div class="shop-status-badge ${statusClass}">
+                        ${statusText}
+                    </div>
                 </div>
                 
                 <div class="shop-popup-body">

@@ -109,6 +109,30 @@
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
     overflow: hidden;
     font-family: inherit;
+    position: relative;
+    cursor: default !important; /* Shop popup should NOT be draggable */
+}
+
+.shop-popup .mapboxgl-popup-close-button {
+    z-index: 100 !important; /* Highest - always visible above everything */
+    font-size: 28px;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    color: #1a202c;
+    transition: all 0.2s;
+}
+
+.shop-popup .mapboxgl-popup-close-button:hover {
+    background: white;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .shop-popup .mapboxgl-popup-tip {
@@ -123,6 +147,7 @@
 .shop-popup-header {
     position: relative;
     width: 100%;
+    min-height: 48px; /* Ensure space for badge when no images */
 }
 
 .shop-popup-image-container {
@@ -130,12 +155,14 @@
     width: 100%;
     height: 180px;
     overflow: hidden;
+    z-index: 1; /* Keep images at base level */
 }
 
 .shop-image-carousel {
     position: relative;
     width: 100%;
     height: 100%;
+    z-index: 1;
 }
 
 .shop-popup-image {
@@ -147,11 +174,12 @@
     object-fit: cover;
     transition: opacity 0.4s ease-in-out;
     opacity: 0;
+    z-index: 1; /* Images at lowest level */
 }
 
 .shop-popup-image.active {
     opacity: 1;
-    z-index: 1;
+    z-index: 1; /* Keep at same level, just visible */
 }
 
 .shop-popup-image-container:hover .shop-popup-image.active {
@@ -172,10 +200,11 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 10;
+    z-index: 5; /* Above images (1) but below status badge (50) */
     transition: all 0.3s;
     opacity: 0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    pointer-events: auto; /* Allow clicking */
 }
 
 .shop-popup-image-container:hover .carousel-nav {
@@ -212,7 +241,8 @@
     transform: translateX(-50%);
     display: flex;
     gap: 6px;
-    z-index: 10;
+    z-index: 5; /* Above images (1) but below status badge (50) */
+    pointer-events: auto; /* Allow clicking */
 }
 
 .carousel-indicators .indicator {
@@ -238,7 +268,7 @@
 
 .shop-status-badge {
     position: absolute;
-    top: 12px;
+    bottom: 12px;
     right: 12px;
     padding: 0.5rem 0.875rem;
     border-radius: 20px;
@@ -246,6 +276,8 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    z-index: 50; /* Highest - always visible above everything */
+    pointer-events: none; /* Don't block clicks to carousel */
     backdrop-filter: blur(8px);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }

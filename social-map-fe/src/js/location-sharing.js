@@ -90,20 +90,31 @@ class LocationSharing {
                 return setTimeout(attachEvents, 800);
             }
 
+            let attachedCount = 0;
+            let skippedShopCount = 0;
+
             popups.forEach((popupEl, index) => {
                 if (popupEl.dataset.hasListener === 'true') return; // ⚡ tránh gắn lại
                 popupEl.dataset.hasListener = 'true';
                 popupEl.dataset.popupId = `popup-${index}`;
 
-                // Attach drag event to popup content
+                // SKIP shop popups - they should NOT be draggable
+                if (popupEl.classList.contains('shop-popup')) {
+                    console.log('[LocationSharing] Skipping shop popup (should not be draggable)');
+                    skippedShopCount++;
+                    return;
+                }
+
+                // Attach drag event to popup content ONLY for non-shop popups
                 const popupContent = popupEl.querySelector('.mapboxgl-popup-content');
                 if (popupContent) {
                     popupContent.style.cursor = 'grab';
                     popupContent.addEventListener('mousedown', (e) => this.startDragPopup(e, popupEl), { capture: true });
+                    attachedCount++;
                 }
             });
 
-            console.log(`[LocationSharing] Attached drag events to ${popups.length} popups`);
+            console.log(`[LocationSharing] Attached drag events to ${attachedCount} popups (skipped ${skippedShopCount} shop popups)`);
         };
 
         attachEvents();
