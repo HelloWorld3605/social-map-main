@@ -14,6 +14,7 @@ public interface AuthService {
 //    UserResponse register(RegisterRequest request);
 
     LoginResponse login(LoginRequest request);
+    LoginResponse refreshAccessToken(String refreshToken);
     String logout(String authHeader);
 
     void changePassword(UUID userId, ChangePasswordRequest request);

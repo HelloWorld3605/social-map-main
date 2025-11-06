@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -83,12 +85,47 @@ public class AuthController {
             @ApiResponse(responseCode = "400", description = "Dữ liệu đầu vào không hợp lệ"),
             @ApiResponse(responseCode = "401", description = "Email hoặc mật khẩu không đúng")
     })
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
         try {
             LoginResponse loginResponse = authService.login(request);
+
+            // Lưu refresh token vào HttpOnly cookie
+            Cookie refreshTokenCookie = new Cookie("refreshToken", loginResponse.getRefreshToken());
+            refreshTokenCookie.setHttpOnly(true);
+            refreshTokenCookie.setSecure(false); // Set true khi dùng HTTPS
+            refreshTokenCookie.setPath("/");
+            refreshTokenCookie.setMaxAge(30 * 24 * 60 * 60); // 30 ngày
+            response.addCookie(refreshTokenCookie);
+
+            // Không trả refresh token trong response body để bảo mật
+            loginResponse.setRefreshToken(null);
+
             return ResponseEntity.ok(loginResponse);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Làm mới access token", description = "Sử dụng refresh token để lấy access token mới")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Làm mới token thành công"),
+            @ApiResponse(responseCode = "401", description = "Refresh token không hợp lệ hoặc đã hết hạn")
+    })
+    public ResponseEntity<?> refreshToken(@CookieValue(name = "refreshToken", required = false) String refreshToken) {
+        try {
+            if (refreshToken == null || refreshToken.isEmpty()) {
+                return ResponseEntity.status(401).body("Refresh token không tồn tại");
+            }
+
+            LoginResponse loginResponse = authService.refreshAccessToken(refreshToken);
+
+            // Không trả refresh token trong response body
+            loginResponse.setRefreshToken(null);
+
+            return ResponseEntity.ok(loginResponse);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(401).body(e.getMessage());
         }
     }
 

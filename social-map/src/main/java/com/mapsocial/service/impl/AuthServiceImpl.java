@@ -4,12 +4,14 @@ import com.mapsocial.dto.request.*;
 import com.mapsocial.dto.response.LoginResponse;
 import com.mapsocial.dto.response.user.UserResponse;
 import com.mapsocial.entity.PendingRegistration;
+import com.mapsocial.entity.RefreshToken;
 import com.mapsocial.entity.User;
 import com.mapsocial.enums.UserRole;
 import com.mapsocial.mapper.UserMapper;
 import com.mapsocial.repository.PendingRegistrationRepository;
 import com.mapsocial.repository.UserRepository;
 import com.mapsocial.service.AuthService;
+import com.mapsocial.service.RefreshTokenService;
 import com.mapsocial.service.email.EmailService;
 import com.mapsocial.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +33,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final JwtUtils jwtUtils;
+    private final RefreshTokenService refreshTokenService;
 
     @Value("${jwt.expiration:86400000}")
     private long jwtExpiration;
@@ -122,6 +125,7 @@ public class AuthServiceImpl implements AuthService {
 
     // ----------------- LOGIN -----------------
     @Override
+    @Transactional
     public LoginResponse login(LoginRequest request) {
         // Kiểm tra xem email có tồn tại không (bao gồm cả deleted users)
         User userCheck = userRepository.findByEmail(request.getEmail())
@@ -136,19 +140,51 @@ public class AuthServiceImpl implements AuthService {
         User user = userRepository.findActiveByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("Email hoặc mật khẩu không đúng"));
 
-        // Không cần kiểm tra deletedAt nữa vì findActiveByEmail đã lọc rồi
-
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new RuntimeException("Email hoặc mật khẩu không đúng");
         }
 
-        // Sử dụng generateToken(User) để thêm userId vào JWT token
-        String accessToken = jwtUtils.generateToken(user);
+        // Tạo access token (ngắn hạn - 15 phút)
+        String accessToken = jwtUtils.generateAccessToken(user);
+
+        // Tạo refresh token (dài hạn - 30 ngày) và lưu vào database
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, null);
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
+                .refreshToken(refreshToken.getToken())
                 .tokenType("Bearer")
-                .expiresIn(jwtExpiration)
+                .expiresIn(jwtUtils.getAccessTokenExpiration())
+                .user(userMapper.toUserResponse(user))
+                .build();
+    }
+
+    // ----------------- REFRESH ACCESS TOKEN -----------------
+    @Override
+    @Transactional
+    public LoginResponse refreshAccessToken(String refreshTokenStr) {
+        // Tìm refresh token trong database
+        RefreshToken refreshToken = refreshTokenService.findByToken(refreshTokenStr)
+                .orElseThrow(() -> new RuntimeException("Refresh token không hợp lệ"));
+
+        // Xác thực refresh token (kiểm tra hết hạn và revoked)
+        refreshToken = refreshTokenService.verifyExpiration(refreshToken);
+
+        User user = refreshToken.getUser();
+
+        // Kiểm tra user có bị xóa không
+        if (user.getDeletedAt() != null) {
+            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
+        }
+
+        // Tạo access token mới
+        String newAccessToken = jwtUtils.generateAccessToken(user);
+
+        return LoginResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(refreshTokenStr) // Giữ nguyên refresh token
+                .tokenType("Bearer")
+                .expiresIn(jwtUtils.getAccessTokenExpiration())
                 .user(userMapper.toUserResponse(user))
                 .build();
     }

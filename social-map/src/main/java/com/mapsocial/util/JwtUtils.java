@@ -24,6 +24,12 @@ public class JwtUtils {
     @Value("${jwt.expiration:86400000}")
     private long jwtExpiration;
 
+    @Value("${jwt.access-token.expiration:900000}") // 15 minutes
+    private long accessTokenExpiration;
+
+    @Value("${jwt.refresh-token.expiration:2592000000}") // 30 days
+    private long refreshTokenExpiration;
+
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
@@ -52,6 +58,47 @@ public class JwtUtils {
 
         return Jwts.builder()
                 .subject(user.getEmail())  // subject = email
+                .claims(claims)
+                .issuedAt(new Date())
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /**
+     * Tạo Access Token (thời gian ngắn - 15 phút)
+     */
+    public String generateAccessToken(User user) {
+        Date expiryDate = new Date(System.currentTimeMillis() + accessTokenExpiration);
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId().toString());
+        claims.put("email", user.getEmail());
+        claims.put("displayName", user.getDisplayName());
+        claims.put("type", "ACCESS");
+
+        return Jwts.builder()
+                .subject(user.getEmail())
+                .claims(claims)
+                .issuedAt(new Date())
+                .expiration(expiryDate)
+                .signWith(getSigningKey())
+                .compact();
+    }
+
+    /**
+     * Tạo Refresh Token (thời gian dài - 30 ngày)
+     */
+    public String generateRefreshToken(User user) {
+        Date expiryDate = new Date(System.currentTimeMillis() + refreshTokenExpiration);
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId().toString());
+        claims.put("email", user.getEmail());
+        claims.put("type", "REFRESH");
+
+        return Jwts.builder()
+                .subject(user.getEmail())
                 .claims(claims)
                 .issuedAt(new Date())
                 .expiration(expiryDate)
@@ -113,5 +160,13 @@ public class JwtUtils {
 
     public long getExpirationTime() {
         return jwtExpiration;
+    }
+
+    public long getAccessTokenExpiration() {
+        return accessTokenExpiration;
+    }
+
+    public long getRefreshTokenExpiration() {
+        return refreshTokenExpiration;
     }
 }

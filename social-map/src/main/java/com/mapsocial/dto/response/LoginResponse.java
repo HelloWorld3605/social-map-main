@@ -17,6 +17,9 @@ public class LoginResponse {
     @Schema(description = "JWT access token", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String accessToken;
 
+    @Schema(description = "JWT refresh token (dài hạn)", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+    private String refreshToken;
+
     @Builder.Default
     @Schema(description = "Loại token", example = "Bearer")
     private String tokenType = "Bearer";
