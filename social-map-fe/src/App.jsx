@@ -1,5 +1,6 @@
 import './App.css'
 import './styles/general.css';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/Auth/login-page';
 import RegisterPage from './pages/Auth/register-page';
@@ -12,8 +13,49 @@ import SellerRequestsPage from './pages/DashboardPage/SellerRequestsPage';
 import UsersManagementPage from './pages/DashboardPage/UsersManagementPage';
 import ShopManagementDashboard from './pages/DashboardPage/ShopManagementDashboard';
 import MainLayout from './components/Layout/MainLayout';
+import { webSocketService } from './services/WebSocketChatService';
+import { isTokenExpired } from './utils/tokenMonitor';
 
 function App() {
+  // 🌐 Kết nối WebSocket toàn cục khi App mount và có authToken
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+
+    // ⚠️ Kiểm tra token có hết hạn không
+    if (token && isTokenExpired(token)) {
+      console.warn('⚠️ Token đã hết hạn, đăng xuất và reload');
+      localStorage.clear();
+      sessionStorage.clear();
+      window.location.replace('/login');
+      return;
+    }
+
+    if (token) {
+      console.log('🌐 Kết nối WebSocket toàn cục khi App mount');
+      webSocketService.connect(
+        () => {
+          console.log('✅ Global WebSocket connected');
+        },
+        (error) => console.error('❌ Global WebSocket error:', error)
+      );
+    } else {
+      console.log('⏸️ Chưa có authToken, bỏ qua kết nối WebSocket');
+    }
+
+    // Lắng nghe logout event để cleanup WebSocket
+    const handleLogout = () => {
+      console.log('👋 Đăng xuất - ngắt kết nối WebSocket');
+      webSocketService.disconnect();
+    };
+    window.addEventListener('logout', handleLogout);
+
+    // Cleanup khi App unmount
+    return () => {
+      console.log('🧹 App unmount - đóng WebSocket');
+      webSocketService.disconnect();
+      window.removeEventListener('logout', handleLogout);
+    };
+  }, []);
   // Kiểm tra xem người dùng đã đăng nhập chưa
   const isAuthenticated = () => {
     return localStorage.getItem('authToken') !== null;

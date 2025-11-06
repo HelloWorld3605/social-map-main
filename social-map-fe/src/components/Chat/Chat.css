@@ -404,6 +404,137 @@
     }
 }
 
+/* ============================================
+   FACEBOOK-STYLE LOADING & END MESSAGE UI
+   ============================================ */
+
+/* Loading spinner khi load tin cũ - Facebook style */
+.chat-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 16px;
+    color: #65676b;
+    font-size: 13px;
+    background: linear-gradient(to bottom, rgba(255,255,255,0.95), transparent);
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+.loading-spinner-small {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e4e6ea;
+    border-top-color: #1877f2;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.loading-spinner-large {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e4e6ea;
+    border-top-color: #1877f2;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.loading-text {
+    color: #65676b;
+    font-weight: 500;
+}
+
+/* End of messages - Facebook style */
+.chat-end-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 20px;
+    margin: 8px 0;
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.chat-end-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+    animation: scaleIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes scaleIn {
+    from {
+        transform: scale(0);
+    }
+    to {
+        transform: scale(1);
+    }
+}
+
+.chat-end-text {
+    font-size: 15px;
+    font-weight: 600;
+    color: #050505;
+    margin-bottom: 4px;
+}
+
+.chat-end-subtext {
+    font-size: 13px;
+    color: #65676b;
+    max-width: 250px;
+    line-height: 1.4;
+}
+
+/* Loading state center (initial load) */
+.chat-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    color: #65676b;
+    font-size: 14px;
+    height: 100%;
+}
+
+.chat-loading p {
+    margin-top: 12px;
+    font-weight: 500;
+}
+
+/* 🎬 Facebook-style: Ẩn messages khi đang load và scroll lần đầu */
+.chat-window-messages.is-loading-initial .chat-window-message,
+.chat-window-messages.is-loading-initial .message-timestamp-separator,
+.chat-window-messages.is-loading-initial .chat-typing-indicator,
+.chat-window-messages.is-loading-initial .chat-end-message,
+.chat-window-messages.is-loading-initial .chat-loading-more {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* Chỉ hiện loading spinner khi initial load */
+.chat-window-messages.is-loading-initial .chat-loading {
+    opacity: 1;
+    visibility: visible;
+}
+
 .chat-conversation {
     display: none;
     /* Ẩn conversation cũ vì đã sử dụng Facebook-style chat windows */

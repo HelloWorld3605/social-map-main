@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { logout } from '../../services/authService';
 
 export default function ProfileMenu() {
   const navigate = useNavigate();
@@ -41,12 +42,14 @@ export default function ProfileMenu() {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
-  const handleLogout = () => {
-    // Xóa token và user info khỏi localStorage
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('user');
-    // Chuyển hướng về trang login
-    navigate('/login', { replace: true });
+  const handleLogout = async () => {
+    try {
+      // Gọi logout service - xử lý disconnect WebSocket, clear storage, dispatch event
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+      // authService.logout() đã xử lý redirect trong finally block
+    }
   };
 
   const handleSettings = () => {

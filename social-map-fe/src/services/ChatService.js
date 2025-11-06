@@ -53,13 +53,22 @@ export const ChatService = {
         }),
 
     /**
-     * Lấy lịch sử tin nhắn của conversation (phân trang)
+     * Lấy lịch sử tin nhắn của conversation (phân trang với lazy load)
      * GET /api/conversations/{conversationId}/messages
+     *
+     * @param {string} conversationId - ID của conversation
+     * @param {object} options - Tùy chọn pagination
+     * @param {number} options.page - Số trang (default: 0)
+     * @param {number} options.size - Số tin nhắn mỗi trang (default: 30)
+     * @param {string} options.before - Timestamp để load tin nhắn cũ hơn (ISO format)
      */
-    getMessages: (conversationId, { page = 0, size = 50 } = {}) =>
-        api.get(`/conversations/${conversationId}/messages`, {
-            params: { page, size }
-        }),
+    getMessages: (conversationId, { page = 0, size = 30, before = null } = {}) => {
+        const params = { page, size };
+        if (before) {
+            params.before = before; // Load messages older than this timestamp
+        }
+        return api.get(`/conversations/${conversationId}/messages`, { params });
+    },
 
     /**
      * Lấy tin nhắn mới (chưa đọc)
@@ -432,7 +441,9 @@ class WebSocketChatService {
     }
 }
 
-export const webSocketService = new WebSocketChatService();
+// ⚠️ DEPRECATED: webSocketService đã được centralize trong WebSocketChatService.js
+// Không export ở đây nữa để tránh tạo multiple instances
+// export const webSocketService = new WebSocketChatService();
 
 // Make ChatService available globally for location sharing
 // window.ChatService = ChatService;

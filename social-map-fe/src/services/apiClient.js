@@ -7,7 +7,23 @@ const BASE_URL = "http://localhost:8080/api";
 const apiClient = axios.create({
     baseURL: BASE_URL,
     timeout: 10000, // 10 giây timeout
+    withCredentials: true, // Quan trọng: Cho phép gửi cookie (refreshToken)
 });
+
+// Biến để tránh refresh token nhiều lần đồng thời
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+    failedQueue.forEach(prom => {
+        if (error) {
+            prom.reject(error);
+        } else {
+            prom.resolve(token);
+        }
+    });
+    failedQueue = [];
+};
 
 // Request interceptor - tự động thêm token vào header
 apiClient.interceptors.request.use(
@@ -33,7 +49,9 @@ apiClient.interceptors.response.use(
     (response) => {
         return response;
     },
-    (error) => {
+    async (error) => {
+        const originalRequest = error.config;
+
         // Lấy error message
         const errorMessage = error.response?.data?.message || error.response?.data || error.message || '';
 
@@ -52,12 +70,83 @@ apiClient.interceptors.response.use(
         }
 
         // Xử lý lỗi 401 - token hết hạn
-        if (error.response?.status === 401) {
-            // Kiểm tra nếu không phải từ trang login
-            if (!window.location.pathname.includes('/login')) {
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('user');
-                window.location.href = '/login';
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            // Không refresh nếu đang ở trang login hoặc đang gọi endpoint refresh
+            if (window.location.pathname.includes('/login') || originalRequest.url.includes('/auth/refresh')) {
+                return Promise.reject(error);
+            }
+
+            if (isRefreshing) {
+                // Nếu đang refresh, thêm request vào hàng đợi
+                return new Promise((resolve, reject) => {
+                    failedQueue.push({ resolve, reject });
+                }).then(token => {
+                    originalRequest.headers['Authorization'] = 'Bearer ' + token;
+                    return apiClient(originalRequest);
+                }).catch(err => {
+                    return Promise.reject(err);
+                });
+            }
+
+            originalRequest._retry = true;
+            isRefreshing = true;
+
+            try {
+                // Gọi API refresh token (cookie sẽ tự động được gửi)
+                console.log('🔄 Access token hết hạn, đang làm mới...');
+                const response = await apiClient.post('/auth/refresh');
+                const newAccessToken = response.data.accessToken;
+
+                // Lưu access token mới
+                localStorage.setItem('authToken', newAccessToken);
+                console.log('✅ Access token đã được làm mới');
+
+                // Cập nhật header cho request ban đầu
+                originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
+
+                // Xử lý các request đang chờ
+                processQueue(null, newAccessToken);
+
+                isRefreshing = false;
+
+                // ✨ RECONNECT WEBSOCKET với token mới
+                try {
+                    const { webSocketService } = await import('./WebSocketChatService');
+                    if (webSocketService && webSocketService.reconnect) {
+                        console.log('🔌 Reconnecting WebSocket with new token...');
+                        webSocketService.reconnect();
+                    }
+                } catch (wsError) {
+                    console.warn('WebSocket reconnect failed:', wsError);
+                }
+
+                // Thực hiện lại request ban đầu
+                return apiClient(originalRequest);
+            } catch (refreshError) {
+                // Refresh token thất bại -> đăng xuất
+                processQueue(refreshError, null);
+                isRefreshing = false;
+
+                console.error('❌ Refresh token thất bại, đăng xuất và reload trang');
+
+                // Clear all data
+                localStorage.clear();
+                sessionStorage.clear();
+
+                // Disconnect WebSocket trước khi reload
+                try {
+                    const { webSocketService } = await import('./WebSocketChatService');
+                    if (webSocketService && webSocketService.disconnect) {
+                        webSocketService.disconnect();
+                    }
+                } catch (wsError) {
+                    console.warn('WebSocket disconnect error:', wsError);
+                }
+
+                // Force reload để reset app state hoàn toàn
+                window.location.replace('/login');
+
+                return Promise.reject(refreshError);
             }
         }
 

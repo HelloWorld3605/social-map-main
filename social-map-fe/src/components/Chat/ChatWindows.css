@@ -172,11 +172,13 @@
 .chat-window-messages {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 15px;
     display: flex;
     flex-direction: column;
     gap: 8px;
     background: #fff;
+    min-height: 0; /* ✅ IMPORTANT: Allow flex item to shrink and enable scroll */
 }
 
 .chat-window-messages::-webkit-scrollbar {

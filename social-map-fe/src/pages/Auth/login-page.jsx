@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../../services/authService';
+import { scheduleTokenRefresh, logTokenInfo } from '../../utils/tokenMonitor';
+import apiClient from '../../services/apiClient';
 
 // Đây là thành phần trang đăng nhập
 export default function LoginPage() {
@@ -83,11 +85,53 @@ export default function LoginPage() {
                 console.warn('Không tìm thấy user info trong response:', data);
             }
 
+            // 🔔 Schedule automatic token refresh
+            console.log('⏰ Scheduling automatic token refresh...');
+            scheduleTokenRefresh(async () => {
+                console.log('🔄 Auto-refresh triggered by token monitor');
+                try {
+                    const refreshResponse = await apiClient.post('/auth/refresh');
+                    const newToken = refreshResponse.data.accessToken;
+                    localStorage.setItem('authToken', newToken);
+                    console.log('✅ Token auto-refreshed successfully');
+
+                    // Reconnect WebSocket with new token
+                    const { webSocketService } = await import('../../services/WebSocketChatService');
+                    if (webSocketService && webSocketService.reconnect) {
+                        webSocketService.reconnect();
+                    }
+                } catch (error) {
+                    console.error('❌ Auto-refresh failed:', error);
+
+                    // Clear all data
+                    localStorage.clear();
+                    sessionStorage.clear();
+
+                    // Disconnect WebSocket
+                    try {
+                        const { webSocketService } = await import('../../services/WebSocketChatService');
+                        if (webSocketService && webSocketService.disconnect) {
+                            webSocketService.disconnect();
+                        }
+                    } catch (wsError) {
+                        console.warn('WebSocket disconnect error:', wsError);
+                    }
+
+                    // Force reload để reset app
+                    alert('⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+                    window.location.replace('/login');
+                }
+            });
+
+            // Log token info for debugging
+            logTokenInfo();
+
             // Hiển thị thông báo thành công
             const userName = user?.displayName || email;
             alert(`Đăng nhập thành công! Chào mừng ${userName}`);
 
             // Chuyển hướng đến trang chính (map)
+            // WebSocket sẽ tự động kết nối trong App.jsx khi có authToken
             console.log('Đang chuyển hướng đến /home...');
             navigate('/home', { replace: true });
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChatService, webSocketService } from '../../services/ChatService';
+import { ChatService } from '../../services/ChatService';
+import { webSocketService } from '../../services/WebSocketChatService';
 import './ChatWindows.css';
 
 export default function ChatWindow({
@@ -17,16 +18,16 @@ export default function ChatWindow({
 }) {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const [hasMore, setHasMore] = useState(true);
-    const [currentPage, setCurrentPage] = useState(0);
     const [typingUsers, setTypingUsers] = useState([]);
     const [isSending, setIsSending] = useState(false);
+    const [isInitialLoad, setIsInitialLoad] = useState(true); // 🎬 Ẩn UI khi load lần đầu
+    const [currentPage, setCurrentPage] = useState(0); // 📄 Track current page for pagination
+    const [isLoadingMore, setIsLoadingMore] = useState(false); // ✅ State instead of ref for UI updates
 
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
     const lastScrollHeightRef = useRef(0);
-    const isLoadingMoreRef = useRef(false);
     const inputRef = useRef(null);
     const dropZoneRef = useRef(null);
     const navigate = useNavigate();
@@ -57,74 +58,190 @@ export default function ChatWindow({
 
     const displayInfo = getDisplayInfo();
 
-    // Load initial messages
-    const loadMessages = useCallback(async (page = 0) => {
+    // 🔹 Load recent messages (30 tin mới nhất)
+    const loadRecentMessages = useCallback(async () => {
         if (!conversation?.id) return;
 
         try {
-            setIsLoading(true);
-            const response = await ChatService.getMessages(conversation.id, { page, size: 20 });
+            console.log('📥 Loading recent messages for conversation:', conversation.id);
+            
+            const response = await ChatService.getMessages(conversation.id, { 
+                page: 0, 
+                size: 30 // Load 30 tin nhắn mới nhất
+            });
 
-            if (page === 0) {
-                const processedMessages = response.content.map(msg => {
-                    if (msg.content && msg.content.startsWith('LOCATION:')) {
-                        try {
-                            const locationData = JSON.parse(msg.content.substring(9));
-                            return {
-                                ...msg,
-                                content: locationData,
-                                isLocation: true
-                            };
-                        } catch (e) {
-                            console.error('Failed to parse location message:', e);
-                            return msg;
-                        }
+            // Process location messages
+            const processedMessages = response.content.map(msg => {
+                if (typeof msg.content === 'string' && msg.content.startsWith('LOCATION:')) {
+                    try {
+                        const locationData = JSON.parse(msg.content.substring(9));
+                        return { ...msg, content: locationData, isLocation: true };
+                    } catch (e) {
+                        console.error('Failed to parse location message:', e);
+                        return msg;
                     }
-                    return msg;
-                }).reverse();
-                setMessages(processedMessages);
-            } else {
-                const processedMessages = response.content.map(msg => {
-                    if (msg.content && msg.content.startsWith('LOCATION:')) {
-                        try {
-                            const locationData = JSON.parse(msg.content.substring(9));
-                            return {
-                                ...msg,
-                                content: locationData,
-                                isLocation: true
-                            };
-                        } catch (e) {
-                            console.error('Failed to parse location message:', e);
-                            return msg;
-                        }
-                    } // ✅ thêm dấu đóng if
-                    return msg;
-                }).reverse();
+                }
+                return msg;
+            }).reverse(); // ✅ Đảo để hiển thị từ cũ → mới (backend trả mới → cũ)
 
-                setMessages(prev => [...processedMessages, ...prev]);
-            }
-
+            setMessages(processedMessages);
             setHasMore(!response.last);
-            setCurrentPage(page);
+            
+            console.log(`✅ Loaded ${processedMessages.length} recent messages`);
+            console.log('📊 Pagination info:', {
+                isLast: response.last,
+                hasMore: !response.last,
+                totalElements: response.totalElements,
+                totalPages: response.totalPages,
+                currentPage: response.number
+            });
+            console.log('📊 Message order (first 3):');
+            console.log('   [0] (oldest):', processedMessages[0]?.createdAt, processedMessages[0]?.content?.substring?.(0, 20));
+            console.log('   [1]:', processedMessages[1]?.createdAt);
+            console.log('   [last] (newest):', processedMessages[processedMessages.length - 1]?.createdAt);
+
+            // 🎬 Facebook-style: Scroll instant TRƯỚC, rồi mới hiện UI
+            setTimeout(() => {
+                scrollToBottom(); // Scroll instant (không smooth)
+
+                // Hiện UI SAU KHI scroll xong
+                setTimeout(() => {
+                    setIsInitialLoad(false);
+                    console.log('🎉 UI visible - scrolled to bottom');
+
+                    // ✅ Debug: Check scroll state after initial load
+                    const container = messagesContainerRef.current;
+                    if (container) {
+                        console.log('📊 Container state after load:', {
+                            scrollTop: container.scrollTop,
+                            scrollHeight: container.scrollHeight,
+                            clientHeight: container.clientHeight,
+                            hasScrollbar: container.scrollHeight > container.clientHeight,
+                            canScrollUp: container.scrollTop > 0
+                        });
+                    }
+                }, 50); // Đợi scroll complete
+            }, 50);
         } catch (error) {
-            console.error('Failed to load messages:', error);
-        } finally {
-            setIsLoading(false);
-            isLoadingMoreRef.current = false;
+            console.error('Failed to load recent messages:', error);
+            setIsInitialLoad(false); // Hiện UI dù lỗi
         }
     }, [conversation?.id]);
 
-    // Load more messages on scroll
+    // 🔹 Load older messages (Facebook-style infinite scroll with PAGE-based pagination)
+    const loadOlderMessages = useCallback(async () => {
+        if (!conversation?.id || isLoadingMore || !hasMore) return;
+
+        const oldestMessage = messages[0];
+        if (!oldestMessage) return;
+
+        setIsLoadingMore(true); // ✅ Use state
+        const nextPage = currentPage + 1;
+        console.log(`🔼 Loading page ${nextPage} (older messages)`);
+
+        try {
+            // ✅ Use PAGE-based pagination instead of BEFORE timestamp
+            const response = await ChatService.getMessages(conversation.id, {
+                page: nextPage,
+                size: 30
+            });
+
+            // Nếu hết tin nhắn
+            if (!response.content || response.content.length === 0) {
+                console.log('🏁 No more older messages.');
+                setHasMore(false);
+                setIsLoadingMore(false); // ✅ Use state
+                return;
+            }
+
+            // Xử lý tin nhắn (giữ thứ tự cũ → mới)
+            const processedMessages = response.content.map(msg => {
+                if (typeof msg.content === 'string' && msg.content.startsWith('LOCATION:')) {
+                    try {
+                        const data = JSON.parse(msg.content.substring(9));
+                        return { ...msg, content: data, isLocation: true };
+                    } catch {
+                        return msg;
+                    }
+                }
+                return msg;
+            }).reverse();
+
+            // Giữ vị trí scroll khi prepend
+            const container = messagesContainerRef.current;
+            const prevScrollHeight = container.scrollHeight;
+
+            let hasNewMessages = false;
+
+            setMessages(prev => {
+                const existingIds = new Set(prev.map(m => m.id));
+                const newMessages = processedMessages.filter(m => !existingIds.has(m.id));
+
+                if (newMessages.length === 0) {
+                    console.log('⚠️ All duplicates skipped - Page may overlap');
+                    hasNewMessages = false;
+                    return prev;
+                }
+
+                console.log(`✅ Prepending ${newMessages.length} older messages from page ${nextPage}`);
+                hasNewMessages = true;
+                return [...newMessages, ...prev];
+            });
+
+            setHasMore(!response.last);
+            setCurrentPage(nextPage); // ✅ Update current page
+
+            // Khôi phục vị trí scroll (tránh nhảy)
+            setTimeout(() => {
+                if (hasNewMessages) {
+                    const newScrollHeight = container.scrollHeight;
+                    const diff = newScrollHeight - prevScrollHeight;
+                    container.scrollTop = diff;
+                    console.log(`✅ Restored scroll offset: +${diff}px`);
+                } else {
+                    console.log('⏭️ Skipped scroll restore (no new messages)');
+                }
+                // ✅ ALWAYS reset loading state
+                setIsLoadingMore(false);
+            }, 50);
+
+        } catch (error) {
+            console.error('❌ Failed to load older messages:', error);
+            setIsLoadingMore(false); // ✅ Use state
+        }
+    }, [conversation?.id, messages, hasMore, currentPage, isLoadingMore]);
+
+    // 🔹 Phát hiện scroll lên trên để load tin nhắn cũ (Facebook-style)
     const handleScroll = useCallback(() => {
         const container = messagesContainerRef.current;
-        if (!container || isLoadingMoreRef.current || !hasMore) return;
 
-        if (container.scrollTop === 0) {
-            isLoadingMoreRef.current = true;
-            lastScrollHeightRef.current = container.scrollHeight;
-            loadMessages(currentPage + 1);
+        // ✅ Always log scroll events để debug
+        if (container) {
+            console.log('📜 SCROLL EVENT:', {
+                scrollTop: Math.round(container.scrollTop),
+                scrollHeight: container.scrollHeight,
+                clientHeight: container.clientHeight,
+                hasScrollbar: container.scrollHeight > container.clientHeight,
+                hasMore: hasMore,
+                isLoading: isLoadingMore, // ✅ Use state
+                messagesCount: messages.length,
+                shouldTrigger: container.scrollTop < 150 && hasMore && !isLoadingMore
+            });
         }
-    }, [currentPage, hasMore, loadMessages]);
+
+        if (!container || isLoadingMore || !hasMore) { // ✅ Use state
+            if (!container) console.warn('⚠️ No container ref');
+            if (isLoadingMore) console.warn('⚠️ Already loading'); // ✅ Use state
+            if (!hasMore) console.warn('⚠️ No more messages (hasMore=false)');
+            return;
+        }
+
+        // Khi cuộn gần đầu (< 150px) - Facebook threshold
+        if (container.scrollTop < 150) {
+            console.log('✅ TRIGGER LOAD: scrollTop < 150px');
+            loadOlderMessages();
+        }
+    }, [hasMore, loadOlderMessages, messages.length, isLoadingMore]); // ✅ Add to deps
 
     // Maintain scroll position after loading more
     useEffect(() => {
@@ -146,15 +263,17 @@ export default function ChatWindow({
         }
     }, []);
 
-    // Load messages on conversation change
+    // 🔹 Load messages khi mở chat lần đầu
     useEffect(() => {
         if (conversation?.id) {
+            console.log('🔄 Conversation changed, loading recent messages');
             setMessages([]);
-            setCurrentPage(0);
             setHasMore(true);
-            loadMessages(0);
+            setCurrentPage(0); // ✅ Reset page to 0
+            setIsInitialLoad(true); // 🎬 Ẩn UI khi load conversation mới
+            loadRecentMessages(); // Load 30 tin mới nhất
         }
-    }, [conversation?.id, loadMessages]);
+    }, [conversation?.id, loadRecentMessages]);
 
     // Track previous isActive state to detect actual changes
     // ✅ IMPORTANT: Start with false so first active=true will be detected as transition
@@ -208,7 +327,8 @@ export default function ChatWindow({
             console.log('📨 ChatWindow received new message:', message);
             let processedMessage = message;
 
-            if (message.content && message.content.startsWith('LOCATION:')) {
+            // ✅ Type check before using string methods
+            if (typeof message.content === 'string' && message.content.startsWith('LOCATION:')) {
                 try {
                     const locationData = JSON.parse(message.content.substring(9));
                     processedMessage = {
@@ -221,7 +341,15 @@ export default function ChatWindow({
                 }
             }
 
-            setMessages(prev => [...prev, processedMessage]);
+            // ⚠️ Check duplicate trước khi append
+            setMessages(prev => {
+                // Nếu message đã tồn tại, không append
+                if (prev.some(m => m.id === processedMessage.id)) {
+                    console.warn('⚠️ Duplicate message received, skipping:', processedMessage.id);
+                    return prev;
+                }
+                return [...prev, processedMessage];
+            });
             scrollToBottom(true);
 
             if (onNewMessage) {
@@ -639,19 +767,34 @@ export default function ChatWindow({
             </div>
 
             <div
-                className="chat-window-messages"
+                className={`chat-window-messages ${isInitialLoad ? 'is-loading-initial' : ''}`}
                 ref={messagesContainerRef}
                 onScroll={handleScroll}
             >
-                {isLoading && currentPage === 0 && (
-                    <div className="chat-loading">Đang tải tin nhắn...</div>
+                {/* 📥 Loading indicator khi load lần đầu (center screen) */}
+                {isInitialLoad && (
+                    <div className="chat-loading">
+                        <div className="loading-spinner-large"></div>
+                        <p>Đang tải tin nhắn...</p>
+                    </div>
                 )}
 
-                {hasMore && !isLoading && currentPage > 0 && (
-                    <div className="load-more-messages">
-                        <button onClick={() => loadMessages(currentPage + 1)}>
-                            Tải thêm tin nhắn
-                        </button>
+                {/* 🎉 Đã xem hết tin nhắn - Facebook style */}
+                {!hasMore && messages.length > 0 && (
+                    <div className="chat-end-message">
+                        <div className="chat-end-icon">🎉</div>
+                        <div className="chat-end-text">Bạn đã xem tất cả tin nhắn</div>
+                        <div className="chat-end-subtext">
+                            Đây là đầu cuộc trò chuyện với {displayInfo.name}
+                        </div>
+                    </div>
+                )}
+
+                {/* 📥 Loading spinner khi load tin nhắn cũ - Facebook style */}
+                {isLoadingMore && messages.length > 0 && ( // ✅ Use state for re-render
+                    <div className="chat-loading-more">
+                        <div className="loading-spinner-small"></div>
+                        <span className="loading-text">Đang tải tin cũ...</span>
                     </div>
                 )}
 
@@ -660,8 +803,11 @@ export default function ChatWindow({
                     const showAvatar = !isSent && (index === 0 || messages[index - 1].senderId !== msg.senderId);
                     const showTimestamp = shouldShowTimestamp(msg, messages[index - 1]);
 
+                    // ✅ Generate unique key: msg.id + timestamp để tránh duplicate
+                    const uniqueKey = msg.id ? `${msg.id}-${msg.createdAt || index}` : `msg-${index}`;
+
                     return (
-                        <React.Fragment key={msg.id || index}>
+                        <React.Fragment key={uniqueKey}>
                             {/* Timestamp Separator */}
                             {showTimestamp && (
                                 <div className="message-timestamp-separator">

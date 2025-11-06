@@ -3,7 +3,8 @@ import './Chat.css';
 import './ChatWindows.css';
 import './LocationMessage.css';
 import ChatWindow from './ChatWindow';
-import { ChatService, webSocketService } from '../../services/ChatService';
+import { ChatService } from '../../services/ChatService';
+import { webSocketService } from '../../services/WebSocketChatService';
 
 export default function SideChat() {
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -44,84 +45,114 @@ export default function SideChat() {
         }
     }, []);
 
-    // Connect to WebSocket
+    // Subscribe to WebSocket (đã được kết nối từ App.jsx)
     useEffect(() => {
-        const conversationIdsRefCurrent = conversationIdsRef.current; // Copy ref for cleanup
+        const initializeWebSocketSubscriptions = () => {
+            if (!webSocketService.stompClient?.connected) {
+                console.log('⏸️ WebSocket chưa connected, bỏ qua subscribe');
+                return;
+            }
 
-        if (!wsConnectedRef.current) {
-            webSocketService.connect(
-                () => {
-                    console.log('✅ WebSocket connected');
-                    setIsConnected(true);
-                    wsConnectedRef.current = true;
+            console.log('✅ WebSocket đã kết nối toàn cục, thực hiện subscribe');
+            setIsConnected(true);
+            wsConnectedRef.current = true;
 
-                    // Lấy userId từ WebSocket service (đã được fetch từ backend)
-                    const userId = webSocketService.getCurrentUserId();
-                    setCurrentUserId(userId);
+            // Lấy userId từ WebSocket service (đã được fetch từ backend)
+            const userId = webSocketService.getCurrentUserId();
+            setCurrentUserId(userId);
 
-                    // Subscribe to user queue for unread counts
-                    webSocketService.subscribeToUserQueue(
-                        (unreadDTO) => {
-                            console.log('📊 Received unread count update:', unreadDTO);
-                            // Update unread count for conversation
-                            setConversations(prev => prev.map(conv => {
-                                if (conv.id === unreadDTO.conversationId) {
-                                    console.log(`📊 Updating unread count for conv ${conv.id}: ${conv.unreadCount} → ${unreadDTO.count}`);
-                                    return { ...conv, unreadCount: unreadDTO.count };
-                                }
-                                return conv;
-                            }));
-                        },
-                        (error) => {
-                            console.error('WebSocket error:', error);
+            // Subscribe to user queue for unread counts
+            webSocketService.subscribeToUserQueue(
+                (unreadDTO) => {
+                    console.log('📊 Received unread count update:', unreadDTO);
+                    // Update unread count for conversation
+                    setConversations(prev => prev.map(conv => {
+                        if (conv.id === unreadDTO.conversationId) {
+                            console.log(`📊 Updating unread count for conv ${conv.id}: ${conv.unreadCount} → ${unreadDTO.count}`);
+                            return { ...conv, unreadCount: unreadDTO.count };
                         }
-                    );
-
-                    // Subscribe to conversation updates
-                    webSocketService.subscribeToConversationUpdates(
-                        (updateDTO) => {
-                            console.log('🔄 Received conversation update:', updateDTO);
-                            // Update conversation with new last message and unread count
-                            let lastMessageContent = updateDTO.lastMessageContent;
-                            if (updateDTO.lastMessageContent?.startsWith('LOCATION:')) {
-                                lastMessageContent = 'Vị trí';
-                            }
-
-                            setConversations(prev => prev.map(conv => {
-                                if (conv.id === updateDTO.conversationId) {
-                                    console.log(`🔄 Updating conversation ${conv.id} with unread count: ${updateDTO.unreadCount}`);
-                                    return {
-                                        ...conv,
-                                        lastMessageContent: lastMessageContent,
-                                        lastMessageSenderId: updateDTO.lastMessageSenderId,
-                                        lastMessageAt: updateDTO.lastMessageAt,
-                                        unreadCount: updateDTO.unreadCount
-                                    };
-                                }
-                                return conv;
-                            }));
-                        },
-                        (error) => {
-                            console.error('Conversation update error:', error);
-                        }
-                    );
+                        return conv;
+                    }));
                 },
                 (error) => {
-                    console.error('WebSocket connection failed:', error);
-                    setIsConnected(false);
-                    wsConnectedRef.current = false;
+                    console.error('WebSocket error:', error);
                 }
             );
+
+            // Subscribe to conversation updates
+            webSocketService.subscribeToConversationUpdates(
+                (updateDTO) => {
+                    console.log('🔄 Received conversation update:', updateDTO);
+                    // Update conversation with new last message and unread count
+                    let lastMessageContent = updateDTO.lastMessageContent;
+                    if (updateDTO.lastMessageContent?.startsWith('LOCATION:')) {
+                        lastMessageContent = 'Vị trí';
+                    }
+
+                    setConversations(prev => prev.map(conv => {
+                        if (conv.id === updateDTO.conversationId) {
+                            console.log(`🔄 Updating conversation ${conv.id} with unread count: ${updateDTO.unreadCount}`);
+                            return {
+                                ...conv,
+                                lastMessageContent: lastMessageContent,
+                                lastMessageSenderId: updateDTO.lastMessageSenderId,
+                                lastMessageAt: updateDTO.lastMessageAt,
+                                unreadCount: updateDTO.unreadCount
+                            };
+                        }
+                        return conv;
+                    }));
+                },
+                (error) => {
+                    console.error('Conversation update error:', error);
+                }
+            );
+        };
+
+        // Kiểm tra ngay khi mount
+        console.log('🔍 SideChat mounting, checking WebSocket status...');
+        console.log('🔍 WebSocket.stompClient:', webSocketService.stompClient);
+        console.log('🔍 WebSocket.connected:', webSocketService.stompClient?.connected);
+
+        let retryTimeout = null;
+
+        if (webSocketService.stompClient?.connected) {
+            console.log('✅ WebSocket already connected, initializing subscriptions');
+            initializeWebSocketSubscriptions();
+        } else {
+            console.log('⏸️ Đang chờ WebSocket từ App.jsx...');
+
+            // 🔄 Retry sau 500ms (cho phép App.jsx kịp connect)
+            retryTimeout = setTimeout(() => {
+                console.log('🔄 Retry: Checking WebSocket connection again...');
+                console.log('🔍 WebSocket.connected:', webSocketService.stompClient?.connected);
+
+                if (webSocketService.stompClient?.connected) {
+                    console.log('✅ WebSocket connected on retry, initializing subscriptions');
+                    initializeWebSocketSubscriptions();
+                } else {
+                    console.warn('⚠️ WebSocket vẫn chưa connected sau retry. Chờ event...');
+                }
+            }, 500);
         }
 
+        // Lắng nghe event websocket-connected từ App.jsx
+        const handleWebSocketConnected = () => {
+            console.log('🎉 SideChat received websocket-connected event');
+            initializeWebSocketSubscriptions();
+        };
+
+        window.addEventListener('websocket-connected', handleWebSocketConnected);
+
         return () => {
-            if (wsConnectedRef.current) {
-                webSocketService.disconnect();
-                wsConnectedRef.current = false;
-                // Clear subscription tracking to force re-subscribe on next connect
-                conversationIdsRefCurrent.clear();
-                console.log('🔌 WebSocket disconnected, cleared subscription tracking');
-            }
+            if (retryTimeout) clearTimeout(retryTimeout);
+            window.removeEventListener('websocket-connected', handleWebSocketConnected);
+            console.log('🔌 SideChat unmounting, giữ WebSocket connection');
+        };
+
+        return () => {
+            window.removeEventListener('websocket-connected', handleWebSocketConnected);
+            console.log('🔌 SideChat unmounting, giữ WebSocket connection nhưng unsubscribe topics');
         };
     }, []);
 
@@ -541,8 +572,21 @@ export default function SideChat() {
     // Handle new messages from WebSocket
     const handleNewMessage = useCallback((conversationId, message) => {
         let lastMessageContent = message.content;
-        if (message.content?.startsWith('LOCATION:')) {
-            lastMessageContent = 'Vị trí';
+
+        // Check if content is string before using startsWith
+        if (typeof message.content === 'string') {
+            if (message.content.startsWith('LOCATION:')) {
+                lastMessageContent = '📍 Vị trí';
+            } else if (message.content.startsWith('SHOP:')) {
+                lastMessageContent = '🏪 Cửa hàng';
+            }
+        } else if (typeof message.content === 'object') {
+            // Content đã được parse thành object
+            if (message.isLocation) {
+                lastMessageContent = '📍 Vị trí';
+            } else {
+                lastMessageContent = '[Tin nhắn đa phương tiện]';
+            }
         }
 
         setConversations(prev => prev.map(conv => {

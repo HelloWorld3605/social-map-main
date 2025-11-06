@@ -1,4 +1,5 @@
 import { api } from './apiClient';
+import { webSocketService } from './WebSocketChatService';
 
 // 1. Bắt đầu đăng ký (gửi email xác thực)
 export const startRegistration = async (data) => {
@@ -25,8 +26,26 @@ export const login = async (data) => {
 
 // 5. Đăng xuất
 export const logout = async (data = {}) => {
-  // data = {} (BE cần token từ header)
-  return await api.post('/auth/logout', data);
+  try {
+    // Call backend logout endpoint
+    await api.post('/auth/logout', data);
+  } catch (error) {
+    console.error('Logout API error:', error);
+    // Continue với cleanup ngay cả khi API fail
+  } finally {
+    // Disconnect WebSocket
+    console.log('🔌 Disconnecting WebSocket on logout...');
+    webSocketService.disconnect();
+
+    // Clear all local storage
+    localStorage.clear();
+
+    // Dispatch logout event để App.jsx và các components khác cleanup
+    window.dispatchEvent(new Event('logout'));
+
+    // Redirect to login page
+    window.location.href = '/login';
+  }
 };
 
 // 6. Đổi mật khẩu (dựa vào JWT)
