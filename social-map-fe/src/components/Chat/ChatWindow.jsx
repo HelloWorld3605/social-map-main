@@ -28,6 +28,11 @@ export default function ChatWindow({
     const [isLoadingMore, setIsLoadingMore] = useState(false); // State instead of ref for UI updates
     const [userStatus, setUserStatus] = useState({ isOnline: false, lastSeen: 'unknown' });
 
+    // 🆕 Animation states for header effects
+    const [headerAnimation, setHeaderAnimation] = useState(''); // 'unread', 'flash', 'pulse'
+    const [hasNewMessageWhileMinimized, setHasNewMessageWhileMinimized] = useState(false);
+    const [hasNewMessageWhileInactive, setHasNewMessageWhileInactive] = useState(false);
+
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
     const lastScrollHeightRef = useRef(0);
@@ -994,14 +999,71 @@ export default function ChatWindow({
         );
     };
 
+    // 🆕 Manage header animations based on message events and window state
+    useEffect(() => {
+        // Reset animations when unread count changes
+        if (unreadCount > 0) {
+            if (minimized) {
+                // Window minimized with unread messages - apply glow effect
+                setHeaderAnimation('unread');
+                setHasNewMessageWhileMinimized(true);
+            } else if (!isActive) {
+                // Window open but not active with new message - apply flash effect
+                setHeaderAnimation('flash');
+                setHasNewMessageWhileInactive(true);
+                // Remove flash after animation completes
+                setTimeout(() => setHeaderAnimation(''), 600);
+            }
+        } else {
+            // No unread messages - clear animations
+            setHeaderAnimation('');
+            setHasNewMessageWhileMinimized(false);
+            setHasNewMessageWhileInactive(false);
+        }
+    }, [unreadCount, minimized, isActive]);
+
+    // 🆕 Handle visibility change for pulse effect when returning to tab
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && unreadCount > 0) {
+                // User returned to tab with unread messages - apply pulse effect
+                setHeaderAnimation('pulse');
+                setTimeout(() => setHeaderAnimation(''), 800);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [unreadCount]);
+
+    // 🆕 Handle click on window to clear animations and mark as read
+    const handleWindowClick = useCallback(() => {
+        // Clear all animations when user clicks on window
+        setHeaderAnimation('');
+        setHasNewMessageWhileMinimized(false);
+        setHasNewMessageWhileInactive(false);
+
+        // Call parent onWindowClick
+        onWindowClick();
+    }, [onWindowClick]);
+
+    // 🆕 Handle minimize click to potentially show animations
+    const handleMinimizeClick = useCallback(() => {
+        if (unreadCount > 0 && !minimized) {
+            // If minimizing with unread messages, ensure glow effect shows
+            setHeaderAnimation('unread');
+        }
+        onMinimize();
+    }, [unreadCount, minimized, onMinimize]);
+
     return (
         <div
             className={`chat-window ${minimized ? 'minimized' : 'open'} ${isActive ? 'active' : ''}`}
             data-conversation-id={conversation?.id}
             data-friend-id={conversation?.id}
-            onClick={onWindowClick}
+            onClick={handleWindowClick}
         >
-            <div className={`chat-window-header ${unreadCount > 0 ? 'unread' : ''}`} onClick={onMinimize}>
+            <div className={`chat-window-header ${unreadCount > 0 ? 'unread' : ''} ${headerAnimation}`} onClick={onMinimize}>
                 <div className="chat-window-avatar-wrapper">
                     <img
                         src={displayInfo.avatar}
@@ -1031,7 +1093,7 @@ export default function ChatWindow({
                         title="Thu nhỏ"
                         onClick={(e) => {
                             e.stopPropagation();
-                            onMinimize();
+                            handleMinimizeClick();
                         }}
                     >
                         −

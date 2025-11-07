@@ -72,8 +72,6 @@ class NotificationSoundService {
             checkVisibility = true, // Check if tab is visible
             checkFocus = true, // Check if window is focused
             checkMinimized = true, // Check if window is minimized
-            checkChatOpen = true, // Check if chat window is open
-            checkTabActive = true // Check if current tab is active
         } = options;
 
         // Don't play if disabled
