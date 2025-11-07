@@ -6,6 +6,7 @@
  */
 
 let refreshTimer = null;
+let backgroundRefreshTimer = null;
 
 /**
  * Decode JWT token to get expiration time
@@ -115,6 +116,40 @@ export function scheduleTokenRefresh(refreshCallback) {
 }
 
 /**
+ * Start background token refresh (every 15 minutes as fallback)
+ * @param {Function} refreshCallback - Function to call when refreshing token
+ */
+export function startBackgroundTokenRefresh(refreshCallback) {
+    // Clear existing background timer
+    if (backgroundRefreshTimer) {
+        clearInterval(backgroundRefreshTimer);
+        backgroundRefreshTimer = null;
+    }
+
+    console.log('[TokenMonitor] Starting background token refresh every 15 minutes');
+
+    // Refresh every 15 minutes as fallback mechanism
+    backgroundRefreshTimer = setInterval(async () => {
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+            console.warn('[TokenMonitor] No token found for background refresh');
+            return;
+        }
+
+        // Only refresh if token is still valid and not expiring soon
+        if (!isTokenExpired(token) && !isTokenExpiringSoon(token)) {
+            console.log('[TokenMonitor] Background token refresh...');
+            try {
+                await refreshCallback?.();
+                console.log('[TokenMonitor] Background token refresh successful');
+            } catch (error) {
+                console.error('[TokenMonitor] Background token refresh failed:', error);
+            }
+        }
+    }, 15 * 60 * 1000); // 15 minutes
+}
+
+/**
  * Stop automatic token refresh
  */
 export function stopTokenRefresh() {
@@ -122,6 +157,12 @@ export function stopTokenRefresh() {
         clearTimeout(refreshTimer);
         refreshTimer = null;
         console.log('[TokenMonitor] Stopped automatic token refresh');
+    }
+
+    if (backgroundRefreshTimer) {
+        clearInterval(backgroundRefreshTimer);
+        backgroundRefreshTimer = null;
+        console.log('[TokenMonitor] Stopped background token refresh');
     }
 }
 
@@ -164,4 +205,3 @@ export function logTokenInfo() {
     const info = getTokenInfo(token);
     console.log('[TokenMonitor] Token Info:', info);
 }
-

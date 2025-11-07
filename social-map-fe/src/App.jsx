@@ -14,10 +14,79 @@ import UsersManagementPage from './pages/DashboardPage/UsersManagementPage';
 import ShopManagementDashboard from './pages/DashboardPage/ShopManagementDashboard';
 import MainLayout from './components/Layout/MainLayout';
 import { webSocketService } from './services/WebSocketChatService';
-import { isTokenExpired, scheduleTokenRefresh } from './utils/tokenMonitor';
+import { isTokenExpired, scheduleTokenRefresh, startBackgroundTokenRefresh } from './utils/tokenMonitor';
 import apiClient from './services/apiClient';
 
 function App() {
+  // 🆕 Session management với idle detection và WebSocket event handling
+  useEffect(() => {
+    let idleTimer = null;
+    let lastActivity = Date.now();
+
+    // 🆕 Cập nhật lastActivity khi có tương tác
+    const updateActivity = () => {
+      lastActivity = Date.now();
+    };
+
+    // 🆕 Lắng nghe các event tương tác
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, updateActivity, true);
+    });
+
+    // 🆕 Kiểm tra idle mỗi phút
+    const checkIdle = () => {
+      const idleMinutes = (Date.now() - lastActivity) / 60000;
+      if (idleMinutes > 60) { // Idle quá 1 giờ
+        console.log('⏰ User idle too long, refreshing page...');
+        window.location.reload();
+      }
+    };
+
+    idleTimer = setInterval(checkIdle, 60000); // Check mỗi phút
+
+    // 🆕 Lắng nghe WebSocket events
+    const handleWebSocketAuthError = async () => {
+      console.warn('🔐 WebSocket auth error - attempting token refresh...');
+      try {
+        const refreshResponse = await apiClient.post('/auth/refresh');
+        const newToken = refreshResponse.data.accessToken;
+        localStorage.setItem('authToken', newToken);
+        console.log('✅ Token refreshed due to WebSocket auth error');
+
+        // Reconnect WebSocket with new token
+        webSocketService.reconnect();
+      } catch (error) {
+        console.error('❌ Token refresh failed:', error);
+        // Force logout if refresh fails
+        localStorage.clear();
+        sessionStorage.clear();
+        webSocketService.disconnect();
+        window.location.replace('/login');
+      }
+    };
+
+    const handleWebSocketMaxReconnect = () => {
+      console.error('🔄 Max WebSocket reconnect attempts reached - reloading page');
+      window.location.reload();
+    };
+
+    window.addEventListener('websocket-auth-error', handleWebSocketAuthError);
+    window.addEventListener('websocket-max-reconnect-reached', handleWebSocketMaxReconnect);
+
+    // Cleanup
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, updateActivity, true);
+      });
+      if (idleTimer) {
+        clearInterval(idleTimer);
+      }
+      window.removeEventListener('websocket-auth-error', handleWebSocketAuthError);
+      window.removeEventListener('websocket-max-reconnect-reached', handleWebSocketMaxReconnect);
+    };
+  }, []);
+
   // 🌐 Kết nối WebSocket toàn cục khi App mount và có authToken
   useEffect(() => {
     const connectWebSocket = () => {
@@ -70,6 +139,20 @@ function App() {
             // Force reload để reset app
             alert('⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
             window.location.replace('/login');
+          }
+        });
+
+        // 🕒 Start background token refresh every 15 minutes
+        console.log('⏰ Starting background token refresh...');
+        startBackgroundTokenRefresh(async () => {
+          console.log('🔄 Background token refresh...');
+          try {
+            const refreshResponse = await apiClient.post('/auth/refresh');
+            const newToken = refreshResponse.data.accessToken;
+            localStorage.setItem('authToken', newToken);
+            console.log('✅ Background token refresh successful');
+          } catch (error) {
+            console.error('❌ Background token refresh failed:', error);
           }
         });
       } else {

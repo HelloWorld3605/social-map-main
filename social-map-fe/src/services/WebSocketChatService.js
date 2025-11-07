@@ -1,6 +1,7 @@
 // src/services/WebSocketChatService.js
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
+import { notificationSoundService } from './notificationSoundService';
 
 const BASE_URL = "http://localhost:8080";
 
@@ -9,6 +10,81 @@ class WebSocketChatService {
     subscriptions = new Map(); // Map<destination, Set<{sub, callback}>>
     reconnectCallbacks = { onConnected: null, onError: null };
     isConnecting = false;
+
+     // 🆕 Thêm các biến cho auto-reconnect và heartbeat
+    reconnectAttempts = 0;
+    maxReconnectAttempts = 5;
+    reconnectTimer = null;
+    heartbeatTimer = null;
+    lastHeartbeat = Date.now();
+    isVisible = true;
+    // 🆕 Theo dõi thời gian disconnect để xử lý tin nhắn mới sau reconnect
+    lastDisconnectTime = null;
+    hasNewMessagesAfterReconnect = false;
+
+    constructor() {
+        // 🆕 Lắng nghe visibility change để xử lý khi user chuyển tab
+        this.setupVisibilityListener();
+        // 🆕 Bắt đầu heartbeat
+        this.startHeartbeat();
+    }
+
+    // 🆕 Setup visibility API listener
+    setupVisibilityListener() {
+        document.addEventListener('visibilitychange', () => {
+            this.isVisible = !document.hidden;
+            console.log(`[WebSocket] Tab visibility changed: ${this.isVisible ? 'visible' : 'hidden'}`);
+
+            if (this.isVisible) {
+                // Khi user quay lại tab, kiểm tra kết nối
+                this.handleVisibilityReturn();
+            }
+        });
+    }
+
+    // 🆕 Xử lý khi user quay lại tab
+    handleVisibilityReturn() {
+        const now = Date.now();
+        const timeAway = now - this.lastHeartbeat;
+
+        // Nếu đã away quá lâu (> 30 giây) hoặc socket không connected
+        if (timeAway > 30000 || !this.isConnected()) {
+            console.log('🧠 Tab active again, checking connection...');
+            if (!this.isConnected()) {
+                console.log('🔄 Socket lost, reconnecting...');
+                this.attemptReconnect();
+            } else {
+                // Kiểm tra heartbeat
+                this.sendHeartbeat();
+            }
+        }
+    }
+
+    // 🆕 Heartbeat mechanism
+    startHeartbeat() {
+        this.heartbeatTimer = setInterval(() => {
+            if (this.isConnected() && this.isVisible) {
+                this.sendHeartbeat();
+            }
+        }, 30000); // Mỗi 30 giây
+    }
+
+    // 🆕 Gửi heartbeat để kiểm tra kết nối
+    sendHeartbeat() {
+        if (!this.isConnected()) return;
+
+        this.lastHeartbeat = Date.now();
+        // Gửi ping message
+        this.send('/app/ping', { timestamp: this.lastHeartbeat });
+    }
+
+    // 🆕 Dừng heartbeat
+    stopHeartbeat() {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = null;
+        }
+    }
 
     connect(onConnected, onError) {
         // Store callbacks for reconnection
@@ -42,7 +118,8 @@ class WebSocketChatService {
                 Authorization: `Bearer ${token}`,
             },
 
-            reconnectDelay: 5000, // Tự động reconnect sau 5s nếu mất kết nối
+            // 🆕 Tắt auto-reconnect mặc định, dùng custom logic
+            reconnectDelay: 0,
             heartbeatIncoming: 4000,
             heartbeatOutgoing: 4000,
 
@@ -56,6 +133,10 @@ class WebSocketChatService {
             onConnect: () => {
                 console.log("✅ Connected to WebSocket");
                 this.isConnecting = false;
+                this.reconnectAttempts = 0; // Reset reconnect attempts
+
+                // 🆕 Kiểm tra và phát âm thanh cho tin nhắn mới sau reconnect
+                this.handleReconnectNotifications();
 
                 // Dispatch event để notify components khác
                 window.dispatchEvent(new CustomEvent('websocket-connected'));
@@ -71,6 +152,9 @@ class WebSocketChatService {
                 if (frame.headers?.message?.includes('Authentication')) {
                     console.error('[WebSocket] Authentication failed - token may be expired');
                     this.handleAuthError();
+                } else {
+                    // 🆕 Thử reconnect cho các lỗi khác
+                    this.attemptReconnect();
                 }
 
                 onError?.(frame);
@@ -79,15 +163,52 @@ class WebSocketChatService {
             onWebSocketError: (error) => {
                 console.error("❌ WebSocket error:", error);
                 this.isConnecting = false;
+                // 🆕 Thử reconnect
+                this.attemptReconnect();
             },
 
             onDisconnect: () => {
                 console.log('🔌 WebSocket disconnected');
                 this.isConnecting = false;
+                // 🆕 Ghi lại thời gian disconnect
+                this.lastDisconnectTime = Date.now();
+                this.hasNewMessagesAfterReconnect = false;
+                // 🆕 Thử reconnect
+                this.attemptReconnect();
             }
         });
 
         this.stompClient.activate();
+    }
+
+    // 🆕 Custom reconnect với exponential backoff
+    attemptReconnect() {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error(`[WebSocket] Max reconnect attempts (${this.maxReconnectAttempts}) reached`);
+            // Có thể emit event để app xử lý (ví dụ reload page)
+            window.dispatchEvent(new CustomEvent('websocket-max-reconnect-reached'));
+            return;
+        }
+
+        this.reconnectAttempts++;
+        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000); // Exponential backoff, max 30s
+
+        console.log(`[WebSocket] Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
+
+        this.reconnectTimer = setTimeout(() => {
+            if (!this.isConnected() && !this.isConnecting) {
+                const { onConnected, onError } = this.reconnectCallbacks;
+                this.connect(onConnected, onError);
+            }
+        }, delay);
+    }
+
+    // 🆕 Cancel pending reconnect
+    cancelReconnect() {
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
     }
 
     /**
@@ -111,6 +232,10 @@ class WebSocketChatService {
     }
 
     disconnect() {
+        // 🆕 Cancel pending reconnect và dừng heartbeat
+        this.cancelReconnect();
+        this.stopHeartbeat();
+
         // Unsubscribe all before deactivating
         this.subscriptions.forEach((callbacks) => {
             callbacks.forEach(({ sub }) => sub?.unsubscribe());
@@ -229,13 +354,75 @@ class WebSocketChatService {
         }
 
         const msgPath = `/topic/conversation/${conversationId}`;
-        if (onMessage) this.subscribe(msgPath, onMessage);
+        if (onMessage) {
+            // 🆕 Wrap onMessage callback để phát âm thanh khi nhận tin nhắn mới
+            const wrappedOnMessage = (message) => {
+                // Phát âm thanh thông báo nếu tin nhắn không phải từ user hiện tại
+                this.handleNewMessage(message);
+                onMessage(message);
+            };
+            this.subscribe(msgPath, wrappedOnMessage);
+        }
 
         const typingPath = `/topic/conversation/${conversationId}/typing`;
         if (onTyping) this.subscribe(typingPath, onTyping);
 
         const updatePath = `/topic/conversation/${conversationId}/update`;
         if (onUpdate) this.subscribe(updatePath, onUpdate);
+    }
+
+    // 🆕 Xử lý tin nhắn mới và phát âm thanh
+    handleNewMessage(message, options = {}) {
+        try {
+            const currentUserId = this.getCurrentUserId();
+
+            // Kiểm tra xem tin nhắn có phải từ user hiện tại không
+            if (message.senderId === currentUserId) {
+                console.log('[WebSocket] Message from current user, skipping notification sound');
+                return;
+            }
+
+            // Nếu vừa reconnect và tin nhắn này đến sau khi disconnect
+            if (this.lastDisconnectTime && message.timestamp > this.lastDisconnectTime) {
+                this.hasNewMessagesAfterReconnect = true;
+                console.log('[WebSocket] New message after reconnect detected');
+            }
+
+            // Phát âm thanh với các điều kiện phù hợp
+            const { chatWindowOpening = false } = options;
+
+            // 🆕 Luôn phát âm thanh cho tin nhắn mới, nhưng có thể điều chỉnh volume
+            const shouldPlayLoud = !document.hasFocus() || !this.isVisible || chatWindowOpening;
+
+            notificationSoundService.play({
+                force: true,  // Luôn phát âm thanh cho tin nhắn mới
+                checkVisibility: false,  // Không kiểm tra visibility
+                checkFocus: false,       // Không kiểm tra focus
+                checkMinimized: false,   // Không kiểm tra minimize
+                checkChatOpen: false,    // Không kiểm tra chat window
+                checkTabActive: false    // Không kiểm tra tab active
+            });
+
+            console.log('🔊 Notification sound played for new message', { shouldPlayLoud });
+        } catch (error) {
+            console.error('[WebSocket] Error handling new message:', error);
+        }
+    }
+
+    // 🆕 Xử lý thông báo sau khi reconnect
+    handleReconnectNotifications() {
+        // Nếu vừa reconnect và có tin nhắn mới chưa đọc
+        if (this.lastDisconnectTime && this.hasNewMessagesAfterReconnect) {
+            console.log('🔄 Reconnected with new messages, playing notification sound');
+
+            // Phát âm thanh thông báo có tin nhắn mới
+            notificationSoundService.play({
+                force: true // Force play để thông báo có tin nhắn mới sau reconnect
+            });
+
+            // Reset flags
+            this.hasNewMessagesAfterReconnect = false;
+        }
     }
 
     /**
@@ -362,6 +549,16 @@ class WebSocketChatService {
             console.log('📬 Read receipt received:', receipt);
             onReadReceipt?.(receipt);
         });
+    }
+
+    // 🆕 Kiểm tra trạng thái kết nối
+    isConnected() {
+        return this.stompClient?.connected && !this.isConnecting;
+    }
+
+    // 🆕 Kiểm tra có đang kết nối không
+    isConnecting() {
+        return this.isConnecting;
     }
 }
 
