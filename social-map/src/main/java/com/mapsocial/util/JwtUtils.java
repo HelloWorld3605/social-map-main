@@ -24,7 +24,7 @@ public class JwtUtils {
     @Value("${jwt.expiration:86400000}")
     private long jwtExpiration;
 
-    @Value("${jwt.access-token.expiration:900000}") // 15 minutes
+    @Value("${jwt.access-token.expiration:3600000}") // 1 hour (changed from 15 minutes)
     private long accessTokenExpiration;
 
     @Value("${jwt.refresh-token.expiration:2592000000}") // 30 days
@@ -66,7 +66,7 @@ public class JwtUtils {
     }
 
     /**
-     * Tạo Access Token (thời gian ngắn - 15 phút)
+     * Tạo Access Token (thời gian ngắn - 1 giờ)
      */
     public String generateAccessToken(User user) {
         Date expiryDate = new Date(System.currentTimeMillis() + accessTokenExpiration);

@@ -1,5 +1,6 @@
 import { api } from './apiClient';
 import { webSocketService } from './WebSocketChatService';
+import { stopTokenRefresh } from '../utils/tokenMonitor';
 
 // 1. Bắt đầu đăng ký (gửi email xác thực)
 export const startRegistration = async (data) => {
@@ -33,6 +34,10 @@ export const logout = async (data = {}) => {
     console.error('Logout API error:', error);
     // Continue với cleanup ngay cả khi API fail
   } finally {
+    // Stop automatic token refresh
+    console.log('⏰ Stopping automatic token refresh on logout...');
+    stopTokenRefresh();
+
     // Disconnect WebSocket
     console.log('🔌 Disconnecting WebSocket on logout...');
     webSocketService.disconnect();

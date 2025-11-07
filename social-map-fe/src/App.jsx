@@ -14,7 +14,8 @@ import UsersManagementPage from './pages/DashboardPage/UsersManagementPage';
 import ShopManagementDashboard from './pages/DashboardPage/ShopManagementDashboard';
 import MainLayout from './components/Layout/MainLayout';
 import { webSocketService } from './services/WebSocketChatService';
-import { isTokenExpired } from './utils/tokenMonitor';
+import { isTokenExpired, scheduleTokenRefresh } from './utils/tokenMonitor';
+import apiClient from './services/apiClient';
 
 function App() {
   // 🌐 Kết nối WebSocket toàn cục khi App mount và có authToken
@@ -39,6 +40,38 @@ function App() {
           },
           (error) => console.error('❌ Global WebSocket error:', error)
         );
+
+        // 🔔 Schedule automatic token refresh nếu chưa được schedule
+        console.log('⏰ Scheduling automatic token refresh on app start...');
+        scheduleTokenRefresh(async () => {
+          console.log('🔄 Auto-refresh triggered by token monitor');
+          try {
+            const refreshResponse = await apiClient.post('/auth/refresh');
+            const newToken = refreshResponse.data.accessToken;
+            localStorage.setItem('authToken', newToken);
+            console.log('✅ Token auto-refreshed successfully');
+
+            // Reconnect WebSocket with new token
+            if (webSocketService && webSocketService.reconnect) {
+              webSocketService.reconnect();
+            }
+          } catch (error) {
+            console.error('❌ Auto-refresh failed:', error);
+
+            // Clear all data
+            localStorage.clear();
+            sessionStorage.clear();
+
+            // Disconnect WebSocket
+            if (webSocketService && webSocketService.disconnect) {
+              webSocketService.disconnect();
+            }
+
+            // Force reload để reset app
+            alert('⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+            window.location.replace('/login');
+          }
+        });
       } else {
         console.log('⏸️ Chưa có authToken, bỏ qua kết nối WebSocket');
       }
@@ -215,4 +248,3 @@ function App() {
 }
 
 export default App
-

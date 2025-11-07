@@ -146,7 +146,7 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Email hoặc mật khẩu không đúng");
         }
 
-        // Tạo access token (ngắn hạn - 15 phút)
+        // Tạo access token (ngắn hạn - 1 giờ)
         String accessToken = jwtUtils.generateAccessToken(user);
 
         // Tạo refresh token (dài hạn - 30 ngày) và lưu vào database
