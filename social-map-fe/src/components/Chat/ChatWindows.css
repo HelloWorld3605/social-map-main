@@ -107,6 +107,7 @@
 }
 
 .chat-window-info {
+    margin-left: -14px;
     flex: 1;
     min-width: 0;
 }

@@ -963,14 +963,14 @@ export default function ChatWindow({
         // Only show status for messages sent by current user
         if (msg.senderId !== currentUserId) return null;
 
-        // ✅ Messenger logic: Chỉ hiển thị status ở tin nhắn CUỐI CÙNG của mình
+        // Messenger logic: Chỉ hiển thị status ở tin nhắn CUỐI CÙNG của mình
         const myMessages = messages.filter(m => m.senderId === currentUserId);
         const lastMyMessage = myMessages[myMessages.length - 1];
 
         // Nếu không phải tin nhắn cuối cùng của user -> không hiển thị gì
         if (!lastMyMessage || msg.id !== lastMyMessage.id) return null;
 
-        // ✅ Nếu tin nhắn đã được XEM (SEEN)
+        // Nếu tin nhắn đã được XEM (SEEN)
         if (msg.status === 'SEEN' && msg.seenBy?.length > 0) {
             const firstViewer = msg.seenBy[0];
             return (
@@ -986,7 +986,7 @@ export default function ChatWindow({
             );
         }
 
-        // ✅ Tin nhắn chưa được đọc (SENT) - chỉ hiển thị ở tin cuối cùng
+        // Tin nhắn chưa được đọc (SENT) - chỉ hiển thị ở tin cuối cùng
         return (
             <div className="message-status-wrapper">
                 <span className="message-status-text sent">Đã gửi</span>
