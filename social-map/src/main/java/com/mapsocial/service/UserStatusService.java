@@ -1,17 +1,28 @@
 package com.mapsocial.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class UserStatusService {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final ChannelTopic topic;
+
+    // Không autowire qua constructor — inject lazy để tránh vòng lặp
+    @Autowired(required = false)
+    @Lazy
+    private SimpMessagingTemplate messagingTemplate;
 
     private static final Duration ONLINE_TIMEOUT = Duration.ofMinutes(2); // sau 2 phút không hoạt động => offline
 
@@ -19,12 +30,33 @@ public class UserStatusService {
     public void markUserOnline(String userId) {
         redisTemplate.opsForValue().set("user:status:" + userId, "online", ONLINE_TIMEOUT);
         redisTemplate.opsForValue().set("user:lastSeen:" + userId, Instant.now().toString());
+
+        // Gửi event ra Redis Pub/Sub
+        redisTemplate.convertAndSend(topic.getTopic(), userId + ":online");
+
+        // chỉ gọi nếu template đã được inject
+        if (messagingTemplate != null) {
+            messagingTemplate.convertAndSend("/topic/status", Map.of(
+                    "userId", userId,
+                    "status", "online"
+            ));
+        }
     }
 
     // Đánh dấu user offline
     public void markUserOffline(String userId) {
         redisTemplate.opsForValue().set("user:status:" + userId, "offline", Duration.ofHours(1));
         redisTemplate.opsForValue().set("user:lastSeen:" + userId, Instant.now().toString());
+
+        redisTemplate.convertAndSend(topic.getTopic(), userId + ":offline");
+
+        // chỉ gọi nếu template đã được inject
+        if (messagingTemplate != null) {
+            messagingTemplate.convertAndSend("/topic/status", Map.of(
+                    "userId", userId,
+                    "status", "offline"
+            ));
+        }
     }
 
     // Kiểm tra user có đang online không

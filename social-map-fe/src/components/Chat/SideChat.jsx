@@ -6,6 +6,7 @@ import ChatWindow from './ChatWindow';
 import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
 import { userService } from '../../services/userService';
+import useRealtimeStatus from '../../hooks/useRealtimeStatus';
 
 export default function SideChat() {
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -554,6 +555,27 @@ export default function SideChat() {
 
         loadUserStatuses();
     }, [conversations, currentUserId, userStatuses]);
+
+    // Handle realtime status updates
+    const handleStatusChange = useCallback((userId, status) => {
+        console.log('🔄 Realtime status update:', { userId, status });
+
+        setUserStatuses(prev => {
+            const newMap = new Map(prev);
+            const currentStatus = newMap.get(userId) || { isOnline: false, lastSeen: 'unknown' };
+
+            if (status === 'online') {
+                newMap.set(userId, { ...currentStatus, isOnline: true });
+            } else if (status === 'offline') {
+                newMap.set(userId, { ...currentStatus, isOnline: false, lastSeen: new Date().toISOString() });
+            }
+
+            return newMap;
+        });
+    }, []);
+
+    // Use realtime status hook
+    useRealtimeStatus(handleStatusChange);
 
     const handleChatToggle = useCallback(() => {
         setIsChatOpen(prev => !prev);

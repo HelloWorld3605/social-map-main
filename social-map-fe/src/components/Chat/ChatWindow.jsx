@@ -4,6 +4,7 @@ import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
 import { userService } from '../../services/userService';
 import './ChatWindows.css';
+import useRealtimeStatus from '../../hooks/useRealtimeStatus';
 
 export default function ChatWindow({
     conversation,
@@ -24,7 +25,7 @@ export default function ChatWindow({
     const [isSending, setIsSending] = useState(false);
     const [isInitialLoad, setIsInitialLoad] = useState(true); // 🎬 Ẩn UI khi load lần đầu
     const [currentPage, setCurrentPage] = useState(0); // 📄 Track current page for pagination
-    const [isLoadingMore, setIsLoadingMore] = useState(false); // ✅ State instead of ref for UI updates
+    const [isLoadingMore, setIsLoadingMore] = useState(false); // State instead of ref for UI updates
     const [userStatus, setUserStatus] = useState({ isOnline: false, lastSeen: 'unknown' });
 
     const messagesEndRef = useRef(null);
@@ -42,6 +43,67 @@ export default function ChatWindow({
     const isActiveRef = useRef(isActive);
     const isMinimizedRef = useRef(minimized);
 
+    // Format last seen time to friendly format
+    const formatLastSeen = useCallback((lastSeen) => {
+        if (!lastSeen || lastSeen === 'unknown') return 'Không hoạt động';
+
+        // If it's already a formatted string (contains Vietnamese text), return as-is
+        if (typeof lastSeen === 'string' && (
+            lastSeen.includes('phút trước') ||
+            lastSeen.includes('giờ trước') ||
+            lastSeen.includes('ngày trước') ||
+            lastSeen.includes('tuần trước') ||
+            lastSeen.includes('Vừa xong') ||
+            lastSeen.includes('vừa xong') ||
+            lastSeen.includes('Không hoạt động')
+        )) {
+            return lastSeen;
+        }
+
+        // Try to parse as date
+        const lastSeenDate = new Date(lastSeen);
+        if (isNaN(lastSeenDate.getTime())) {
+            // Invalid date string
+            console.warn('Invalid date string for lastSeen:', lastSeen);
+            return 'Không hoạt động';
+        }
+
+        try {
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - lastSeenDate) / 1000);
+
+            if (diffInSeconds < 60) {
+                return 'Vừa xong';
+            }
+
+            const diffInMinutes = Math.floor(diffInSeconds / 60);
+            if (diffInMinutes < 60) {
+                return `${diffInMinutes} phút trước`;
+            }
+
+            const diffInHours = Math.floor(diffInMinutes / 60);
+            if (diffInHours < 24) {
+                return `${diffInHours} giờ trước`;
+            }
+
+            const diffInDays = Math.floor(diffInHours / 24);
+            if (diffInDays < 7) {
+                return `${diffInDays} ngày trước`;
+            }
+
+            const diffInWeeks = Math.floor(diffInDays / 7);
+            if (diffInWeeks < 4) {
+                return `${diffInWeeks} tuần trước`;
+            }
+
+            // For older than 4 weeks, show date
+            return lastSeenDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        } catch (error) {
+            console.error('Error formatting last seen:', error);
+            return 'Không hoạt động';
+        }
+    }, []);
+
     // Get display info
     const getDisplayInfo = useCallback(() => {
         if (!conversation) return { name: '', avatar: '', status: '' };
@@ -57,10 +119,10 @@ export default function ChatWindow({
             return {
                 name: otherUser?.fullName || 'User',
                 avatar: otherUser?.avatarUrl || '/channels/myprofile.jpg',
-                status: userStatus.isOnline ? 'Đang hoạt động' : (userStatus.lastSeen !== 'unknown' ? userStatus.lastSeen : 'Không hoạt động'),
+                status: userStatus.isOnline ? 'Đang hoạt động' : formatLastSeen(userStatus.lastSeen),
             };
         }
-    }, [conversation, currentUserId, userStatus]);
+    }, [conversation, currentUserId, userStatus, formatLastSeen]);
 
     const displayInfo = getDisplayInfo();
 
@@ -522,6 +584,47 @@ export default function ChatWindow({
         };
     }, [conversation, currentUserId, isActive, minimized, onNewMessage, onMarkAsRead, scrollToBottom]);
 
+    // Load user status for conversation
+    useEffect(() => {
+        const loadUserStatus = async () => {
+            if (!conversation || conversation.isGroup) return;
+
+            const otherUser = conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
+            if (!otherUser?.userId) return;
+
+            try {
+                const status = await userService.getUserStatus(otherUser.userId);
+                setUserStatus(status);
+            } catch (error) {
+                console.error('Failed to load user status for chat:', error);
+            }
+        };
+
+        loadUserStatus();
+    }, [conversation, currentUserId]);
+
+    // Handle realtime status updates
+    const handleStatusChange = useCallback((userId, status) => {
+        console.log('🔄 ChatWindow realtime status update:', { userId, status });
+
+        // Only update if this is the user in this conversation
+        const otherUser = conversation?.otherUser || conversation?.members?.find(m => m.userId !== currentUserId);
+        if (otherUser?.userId === userId) {
+            setUserStatus(prev => {
+                if (status === 'online') {
+                    return { ...prev, isOnline: true };
+                } else if (status === 'offline') {
+                    // Format as friendly string instead of timestamp
+                    return { ...prev, isOnline: false, lastSeen: 'Vừa xong' };
+                }
+                return prev;
+            });
+        }
+    }, [conversation, currentUserId]);
+
+    // Use realtime status hook
+    useRealtimeStatus(handleStatusChange);
+
     // Subscribe to WebSocket updates
     useEffect(() => {
         if (!conversation?.id) return;
@@ -890,25 +993,6 @@ export default function ChatWindow({
             </div>
         );
     };
-
-    // Load user status for conversation
-    useEffect(() => {
-        const loadUserStatus = async () => {
-            if (!conversation || conversation.isGroup) return;
-
-            const otherUser = conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
-            if (!otherUser?.userId) return;
-
-            try {
-                const status = await userService.getUserStatus(otherUser.userId);
-                setUserStatus(status);
-            } catch (error) {
-                console.error('Failed to load user status for chat:', error);
-            }
-        };
-
-        loadUserStatus();
-    }, [conversation, currentUserId]);
 
     return (
         <div
