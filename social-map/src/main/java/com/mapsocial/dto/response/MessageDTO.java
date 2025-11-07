@@ -1,9 +1,12 @@
 package com.mapsocial.dto.response;
 
+import com.mapsocial.dto.MessageSeenByDTO;
+import com.mapsocial.enums.MessageStatus;
 import com.mapsocial.enums.MessageType;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Getter
@@ -35,5 +38,13 @@ public class MessageDTO {
     private LocalDateTime updatedAt;
 
     private LocalDateTime createdAt;
+
+    // Message status tracking (Facebook-style)
+    @Builder.Default
+    private MessageStatus status = MessageStatus.SENT;
+
+    // List of users who have seen this message
+    @Builder.Default
+    private List<MessageSeenByDTO> seenBy = new ArrayList<>();
 }
 

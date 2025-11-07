@@ -32,6 +32,11 @@ export default function LoginPage() {
             console.log('🧪 Chế độ test - Bypass API');
             localStorage.setItem('authToken', 'fake-token-for-testing');
             alert(`Đăng nhập test thành công! Chào mừng ${email}`);
+
+            // Dispatch login event
+            console.log('📢 Dispatching login event for test mode...');
+            window.dispatchEvent(new Event('login'));
+
             setLoading(false);
             navigate('/home', { replace: true });
             return;
@@ -68,6 +73,7 @@ export default function LoginPage() {
                 console.log('Token đã lưu:', localStorage.getItem('authToken'));
             } else {
                 console.warn('Không tìm thấy token trong response:', data);
+                throw new Error('Không nhận được token từ server');
             }
 
             // Lưu thông tin user vào localStorage
@@ -83,6 +89,7 @@ export default function LoginPage() {
                 console.log('User info đã lưu:', user);
             } else {
                 console.warn('Không tìm thấy user info trong response:', data);
+                // User info is optional, don't throw error
             }
 
             // 🔔 Schedule automatic token refresh
@@ -130,8 +137,12 @@ export default function LoginPage() {
             const userName = user?.displayName || email;
             alert(`Đăng nhập thành công! Chào mừng ${userName}`);
 
+            // Dispatch login event để App.jsx kết nối WebSocket
+            console.log('📢 Dispatching login event...');
+            window.dispatchEvent(new Event('login'));
+
             // Chuyển hướng đến trang chính (map)
-            // WebSocket sẽ tự động kết nối trong App.jsx khi có authToken
+            // WebSocket sẽ tự động kết nối trong App.jsx khi nhận được event login
             console.log('Đang chuyển hướng đến /home...');
             navigate('/home', { replace: true });
 

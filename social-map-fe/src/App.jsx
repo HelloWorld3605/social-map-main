@@ -19,41 +19,55 @@ import { isTokenExpired } from './utils/tokenMonitor';
 function App() {
   // 🌐 Kết nối WebSocket toàn cục khi App mount và có authToken
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
+    const connectWebSocket = () => {
+      const token = localStorage.getItem('authToken');
 
-    // ⚠️ Kiểm tra token có hết hạn không
-    if (token && isTokenExpired(token)) {
-      console.warn('⚠️ Token đã hết hạn, đăng xuất và reload');
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.replace('/login');
-      return;
-    }
+      // ⚠️ Kiểm tra token có hết hạn không
+      if (token && isTokenExpired(token)) {
+        console.warn('⚠️ Token đã hết hạn, đăng xuất và reload');
+        localStorage.clear();
+        sessionStorage.clear();
+        window.location.replace('/login');
+        return;
+      }
 
-    if (token) {
-      console.log('🌐 Kết nối WebSocket toàn cục khi App mount');
-      webSocketService.connect(
-        () => {
-          console.log('✅ Global WebSocket connected');
-        },
-        (error) => console.error('❌ Global WebSocket error:', error)
-      );
-    } else {
-      console.log('⏸️ Chưa có authToken, bỏ qua kết nối WebSocket');
-    }
+      if (token) {
+        console.log('🌐 Kết nối WebSocket toàn cục');
+        webSocketService.connect(
+          () => {
+            console.log('✅ Global WebSocket connected');
+          },
+          (error) => console.error('❌ Global WebSocket error:', error)
+        );
+      } else {
+        console.log('⏸️ Chưa có authToken, bỏ qua kết nối WebSocket');
+      }
+    };
+
+    // Kết nối WebSocket ngay khi mount (nếu có token)
+    connectWebSocket();
 
     // Lắng nghe logout event để cleanup WebSocket
     const handleLogout = () => {
       console.log('👋 Đăng xuất - ngắt kết nối WebSocket');
       webSocketService.disconnect();
     };
+
+    // Lắng nghe login event để kết nối WebSocket sau khi đăng nhập
+    const handleLogin = () => {
+      console.log('🔐 Login event received - connecting WebSocket');
+      connectWebSocket();
+    };
+
     window.addEventListener('logout', handleLogout);
+    window.addEventListener('login', handleLogin);
 
     // Cleanup khi App unmount
     return () => {
       console.log('🧹 App unmount - đóng WebSocket');
       webSocketService.disconnect();
       window.removeEventListener('logout', handleLogout);
+      window.removeEventListener('login', handleLogin);
     };
   }, []);
   // Kiểm tra xem người dùng đã đăng nhập chưa

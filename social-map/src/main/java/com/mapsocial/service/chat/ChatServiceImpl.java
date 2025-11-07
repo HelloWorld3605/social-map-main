@@ -403,7 +403,69 @@ public class ChatServiceImpl implements ChatService {
             userAvatar = currentUser.getAvatarUrl();
         }
 
-        // 3. Get last message in conversation to broadcast read receipt
+        // 3. Get unread messages to update their status
+        LocalDateTime lastReadAt = member.getLastReadAt();
+        List<Message> unreadMessages = messageRepository.findNewMessages(conversationId, lastReadAt);
+
+        // 4. Update message status for messages sent by others
+        List<com.mapsocial.dto.MessageStatusUpdateDTO> statusUpdates = new ArrayList<>();
+
+        for (Message message : unreadMessages) {
+            // Don't update status for messages sent by current user
+            if (message.getSenderId().equals(userId)) {
+                continue;
+            }
+
+            // Add current user to seenBy list if not already present
+            boolean alreadySeen = message.getSeenBy().stream()
+                    .anyMatch(s -> s.getUserId().equals(userId));
+
+            if (!alreadySeen) {
+                com.mapsocial.entity.Chat.MessageSeenBy seenBy = com.mapsocial.entity.Chat.MessageSeenBy.builder()
+                        .userId(userId)
+                        .seenAt(LocalDateTime.now())
+                        .build();
+                message.getSeenBy().add(seenBy);
+
+                // Update message status to SEEN
+                message.setStatus(com.mapsocial.enums.MessageStatus.SEEN);
+                messageRepository.save(message);
+
+                // Create status update DTO
+                List<com.mapsocial.dto.MessageSeenByDTO> seenByDTOs = message.getSeenBy().stream()
+                        .map(sb -> {
+                            User u = userRepository.findById(UUID.fromString(sb.getUserId())).orElse(null);
+                            String uName = u != null ? (u.getDisplayName() != null ? u.getDisplayName() : u.getEmail()) : UNKNOWN_USER;
+                            String uAvatar = u != null ? u.getAvatarUrl() : null;
+                            return com.mapsocial.dto.MessageSeenByDTO.builder()
+                                    .userId(sb.getUserId())
+                                    .userName(uName)
+                                    .userAvatar(uAvatar)
+                                    .seenAt(sb.getSeenAt())
+                                    .build();
+                        })
+                        .collect(Collectors.toList());
+
+                com.mapsocial.dto.MessageStatusUpdateDTO statusUpdate = com.mapsocial.dto.MessageStatusUpdateDTO.builder()
+                        .messageId(message.getId())
+                        .conversationId(conversationId)
+                        .status(message.getStatus())
+                        .seenBy(seenByDTOs)
+                        .updatedAt(LocalDateTime.now())
+                        .build();
+
+                statusUpdates.add(statusUpdate);
+
+                // Broadcast status update to message sender
+                messagingTemplate.convertAndSendToUser(
+                        message.getSenderId(),
+                        "/queue/message-status",
+                        statusUpdate
+                );
+            }
+        }
+
+        // 5. Get last message in conversation to broadcast read receipt (existing logic)
         Optional<Message> lastMessage = messageRepository
                 .findTop1ByConversationIdAndDeletedFalseOrderByCreatedAtDesc(conversationId);
 
@@ -427,11 +489,11 @@ public class ChatServiceImpl implements ChatService {
             );
         }
 
-        // 4. Broadcast unread count = 0 to current user
+        // 6. Broadcast unread count = 0 to current user
         UnreadCountDTO unreadDTO = new UnreadCountDTO(conversationId, 0);
         messagingTemplate.convertAndSendToUser(userId, "/queue/unread", unreadDTO);
 
-        // 5. Broadcast to all members that conversation was updated (for last seen status)
+        // 7. Broadcast to all members that conversation was updated (for last seen status)
         if (receipt != null) {
             List<ConversationMember> allMembers = conversationMemberRepository
                     .findByConversationId(conversationId);
@@ -673,6 +735,23 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
+        // Map seenBy list with user details
+        List<com.mapsocial.dto.MessageSeenByDTO> seenByDTOs = new ArrayList<>();
+        if (message.getSeenBy() != null) {
+            for (com.mapsocial.entity.Chat.MessageSeenBy seenBy : message.getSeenBy()) {
+                User user = userRepository.findById(UUID.fromString(seenBy.getUserId())).orElse(null);
+                if (user != null) {
+                    String userName = user.getDisplayName() != null ? user.getDisplayName() : user.getEmail();
+                    seenByDTOs.add(com.mapsocial.dto.MessageSeenByDTO.builder()
+                            .userId(seenBy.getUserId())
+                            .userName(userName)
+                            .userAvatar(user.getAvatarUrl())
+                            .seenAt(seenBy.getSeenAt())
+                            .build());
+                }
+            }
+        }
+
         return MessageDTO.builder()
                 .id(message.getId())
                 .conversationId(message.getConversationId())
@@ -687,6 +766,8 @@ public class ChatServiceImpl implements ChatService {
                 .isEdited(message.isEdited())
                 .updatedAt(message.getUpdatedAt())
                 .createdAt(message.getCreatedAt())
+                .status(message.getStatus() != null ? message.getStatus() : com.mapsocial.enums.MessageStatus.SENT)
+                .seenBy(seenByDTOs)
                 .build();
     }
 }

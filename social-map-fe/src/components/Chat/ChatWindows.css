@@ -792,3 +792,74 @@ body.dark-mode .chat-window-input-container.drag-over::before {
     background: #3a3b3c;
     color: #10b981;
 }
+
+/* ===== MESSAGE STATUS INDICATORS (Messenger-style with text) ===== */
+.message-status-container {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.message-status-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 3px;
+    justify-content: flex-end;
+}
+
+.message-status-avatar {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid #fff;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    object-fit: cover;
+}
+
+.message-status-avatar:hover {
+    transform: scale(1.1);
+    opacity: 0.9;
+}
+
+.message-status-text {
+    font-size: 11px;
+    color: #65676b;
+    opacity: 0.9;
+}
+
+.message-status-text.sent {
+    color: #999;
+}
+
+.message-status-text.seen {
+    color: #EC5E95;
+    font-weight: 500;
+}
+
+/* Position status indicator at the end of message bubble */
+.chat-window-message.sent .chat-window-message-content {
+    position: relative;
+}
+
+.chat-window-message.sent .message-status-container {
+    margin-top: 4px;
+    text-align: right;
+    font-size: 11px;
+}
+
+/* Dark mode adjustments */
+body.dark-mode .message-status-text.sent {
+    color: #999;
+}
+
+body.dark-mode .message-status-text.seen {
+    color: #f18bbd;
+}
+
+body.dark-mode .message-status-avatar {
+    border-color: #242526;
+}
+

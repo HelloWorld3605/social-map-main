@@ -36,6 +36,10 @@ export default function ChatWindow({
     const isTypingRef = useRef(false);
     const [isDragOver, setIsDragOver] = useState(false);
 
+    // ✅ Track active/minimized state for real-time mark as read
+    const isActiveRef = useRef(isActive);
+    const isMinimizedRef = useRef(minimized);
+
     // Get display info
     const getDisplayInfo = useCallback(() => {
         if (!conversation) return { name: '', avatar: '', status: '' };
@@ -57,6 +61,15 @@ export default function ChatWindow({
     }, [conversation, currentUserId]);
 
     const displayInfo = getDisplayInfo();
+
+    // ✅ Update refs when props change to ensure real-time mark as read
+    useEffect(() => {
+        isActiveRef.current = isActive;
+    }, [isActive]);
+
+    useEffect(() => {
+        isMinimizedRef.current = minimized;
+    }, [minimized]);
 
     // 🔹 Load recent messages (30 tin mới nhất)
     const loadRecentMessages = useCallback(async () => {
@@ -296,11 +309,18 @@ export default function ChatWindow({
         // Only mark as read when:
         // 1. Window becomes active (wasActive = false → isNowActive = true)
         // 2. AND window is not minimized
+        // 3. AND last message is from another user (Messenger-style)
         if (conversation?.id && !minimized && isNowActive && !wasActive) {
-            console.log('✅ Marking as read (window became active):', conversation.id);
-            ChatService.markAsRead(conversation.id).catch(console.error);
-            if (onMarkAsRead) {
-                onMarkAsRead(conversation.id);
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage && lastMessage.senderId !== currentUserId) {
+                console.log('👁️ Marking messages as read...');
+                webSocketService.sendMarkAsRead({ conversationId: conversation.id });
+                ChatService.markAsRead(conversation.id).catch(console.error);
+                if (onMarkAsRead) {
+                    onMarkAsRead(conversation.id);
+                }
+            } else {
+                console.log('⏭️ Skipping mark as read: last message is from current user or no messages');
             }
         } else {
             console.log('⏭️ Skipping mark as read:', {
@@ -314,12 +334,14 @@ export default function ChatWindow({
 
         // Update previous state
         prevIsActiveRef.current = isNowActive;
-    }, [conversation?.id, minimized, isActive, onMarkAsRead]);
+    }, [conversation?.id, minimized, isActive, onMarkAsRead, messages, currentUserId]);
 
     // Create stable callback refs to avoid recreating subscriptions
     const messageCallbackRef = useRef();
     const typingCallbackRef = useRef();
     const updateCallbackRef = useRef();
+    const messageStatusCallbackRef = useRef();
+    const readReceiptCallbackRef = useRef();
 
     // Update callback refs when dependencies change
     useEffect(() => {
@@ -327,7 +349,7 @@ export default function ChatWindow({
             console.log('📨 ChatWindow received new message:', message);
             let processedMessage = message;
 
-            // ✅ Type check before using string methods
+            // Type check before using string methods
             if (typeof message.content === 'string' && message.content.startsWith('LOCATION:')) {
                 try {
                     const locationData = JSON.parse(message.content.substring(9));
@@ -356,13 +378,32 @@ export default function ChatWindow({
                 onNewMessage(processedMessage);
             }
 
-            if (isActive && !minimized && message.senderId !== currentUserId) {
-                console.log('✅ Auto-marking as read');
+            // ✅ Auto mark as read if window is active and message is from another user
+            // Use refs to get the LATEST state values (not stale closure values)
+            const isWindowActive = isActiveRef.current;
+            const isWindowMinimized = isMinimizedRef.current;
+
+            console.log('📨 New message check for auto-read:', {
+                isWindowActive,
+                isWindowMinimized,
+                isFromOtherUser: message.senderId !== currentUserId,
+                conversationId: conversation.id,
+                messageId: message.id
+            });
+
+            if (isWindowActive && !isWindowMinimized && message.senderId !== currentUserId) {
+                console.log('✅ Auto-marking as read (window is active)');
                 webSocketService.sendMarkAsRead({ conversationId: conversation.id });
                 ChatService.markAsRead(conversation.id).catch(console.error);
                 if (onMarkAsRead) {
                     onMarkAsRead(conversation.id);
                 }
+            } else {
+                console.log('⏭️ Skipping auto-mark as read:', {
+                    reason: !isWindowActive ? 'window not active' :
+                            isWindowMinimized ? 'window minimized' :
+                            'message from current user'
+                });
             }
         };
 
@@ -397,6 +438,84 @@ export default function ChatWindow({
                 msg.id === updatedMessage.id ? updatedMessage : msg
             ));
         };
+
+        // ✅ Message status update callback
+        messageStatusCallbackRef.current = (statusUpdate) => {
+            console.log('📬 ========== MESSAGE STATUS UPDATE ==========');
+            console.log('📬 Raw status update:', JSON.stringify(statusUpdate, null, 2));
+            console.log('📬 Message ID:', statusUpdate.messageId);
+            console.log('📬 New status:', statusUpdate.status);
+            console.log('📬 SeenBy:', statusUpdate.seenBy);
+
+            setMessages((prev) => {
+                const updated = prev.map(msg => {
+                    if (msg.id === statusUpdate.messageId) {
+                        console.log('📬 ✅ Found message, updating status');
+                        const updatedMsg = {
+                            ...msg,
+                            status: statusUpdate.status,
+                            seenBy: statusUpdate.seenBy
+                        };
+                        console.log('📬 Updated message:', updatedMsg);
+                        return updatedMsg;
+                    }
+                    return msg;
+                });
+                console.log('📬 ========== END MESSAGE STATUS UPDATE ==========');
+                return updated;
+            });
+        };
+
+        // ✅ Read receipt callback
+        readReceiptCallbackRef.current = (receipt) => {
+            console.log('👁️ ========== READ RECEIPT RECEIVED ==========');
+            console.log('👁️ Raw receipt:', JSON.stringify(receipt, null, 2));
+            console.log('👁️ Current messages count:', messages.length);
+            console.log('👁️ Looking for message ID:', receipt.lastMessageId);
+
+            // Map backend DTO fields to frontend format
+            const seenByUser = {
+                userId: receipt.readByUserId || receipt.userId,
+                userName: receipt.readByUserName || receipt.userName,
+                userAvatar: receipt.readByUserAvatar || receipt.userAvatar,
+                seenAt: receipt.readAt || receipt.seenAt,
+            };
+
+            console.log('👁️ Mapped seenBy user:', seenByUser);
+
+            setMessages((prev) => {
+                console.log('👁️ Messages before update:', prev.length);
+
+                const updated = prev.map(msg => {
+                    if (msg.id === receipt.lastMessageId) {
+                        console.log('👁️ Found matching message!', msg.id);
+
+                        // Check if this user already in seenBy list
+                        const existingSeenBy = msg.seenBy || [];
+                        const alreadySeen = existingSeenBy.some(s => s.userId === seenByUser.userId);
+
+                        if (alreadySeen) {
+                            console.log('👁️ User already marked as seen, skipping');
+                            return msg;
+                        }
+
+                        console.log('👁️ ✅ Updating message to SEEN status');
+                        const updatedMsg = {
+                            ...msg,
+                            status: 'SEEN',
+                            seenBy: [...existingSeenBy, seenByUser],
+                        };
+                        console.log('👁️ Updated message:', updatedMsg);
+                        return updatedMsg;
+                    }
+                    return msg;
+                });
+
+                console.log('👁️ Messages after update:', updated.length);
+                console.log('👁️ ========== END READ RECEIPT ==========');
+                return updated;
+            });
+        };
     }, [conversation, currentUserId, isActive, minimized, onNewMessage, onMarkAsRead, scrollToBottom]);
 
     // Subscribe to WebSocket updates
@@ -407,6 +526,8 @@ export default function ChatWindow({
         const messageCallback = (msg) => messageCallbackRef.current?.(msg);
         const typingCallback = (dto) => typingCallbackRef.current?.(dto);
         const updateCallback = (msg) => updateCallbackRef.current?.(msg);
+        const messageStatusCallback = (statusUpdate) => messageStatusCallbackRef.current?.(statusUpdate);
+        const readReceiptCallback = (receipt) => readReceiptCallbackRef.current?.(receipt);
 
         console.log('🔔 ChatWindow subscribing to conversation:', conversation.id);
         webSocketService.subscribeToConversation(
@@ -415,6 +536,20 @@ export default function ChatWindow({
             typingCallback,
             updateCallback
         );
+
+        // ✅ Subscribe to message status updates (Messenger-style)
+        console.log('📬 ========== SUBSCRIBING TO MESSAGE STATUS ==========');
+        console.log('📬 WebSocket connected:', webSocketService.stompClient?.connected);
+        console.log('📬 Current userId:', currentUserId);
+        webSocketService.subscribeToMessageStatus(messageStatusCallback);
+        console.log('📬 Subscription to /user/queue/message-status completed');
+
+        // ✅ Subscribe to read receipts (Messenger-style)
+        console.log('👁️ ========== SUBSCRIBING TO READ RECEIPTS ==========');
+        console.log('👁️ WebSocket connected:', webSocketService.stompClient?.connected);
+        console.log('👁️ Current userId:', currentUserId);
+        webSocketService.subscribeToReadReceipts(readReceiptCallback);
+        console.log('👁️ Subscription to /user/queue/read-receipt completed');
 
         // Fetch current typing users
         const fetchTypingUsers = async () => {
@@ -716,6 +851,42 @@ export default function ChatWindow({
         return diffInMinutes > 5;
     };
 
+    // Render message status text (Messenger-style - Vietnamese)
+    const renderMessageStatus = (msg) => {
+        // Only show status for messages sent by current user
+        if (msg.senderId !== currentUserId) return null;
+
+        // ✅ Messenger logic: Chỉ hiển thị status ở tin nhắn CUỐI CÙNG của mình
+        const myMessages = messages.filter(m => m.senderId === currentUserId);
+        const lastMyMessage = myMessages[myMessages.length - 1];
+
+        // Nếu không phải tin nhắn cuối cùng của user -> không hiển thị gì
+        if (!lastMyMessage || msg.id !== lastMyMessage.id) return null;
+
+        // ✅ Nếu tin nhắn đã được XEM (SEEN)
+        if (msg.status === 'SEEN' && msg.seenBy?.length > 0) {
+            const firstViewer = msg.seenBy[0];
+            return (
+                <div className="message-status-wrapper">
+                    <img
+                        src={firstViewer.userAvatar || displayInfo.avatar}
+                        alt={firstViewer.userName || displayInfo.name}
+                        className="message-status-avatar"
+                        title={`Đã xem bởi ${firstViewer.userName || displayInfo.name}`}
+                    />
+                    <span className="message-status-text seen">Đã xem</span>
+                </div>
+            );
+        }
+
+        // ✅ Tin nhắn chưa được đọc (SENT) - chỉ hiển thị ở tin cuối cùng
+        return (
+            <div className="message-status-wrapper">
+                <span className="message-status-text sent">Đã gửi</span>
+            </div>
+        );
+    };
+
     return (
         <div
             className={`chat-window ${minimized ? 'minimized' : 'open'} ${isActive ? 'active' : ''}`}
@@ -778,14 +949,12 @@ export default function ChatWindow({
                         <p>Đang tải tin nhắn...</p>
                     </div>
                 )}
-
-                {/* 🎉 Đã xem hết tin nhắn - Facebook style */}
                 {!hasMore && messages.length > 0 && (
                     <div className="chat-end-message">
-                        <div className="chat-end-icon">🎉</div>
-                        <div className="chat-end-text">Bạn đã xem tất cả tin nhắn</div>
+
+                        <div className="chat-end-text">Đây là những tin nhắn đầu tiên của các bạn</div>
                         <div className="chat-end-subtext">
-                            Đây là đầu cuộc trò chuyện với {displayInfo.name}
+                            Cuộc trò chuyện với {displayInfo.name}
                         </div>
                     </div>
                 )}
@@ -893,6 +1062,12 @@ export default function ChatWindow({
                                     {msg.edited && (
                                         <div className="chat-window-message-time">
                                             <span className="edited-indicator">(đã chỉnh sửa)</span>
+                                        </div>
+                                    )}
+                                    {/* Message status indicator (Facebook-style) */}
+                                    {isSent && (
+                                        <div className="message-status-container">
+                                            {renderMessageStatus(msg)}
                                         </div>
                                     )}
                                 </div>

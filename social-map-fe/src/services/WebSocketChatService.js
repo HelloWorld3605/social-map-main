@@ -332,6 +332,37 @@ class WebSocketChatService {
             console.error('[WebSocket] Error sending mark as read:', error);
         }
     }
+
+    /**
+     * Subscribe to message status updates (Facebook-style)
+     * Receives updates when messages are seen by recipients
+     */
+    subscribeToMessageStatus(onMessageStatusUpdate) {
+        if (!this.stompClient?.connected) {
+            console.warn('[WebSocket] Cannot subscribe to message status, not connected');
+            return;
+        }
+
+        this.subscribe('/user/queue/message-status', (statusUpdate) => {
+            console.log('📬 Message status update received:', statusUpdate);
+            onMessageStatusUpdate?.(statusUpdate);
+        });
+    }
+
+    /**
+     * Subscribe to read receipts
+     */
+    subscribeToReadReceipts(onReadReceipt) {
+        if (!this.stompClient?.connected) {
+            console.warn('[WebSocket] Cannot subscribe to read receipts, not connected');
+            return;
+        }
+
+        this.subscribe('/user/queue/read-receipt', (receipt) => {
+            console.log('📬 Read receipt received:', receipt);
+            onReadReceipt?.(receipt);
+        });
+    }
 }
 
 export const webSocketService = new WebSocketChatService();
