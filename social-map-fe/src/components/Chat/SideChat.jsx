@@ -818,10 +818,10 @@ export default function SideChat() {
                                     <div className="friend-info">
                                         <div className="friend-name">{display.name}</div>
                                         <div className="friend-status">
-                                            {getLastMessageDisplay(conv)}
+                                            <span className="last-message">{getLastMessageDisplay(conv)}</span>
                                             {/* Only show timestamp if NOT typing and has last message */}
                                             {!conv.typingUsers?.length && conv.lastMessageAt && conv.lastMessageContent && (
-                                                <span className="message-time"> · {formatTimeAgo(conv.lastMessageAt)}</span>
+                                                <span className="friend-message-time"> · {formatTimeAgo(conv.lastMessageAt)}</span>
                                             )}
                                         </div>
                                     </div>
