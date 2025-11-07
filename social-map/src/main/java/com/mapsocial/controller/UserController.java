@@ -3,6 +3,7 @@ package com.mapsocial.controller;
 import com.mapsocial.dto.request.user.UpdateProfileRequest;
 import com.mapsocial.dto.response.user.UserResponse;
 import com.mapsocial.service.UserService;
+import com.mapsocial.service.UserStatusService;
 import com.mapsocial.service.impl.CustomUserDetailsService.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final UserStatusService userStatusService;
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin profile người dùng")
@@ -90,5 +93,16 @@ public class UserController {
             @PathVariable UUID otherUserId
     ) {
         return ResponseEntity.ok(userService.getMutualFriendsCount(userId, otherUserId));
+    }
+
+    @GetMapping("/{id}/status")
+    @Operation(summary = "Lấy trạng thái hoạt động của người dùng")
+    public ResponseEntity<?> getUserStatus(@PathVariable String id) {
+        boolean isOnline = userStatusService.isUserOnline(id);
+        String lastSeen = userStatusService.getLastSeen(id);
+        return ResponseEntity.ok(Map.of(
+                "isOnline", isOnline,
+                "lastSeen", lastSeen
+        ));
     }
 }

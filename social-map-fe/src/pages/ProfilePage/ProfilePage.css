@@ -83,6 +83,18 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.profile-online-dot {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    width: 24px;
+    height: 24px;
+    background: #31a24c;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
 .profile-info {
     flex: 1;
     padding-top: 20px;

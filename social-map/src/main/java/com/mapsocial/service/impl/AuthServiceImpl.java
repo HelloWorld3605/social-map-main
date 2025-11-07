@@ -12,6 +12,7 @@ import com.mapsocial.repository.PendingRegistrationRepository;
 import com.mapsocial.repository.UserRepository;
 import com.mapsocial.service.AuthService;
 import com.mapsocial.service.RefreshTokenService;
+import com.mapsocial.service.UserStatusService;
 import com.mapsocial.service.email.EmailService;
 import com.mapsocial.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final JwtUtils jwtUtils;
     private final RefreshTokenService refreshTokenService;
+    private final UserStatusService userStatusService;
 
     @Value("${jwt.expiration:86400000}")
     private long jwtExpiration;
@@ -149,6 +151,8 @@ public class AuthServiceImpl implements AuthService {
 
         // Tạo refresh token (dài hạn - 30 ngày) và lưu vào database
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, null);
+        userStatusService.markUserOnline(user.getId().toString());
+
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
@@ -191,9 +195,35 @@ public class AuthServiceImpl implements AuthService {
 
     // ----------------- LOGOUT -----------------
     @Override
+    @Transactional
     public String logout(String authHeader) {
-        return "Đăng xuất thành công";
+        try {
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+
+                // Cố gắng lấy email từ token (kể cả khi token hết hạn)
+                String email = jwtUtils.getEmailFromToken(token);
+
+                if (email != null) {
+                    userRepository.findByEmail(email).ifPresent(user -> {
+                        // Đánh dấu offline trên Redis
+                        userStatusService.markUserOffline(user.getId().toString());
+
+                        // Cập nhật vào DB để hiển thị lastActiveAt lâu dài
+                        user.setIsOnline(false);
+                        user.setUpdatedAt(LocalDateTime.now());
+                        user.setLastActiveAt(LocalDateTime.now());
+                        userRepository.save(user);
+                    });
+                }
+            }
+            return "Đăng xuất thành công";
+
+        } catch (Exception e) {
+            return "Đăng xuất thất bại: " + e.getMessage();
+        }
     }
+
 
     // ----------------- CHANGE PASSWORD -----------------
     @Override

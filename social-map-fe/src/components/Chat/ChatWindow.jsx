@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
+import { userService } from '../../services/userService';
 import './ChatWindows.css';
 
 export default function ChatWindow({
@@ -24,6 +25,7 @@ export default function ChatWindow({
     const [isInitialLoad, setIsInitialLoad] = useState(true); // 🎬 Ẩn UI khi load lần đầu
     const [currentPage, setCurrentPage] = useState(0); // 📄 Track current page for pagination
     const [isLoadingMore, setIsLoadingMore] = useState(false); // ✅ State instead of ref for UI updates
+    const [userStatus, setUserStatus] = useState({ isOnline: false, lastSeen: 'unknown' });
 
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
@@ -55,10 +57,10 @@ export default function ChatWindow({
             return {
                 name: otherUser?.fullName || 'User',
                 avatar: otherUser?.avatarUrl || '/channels/myprofile.jpg',
-                status: otherUser?.isOnline ? 'Đang hoạt động' : 'Không hoạt động',
+                status: userStatus.isOnline ? 'Đang hoạt động' : (userStatus.lastSeen !== 'unknown' ? userStatus.lastSeen : 'Không hoạt động'),
             };
         }
-    }, [conversation, currentUserId]);
+    }, [conversation, currentUserId, userStatus]);
 
     const displayInfo = getDisplayInfo();
 
@@ -434,12 +436,14 @@ export default function ChatWindow({
         };
 
         updateCallbackRef.current = (updatedMessage) => {
-            setMessages(prev => prev.map(msg =>
-                msg.id === updatedMessage.id ? updatedMessage : msg
-            ));
+            setMessages(prev =>
+                prev.map(msg =>
+                    msg.id === updatedMessage.id ? updatedMessage : msg
+                )
+            );
         };
 
-        // ✅ Message status update callback
+        // Message status update callback
         messageStatusCallbackRef.current = (statusUpdate) => {
             console.log('📬 ========== MESSAGE STATUS UPDATE ==========');
             console.log('📬 Raw status update:', JSON.stringify(statusUpdate, null, 2));
@@ -887,6 +891,25 @@ export default function ChatWindow({
         );
     };
 
+    // Load user status for conversation
+    useEffect(() => {
+        const loadUserStatus = async () => {
+            if (!conversation || conversation.isGroup) return;
+
+            const otherUser = conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
+            if (!otherUser?.userId) return;
+
+            try {
+                const status = await userService.getUserStatus(otherUser.userId);
+                setUserStatus(status);
+            } catch (error) {
+                console.error('Failed to load user status for chat:', error);
+            }
+        };
+
+        loadUserStatus();
+    }, [conversation, currentUserId]);
+
     return (
         <div
             className={`chat-window ${minimized ? 'minimized' : 'open'} ${isActive ? 'active' : ''}`}
@@ -895,20 +918,25 @@ export default function ChatWindow({
             onClick={onWindowClick}
         >
             <div className={`chat-window-header ${unreadCount > 0 ? 'unread' : ''}`} onClick={onMinimize}>
-                <img
-                    src={displayInfo.avatar}
-                    alt="Avatar"
-                    className="chat-window-avatar"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        if (!conversation.isGroup) {
-                            const otherUser = conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
-                            if (otherUser?.userId) {
-                                navigate(`/profile/${otherUser.userId}`);
+                <div className="chat-window-avatar-wrapper">
+                    <img
+                        src={displayInfo.avatar}
+                        alt="Avatar"
+                        className="chat-window-avatar"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (!conversation.isGroup) {
+                                const otherUser = conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
+                                if (otherUser?.userId) {
+                                    navigate(`/profile/${otherUser.userId}`);
+                                }
                             }
-                        }
-                    }}
-                />
+                        }}
+                    />
+                    {!conversation.isGroup && userStatus.isOnline && (
+                        <div className="chat-window-online-dot"></div>
+                    )}
+                </div>
                 <div className="chat-window-info">
                     <div className="chat-window-name">{displayInfo.name}</div>
                     <div className="chat-window-status">{displayInfo.status}</div>

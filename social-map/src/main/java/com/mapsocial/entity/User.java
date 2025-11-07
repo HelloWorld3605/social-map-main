@@ -47,6 +47,9 @@ public class User {
     @Builder.Default
     private Boolean isOnline = false;
 
+    @Column(name = "last_active_at")
+    private LocalDateTime lastActiveAt;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<UserShop> userShops = new ArrayList<>();
 

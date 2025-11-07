@@ -7,6 +7,7 @@ import com.mapsocial.mapper.UserMapper;
 import com.mapsocial.repository.FriendshipRepository;
 import com.mapsocial.repository.UserRepository;
 import com.mapsocial.service.UserService;
+import com.mapsocial.service.UserStatusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

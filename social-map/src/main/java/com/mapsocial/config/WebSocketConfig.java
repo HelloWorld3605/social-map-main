@@ -1,5 +1,6 @@
 package com.mapsocial.config;
 
+import com.mapsocial.service.UserStatusService;
 import com.mapsocial.service.impl.CustomUserDetailsService;
 import com.mapsocial.util.JwtUtils;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final JwtUtils jwtUtils;
     private final CustomUserDetailsService customUserDetailsService;
+    private final UserStatusService userStatusService;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -68,6 +70,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         } else {
                             System.out.println("[WebSocket] SEND/SUBSCRIBE: Authentication restored: " + accessor.getUser());
                         }
+                    } else if (StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+                        handleDisconnect(accessor);
                     }
                 }
 
@@ -120,6 +124,20 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     } else {
                         System.out.println("[WebSocket] handleSendOrSubscribe: No authentication found in session attributes.");
                     }
+                }
+            }
+
+            private void handleDisconnect(StompHeaderAccessor accessor) {
+                // Handle disconnect logic if needed
+                System.out.println("[WebSocket] DISCONNECT received. Cleaning up session attributes.");
+                if (accessor.getUser() != null) {
+                    CustomUserDetailsService.UserPrincipal userPrincipal = (CustomUserDetailsService.UserPrincipal) accessor.getUser();
+                    userStatusService.markUserOffline(userPrincipal.getUser().getId().toString());
+                    System.out.println("[WebSocket] DISCONNECT: Marked user offline: " + userPrincipal.getUsername());
+                }
+                if (accessor.getSessionAttributes() != null) {
+                    accessor.getSessionAttributes().remove("AUTHENTICATED_USER");
+                    System.out.println("[WebSocket] DISCONNECT: Authentication removed from session attributes.");
                 }
             }
 

@@ -39,7 +39,15 @@ export const userService = {
      */
     getMutualFriendsCount: async (otherUserId) => {
         return await api.get(`/users/me/mutual-friends/${otherUserId}/count`);
-    }
+    },
+
+    /**
+     * Lấy trạng thái hoạt động của người dùng
+     * GET /api/users/{id}/status
+     */
+    getUserStatus: async (userId) => {
+        return await api.get(`/users/${userId}/status`);
+    },
 };
 
 // Export default để tương thích

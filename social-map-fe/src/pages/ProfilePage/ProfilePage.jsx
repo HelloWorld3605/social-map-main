@@ -17,6 +17,7 @@ export default function ProfilePage() {
     const [mutualFriendsCount, setMutualFriendsCount] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [userStatus, setUserStatus] = useState({ isOnline: false, lastSeen: 'unknown' });
 
     // Load user profile
     useEffect(() => {
@@ -56,6 +57,22 @@ export default function ProfilePage() {
 
         loadProfile();
     }, [userId]);
+
+    // Load user status
+    useEffect(() => {
+        const loadUserStatus = async () => {
+            if (!user || isOwnProfile) return; // Không load status cho profile của chính mình
+
+            try {
+                const status = await userService.getUserStatus(user.id);
+                setUserStatus(status);
+            } catch (error) {
+                console.error('Failed to load user status:', error);
+            }
+        };
+
+        loadUserStatus();
+    }, [user, isOwnProfile]);
 
     // Handle send friend request
     const handleAddFriend = async () => {
@@ -309,6 +326,9 @@ export default function ProfilePage() {
                             alt={user.displayName}
                             className="profile-avatar"
                         />
+                        {!isOwnProfile && userStatus.isOnline && (
+                            <div className="profile-online-dot"></div>
+                        )}
                     </div>
 
                     {/* User Info */}

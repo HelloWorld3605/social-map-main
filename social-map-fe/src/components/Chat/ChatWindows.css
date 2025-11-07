@@ -88,17 +88,22 @@
     transition: opacity 0.2s;
 }
 
-/* Dim avatar when inactive */
-.chat-window:not(.active) .chat-window-avatar {
-    opacity: 0.6;
+.chat-window-avatar-wrapper {
+    position: relative;
+    margin-right: 12px;
+    flex-shrink: 0;
 }
 
-.chat-window.active .chat-window-avatar {
-    opacity: 1;
-}
-
-.chat-window-avatar:hover {
-    opacity: 0.8;
+.chat-window-online-dot {
+    position: absolute;
+    bottom: 2px;
+    right: 10px;
+    width: 12px;
+    height: 12px;
+    background: #31a24c;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .chat-window-info {
@@ -862,4 +867,3 @@ body.dark-mode .message-status-text.seen {
 body.dark-mode .message-status-avatar {
     border-color: #242526;
 }
-

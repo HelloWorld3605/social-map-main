@@ -5,6 +5,7 @@ import './LocationMessage.css';
 import ChatWindow from './ChatWindow';
 import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
+import { userService } from '../../services/userService';
 
 export default function SideChat() {
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -16,6 +17,7 @@ export default function SideChat() {
     const [isLoading, setIsLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
+    const [userStatuses, setUserStatuses] = useState(new Map()); // Map userId -> {isOnline, lastSeen}
     const wsConnectedRef = useRef(false);
     const conversationIdsRef = useRef(new Set()); // Track conversation IDs to detect new conversations
     const activeChatWindowRef = useRef(null); // Track active window with ref for immediate access
@@ -509,6 +511,50 @@ export default function SideChat() {
         };
     }, []);
 
+    // Load user statuses for conversations
+    useEffect(() => {
+        const loadUserStatuses = async () => {
+            if (!conversations.length || !currentUserId) return;
+
+            const userIdsToLoad = new Set();
+
+            conversations.forEach(conv => {
+                if (!conv.isGroup) {
+                    const otherUser = conv.otherUser || conv.members?.find(m => m.userId !== currentUserId);
+                    if (otherUser?.userId && !userStatuses.has(otherUser.userId)) {
+                        userIdsToLoad.add(otherUser.userId);
+                    }
+                }
+            });
+
+            if (userIdsToLoad.size === 0) return;
+
+            console.log('Loading user statuses for:', Array.from(userIdsToLoad));
+
+            const loadPromises = Array.from(userIdsToLoad).map(async (userId) => {
+                try {
+                    const status = await userService.getUserStatus(userId);
+                    return { userId, status };
+                } catch (error) {
+                    console.error(`Failed to load status for user ${userId}:`, error);
+                    return { userId, status: { isOnline: false, lastSeen: 'unknown' } };
+                }
+            });
+
+            const results = await Promise.all(loadPromises);
+
+            setUserStatuses(prev => {
+                const newMap = new Map(prev);
+                results.forEach(({ userId, status }) => {
+                    newMap.set(userId, status);
+                });
+                return newMap;
+            });
+        };
+
+        loadUserStatuses();
+    }, [conversations, currentUserId, userStatuses]);
+
     const handleChatToggle = useCallback(() => {
         setIsChatOpen(prev => !prev);
     }, []);
@@ -676,13 +722,16 @@ export default function SideChat() {
                 name: conv.groupName || 'Nhóm',
                 avatar: conv.groupAvatar || '/channels/myprofile.jpg',
                 status: `${conv.members?.length || 0} thành viên`,
+                isOnline: false, // Groups don't have online status
             };
         } else {
             const otherUser = conv.otherUser || conv.members?.find(m => m.userId !== currentUserId);
+            const userStatus = userStatuses.get(otherUser?.userId) || { isOnline: false, lastSeen: 'unknown' };
             return {
                 name: otherUser?.fullName || 'User',
                 avatar: otherUser?.avatarUrl || '/channels/myprofile.jpg',
-                status: otherUser?.online ? 'Đang hoạt động' : 'Không hoạt động',
+                status: userStatus.isOnline ? 'Đang hoạt động' : (userStatus.lastSeen !== 'unknown' ? userStatus.lastSeen : 'Không hoạt động'),
+                isOnline: userStatus.isOnline,
             };
         }
     };
@@ -814,7 +863,10 @@ export default function SideChat() {
                                     {/* Blue Dot Indicator for new messages */}
                                     {showBlueDot && <div className="unread-dot"></div>}
 
-                                    <img src={display.avatar} alt="Avatar" className="friend-avatar" />
+                                    <div className="friend-avatar-wrapper">
+                                        <img src={display.avatar} alt="Avatar" className="friend-avatar" />
+                                        {display.isOnline && <div className="friend-online-dot"></div>}
+                                    </div>
                                     <div className="friend-info">
                                         <div className="friend-name">{display.name}</div>
                                         <div className="friend-status">
