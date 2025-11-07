@@ -149,11 +149,6 @@ export default function SideChat() {
             window.removeEventListener('websocket-connected', handleWebSocketConnected);
             console.log('🔌 SideChat unmounting, giữ WebSocket connection');
         };
-
-        return () => {
-            window.removeEventListener('websocket-connected', handleWebSocketConnected);
-            console.log('🔌 SideChat unmounting, giữ WebSocket connection nhưng unsubscribe topics');
-        };
     }, []);
 
     // Load conversations on mount - CRITICAL: Load BEFORE subscribing
@@ -161,6 +156,38 @@ export default function SideChat() {
         console.log('🔄 Loading conversations on mount');
         loadConversations();
     }, [loadConversations]);
+
+    // ✅ Facebook-style: Click outside to deactivate active chat window
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            // Don't deactivate if clicking on chat-related elements
+            const chatContainer = document.getElementById('chatWindowsContainer');
+            const sideChat = document.querySelector('.side-chat');
+            const chatToggle = document.querySelector('.chat-toggle');
+
+            // If click is inside chat windows container, side chat, or chat toggle, don't deactivate
+            if (chatContainer?.contains(event.target) ||
+                sideChat?.contains(event.target) ||
+                chatToggle?.contains(event.target)) {
+                return;
+            }
+
+            // Click outside - deactivate active chat window
+            if (activeChatWindow) {
+                console.log('👆 Click outside - deactivating active chat window');
+                setActiveChatWindow(null);
+                activeChatWindowRef.current = null;
+            }
+        };
+
+        // Add event listener
+        document.addEventListener('mousedown', handleClickOutside);
+
+        // Cleanup
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [activeChatWindow]);
 
     // ✅ Reload conversations when SideChat opens to get latest data
     useEffect(() => {
