@@ -92,7 +92,7 @@ export default function LoginPage() {
                 // User info is optional, don't throw error
             }
 
-            // 🔔 Schedule automatic token refresh
+            // Schedule automatic token refresh
             console.log('⏰ Scheduling automatic token refresh...');
             scheduleTokenRefresh(async () => {
                 console.log('🔄 Auto-refresh triggered by token monitor');
