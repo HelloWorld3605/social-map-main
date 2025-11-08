@@ -27,15 +27,6 @@
             </PendingDiffInfo>
           </value>
         </entry>
-        <entry key="$PROJECT_DIR$/social-map-fe/src/hooks/useRealtimeStatus.js">
-          <value>
-            <PendingDiffInfo>
-              <option name="filePath" value="$PROJECT_DIR$/social-map-fe/src/hooks/useRealtimeStatus.js" />
-              <option name="originalContent" value="&#10;&#10;&#10;&#10;&#10;" />
-              <option name="updatedContent" value="import { useEffect } from &quot;react&quot;;&#10;import { webSocketService } from &quot;../services/WebSocketChatService&quot;;&#10;&#10;/**&#10; * Hook realtime status chỉ để SUBSCRIBE, không mở kết nối mới&#10; */&#10;export default function useRealtimeStatus(onStatusChange) {&#10;  useEffect(() =&gt; {&#10;    // ✅ Nếu WebSocket chưa kết nối, không subscribe vội&#10;    if (!webSocketService.stompClient || !webSocketService.stompClient.connected) {&#10;      console.warn(&quot;[RealtimeStatus] WebSocket chưa sẵn sàng, đợi sự kiện 'websocket-connected'&quot;);&#10;      const handleConnected = () =&gt; {&#10;        console.log(&quot;[RealtimeStatus] Bắt đầu subscribe /topic/status&quot;);&#10;        webSocketService.subscribe(&quot;/topic/status&quot;, (data) =&gt; {&#10;          try {&#10;            onStatusChange(data.userId, data.status);&#10;          } catch (err) {&#10;            console.error(&quot;❌ Parse lỗi realtime status:&quot;, err);&#10;          }&#10;        });&#10;      };&#10;&#10;      // Khi websocket connect xong thì subscribe&#10;      window.addEventListener(&quot;websocket-connected&quot;, handleConnected);&#10;&#10;      // Cleanup event listener&#10;      return () =&gt; {&#10;        window.removeEventListener(&quot;websocket-connected&quot;, handleConnected);&#10;        webSocketService.unsubscribeAll(&quot;/topic/status&quot;);&#10;      };&#10;    }&#10;&#10;    // ✅ Nếu đã kết nối thì subscribe ngay&#10;    console.log(&quot;[RealtimeStatus] Subscribe trực tiếp /topic/status&quot;);&#10;    webSocketService.subscribe(&quot;/topic/status&quot;, (data) =&gt; {&#10;      try {&#10;        onStatusChange(data.userId, data.status);&#10;      } catch (err) {&#10;        console.error(&quot;❌ Parse lỗi realtime status:&quot;, err);&#10;      }&#10;    });&#10;&#10;    // Cleanup khi component unmount&#10;    return () =&gt; {&#10;      webSocketService.unsubscribeAll(&quot;/topic/status&quot;);&#10;      console.log(&quot;[RealtimeStatus] Unsubscribed /topic/status&quot;);&#10;    };&#10;  }, [onStatusChange]);&#10;}" />
-            </PendingDiffInfo>
-          </value>
-        </entry>
       </map>
     </option>
   </component>

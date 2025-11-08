@@ -1,6 +1,7 @@
 package com.mapsocial.repository;
 
 import com.mapsocial.entity.User;
+import com.mapsocial.dto.UserStatusDTO;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -77,4 +78,12 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     // Check citizenId exists
     boolean existsByCitizenId(String citizenId);
+
+    // Update online status
+    @Query("UPDATE User u SET u.isOnline = :isOnline, u.lastActiveAt = :lastActiveAt WHERE u.id = :userId")
+    void updateOnlineStatus(@Param("userId") UUID userId, @Param("isOnline") boolean isOnline, @Param("lastActiveAt") LocalDateTime lastActiveAt);
+
+    // Find status by id
+    @Query("SELECT new com.mapsocial.dto.UserStatusDTO(u.isOnline, u.lastActiveAt) FROM User u WHERE u.id = :userId")
+    Optional<UserStatusDTO> findStatusById(@Param("userId") UUID userId);
 }

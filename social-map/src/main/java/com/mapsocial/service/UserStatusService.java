@@ -1,93 +1,96 @@
 package com.mapsocial.service;
 
+import com.mapsocial.dto.UserStatusDTO;
+import com.mapsocial.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.listener.ChannelTopic;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class UserStatusService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
-    private final ChannelTopic topic;
+    private final StringRedisTemplate redisTemplate;
+    private final UserRepository userRepository;
+    private static final Duration ONLINE_TTL = Duration.ofSeconds(60);
 
-    // Không autowire qua constructor — inject lazy để tránh vòng lặp
-    @Autowired(required = false)
+    @Autowired
     @Lazy
     private SimpMessagingTemplate messagingTemplate;
 
-    private static final Duration ONLINE_TIMEOUT = Duration.ofMinutes(2); // sau 2 phút không hoạt động => offline
-
-    // Đánh dấu user đang online
     public void markUserOnline(String userId) {
-        redisTemplate.opsForValue().set("user:status:" + userId, "online", ONLINE_TIMEOUT);
-        redisTemplate.opsForValue().set("user:lastSeen:" + userId, Instant.now().toString());
+        String key = "user:status:" + userId;
+        boolean wasOnline = redisTemplate.hasKey(key);
 
-        // Gửi event ra Redis Pub/Sub
-        redisTemplate.convertAndSend(topic.getTopic(), userId + ":online");
+        Map<String, String> data = Map.of(
+            "isOnline", "true",
+            "lastActiveAt", LocalDateTime.now().toString()
+        );
+        redisTemplate.opsForHash().putAll(key, data);
+        redisTemplate.expire(key, ONLINE_TTL);
 
-        // chỉ gọi nếu template đã được inject
-        if (messagingTemplate != null) {
+        // Chỉ broadcast nếu user vừa chuyển từ offline → online
+        if (!wasOnline && messagingTemplate != null) {
             messagingTemplate.convertAndSend("/topic/status", Map.of(
-                    "userId", userId,
-                    "status", "online"
+                "userId", userId,
+                "status", "online"
             ));
         }
     }
 
-    // Đánh dấu user offline
     public void markUserOffline(String userId) {
-        redisTemplate.opsForValue().set("user:status:" + userId, "offline", Duration.ofHours(1));
-        redisTemplate.opsForValue().set("user:lastSeen:" + userId, Instant.now().toString());
+        String key = "user:status:" + userId;
+        redisTemplate.delete(key);
+        userRepository.updateOnlineStatus(UUID.fromString(userId), false, LocalDateTime.now());
 
-        redisTemplate.convertAndSend(topic.getTopic(), userId + ":offline");
-
-        // chỉ gọi nếu template đã được inject
+        // Broadcast to WebSocket
         if (messagingTemplate != null) {
             messagingTemplate.convertAndSend("/topic/status", Map.of(
-                    "userId", userId,
-                    "status", "offline"
+                "userId", userId,
+                "status", "offline"
             ));
         }
     }
 
-    // Kiểm tra user có đang online không
-    public boolean isUserOnline(String userId) {
-        Object status = redisTemplate.opsForValue().get("user:status:" + userId);
-        return status != null && "online".equals(status.toString());
+    public Optional<UserStatusDTO> getUserStatus(String userId) {
+        String key = "user:status:" + userId;
+        Map<Object, Object> map = redisTemplate.opsForHash().entries(key);
+        if (!map.isEmpty()) {
+            return Optional.of(new UserStatusDTO(
+                Boolean.parseBoolean((String) map.get("isOnline")),
+                LocalDateTime.parse((String) map.get("lastActiveAt"))
+            ));
+        }
+        // fallback DB
+        return userRepository.findStatusById(UUID.fromString(userId));
     }
 
-    // Lấy thời gian hoạt động gần nhất
+    public boolean isUserOnline(String userId) {
+        String key = "user:status:" + userId;
+        return redisTemplate.hasKey(key);
+    }
+
     public String getLastSeen(String userId) {
-        Object time = redisTemplate.opsForValue().get("user:lastSeen:" + userId);
-        if (time == null) return "unknown";
-
-        try {
-            Instant lastSeen = Instant.parse(time.toString());
-            Duration duration = Duration.between(lastSeen, Instant.now());
-
-            if (duration.toMinutes() < 1) {
-                return "vừa xong";
-            } else if (duration.toHours() < 1) {
-                long minutes = duration.toMinutes();
-                return minutes + " phút trước";
-            } else if (duration.toDays() < 1) {
-                long hours = duration.toHours();
-                return hours + " giờ trước";
-            } else {
-                long days = duration.toDays();
-                return days + " ngày trước";
-            }
-        } catch (Exception e) {
-            return "unknown";
+        Optional<UserStatusDTO> status = getUserStatus(userId);
+        if (status.isPresent()) {
+            if (status.get().isOnline()) return "online";
+            LocalDateTime lastActive = status.get().getLastActiveAt();
+            Duration duration = Duration.between(lastActive, LocalDateTime.now());
+            if (duration.getSeconds() < 60) return "vừa xong";
+            if (duration.toMinutes() < 60) return duration.toMinutes() + " phút trước";
+            if (duration.toHours() < 24) return duration.toHours() + " giờ trước";
+            if (duration.toDays() < 7) return duration.toDays() + " ngày trước";
+            return lastActive.toLocalDate().toString();
         }
+        return "unknown";
     }
 }

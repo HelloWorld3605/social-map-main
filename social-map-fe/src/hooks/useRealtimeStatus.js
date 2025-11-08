@@ -30,7 +30,7 @@ export default function useRealtimeStatus(onStatusChange) {
       };
     }
 
-    // ✅ Nếu đã kết nối thì subscribe ngay
+    // Nếu đã kết nối thì subscribe ngay
     console.log("[RealtimeStatus] Subscribe trực tiếp /topic/status");
     webSocketService.subscribe("/topic/status", (data) => {
       try {

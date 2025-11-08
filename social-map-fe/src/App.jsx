@@ -16,8 +16,12 @@ import MainLayout from './components/Layout/MainLayout';
 import { webSocketService } from './services/WebSocketChatService';
 import { isTokenExpired, scheduleTokenRefresh, startBackgroundTokenRefresh } from './utils/tokenMonitor';
 import apiClient from './services/apiClient';
+import useHeartbeat from './hooks/useHeartbeat';
 
 function App() {
+  // Use heartbeat hook for online status
+  useHeartbeat();
+
   // 🆕 Session management với idle detection và WebSocket event handling
   useEffect(() => {
     let idleTimer = null;

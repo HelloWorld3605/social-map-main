@@ -14,6 +14,7 @@ import com.mapsocial.dto.response.UserSearchDTO;
 import com.mapsocial.entity.User;
 import com.mapsocial.exception.ChatException;
 import com.mapsocial.repository.UserRepository;
+import com.mapsocial.service.UserStatusService;
 import com.mapsocial.service.chat.ChatService;
 import com.mapsocial.service.impl.CustomUserDetailsService.UserPrincipal;
 import jakarta.validation.Valid;
@@ -39,6 +40,7 @@ public class ChatController {
     private final ChatService chatService;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserRepository userRepository;
+    private final UserStatusService userStatusService;
 
     // ========== WEBSOCKET ENDPOINTS ==========
 
@@ -180,6 +182,21 @@ public class ChatController {
                     authenticatedTypingDTO
             );
         } catch (Exception ignored) {}
+    }
+
+    /**
+     * WebSocket endpoint - User heartbeat for online status
+     */
+    @MessageMapping("/user/heartbeat")
+    public void handleHeartbeat(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        try {
+            if (userPrincipal == null || userPrincipal.getUser() == null) return;
+
+            String userId = userPrincipal.getUser().getId().toString();
+            userStatusService.markUserOnline(userId);
+        } catch (Exception e) {
+            System.err.println("Error in handleHeartbeat: " + e.getMessage());
+        }
     }
 
     // ========== REST API ENDPOINTS ==========
