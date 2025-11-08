@@ -38,8 +38,8 @@ public class UserStatusService {
         redisTemplate.opsForHash().putAll(key, data);
         redisTemplate.expire(key, ONLINE_TTL);
 
-        // Chỉ broadcast nếu user vừa chuyển từ offline → online
-        if (!wasOnline && messagingTemplate != null) {
+        // Broadcast luôn để sync trạng thái cho các client khác
+        if (messagingTemplate != null) {
             messagingTemplate.convertAndSend("/topic/status", Map.of(
                 "userId", userId,
                 "status", "online"

@@ -17,7 +17,7 @@ public class RedisKeyExpirationListener extends KeyExpirationEventMessageListene
 
     @Override
     public void onMessage(Message message, byte[] pattern) {
-        String expiredKey = message.toString();
+        String expiredKey = new String(message.getBody());
         if (expiredKey.startsWith("user:status:")) {
             String userId = expiredKey.replace("user:status:", "");
             userStatusService.markUserOffline(userId);

@@ -522,7 +522,7 @@ export default function SideChat() {
             conversations.forEach(conv => {
                 if (!conv.isGroup) {
                     const otherUser = conv.otherUser || conv.members?.find(m => m.userId !== currentUserId);
-                    if (otherUser?.userId && !userStatuses.has(otherUser.userId)) {
+                    if (otherUser?.userId) {
                         userIdsToLoad.add(otherUser.userId);
                     }
                 }
@@ -530,7 +530,7 @@ export default function SideChat() {
 
             if (userIdsToLoad.size === 0) return;
 
-            console.log('Loading user statuses for:', Array.from(userIdsToLoad));
+            console.log('📥 Loading user statuses for:', Array.from(userIdsToLoad));
 
             const loadPromises = Array.from(userIdsToLoad).map(async (userId) => {
                 try {
@@ -554,23 +554,84 @@ export default function SideChat() {
         };
 
         loadUserStatuses();
-    }, [conversations, currentUserId, userStatuses]);
+    }, [conversations, currentUserId]); // ✅ Removed userStatuses to prevent infinite loop
 
-    // Handle realtime status updates
+    // Refresh user statuses when tab becomes visible
+    useEffect(() => {
+        const refreshStatusesOnVisible = async () => {
+            if (document.visibilityState === 'visible' && conversations.length > 0 && currentUserId) {
+                console.log('👁️ Tab visible - refreshing user statuses');
+
+                const userIdsToRefresh = new Set();
+                conversations.forEach(conv => {
+                    if (!conv.isGroup) {
+                        const otherUser = conv.otherUser || conv.members?.find(m => m.userId !== currentUserId);
+                        if (otherUser?.userId) {
+                            userIdsToRefresh.add(otherUser.userId);
+                        }
+                    }
+                });
+
+                if (userIdsToRefresh.size === 0) return;
+
+                const loadPromises = Array.from(userIdsToRefresh).map(async (userId) => {
+                    try {
+                        const status = await userService.getUserStatus(userId);
+                        return { userId, status };
+                    } catch (error) {
+                        console.error(`Failed to refresh status for user ${userId}:`, error);
+                        return null;
+                    }
+                });
+
+                const results = await Promise.all(loadPromises);
+
+                setUserStatuses(prev => {
+                    const newMap = new Map(prev);
+                    results.forEach(result => {
+                        if (result) {
+                            newMap.set(result.userId, result.status);
+                        }
+                    });
+                    return newMap;
+                });
+            }
+        };
+
+        const handleVisibilityChange = () => {
+            refreshStatusesOnVisible();
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [conversations, currentUserId]);
+
+    // Handle realtime status updates - simple online/offline for SideChat
     const handleStatusChange = useCallback((userId, status) => {
-        console.log('🔄 Realtime status update:', { userId, status });
+        console.log('🔄 SideChat realtime status update:', { userId, status });
 
         setUserStatuses(prev => {
             const newMap = new Map(prev);
             const currentStatus = newMap.get(userId) || { isOnline: false, lastSeen: 'unknown' };
 
-            if (status === 'online') {
-                newMap.set(userId, { ...currentStatus, isOnline: true });
-            } else if (status === 'offline') {
-                newMap.set(userId, { ...currentStatus, isOnline: false, lastSeen: new Date().toISOString() });
+            // ✅ Check if status actually changed to avoid unnecessary updates
+            const shouldUpdateOnline = status === 'online' && !currentStatus.isOnline;
+            const shouldUpdateOffline = status === 'offline' && currentStatus.isOnline;
+
+            if (!shouldUpdateOnline && !shouldUpdateOffline) {
+                console.log(`⏭️ Skipping status update for ${userId} - no change`);
+                return prev; // No change, return same reference
             }
 
-            return newMap;
+            if (status === 'online' && !currentStatus.isOnline) {
+                console.log(`✅ User ${userId} is now ONLINE`);
+                newMap.set(userId, { isOnline: true, lastSeen: null });
+            } else if (status === 'offline' && currentStatus.isOnline) {
+                console.log(`⭕ User ${userId} is now OFFLINE`);
+                newMap.set(userId, { isOnline: false, lastSeen: new Date().toISOString() });
+            }
+
+            return newMap; // Always return new map when updated
         });
     }, []);
 
@@ -732,13 +793,16 @@ export default function SideChat() {
     }, [conversations]);
 
     // Filter conversations based on search query
-    const filteredConversations = sortedConversations.filter(conv => {
-        const displayName = conv.isGroup ? conv.groupName : conv.otherUser?.displayName || '';
-        return displayName.toLowerCase().includes(searchQuery.toLowerCase());
-    });
+    const filteredConversations = useMemo(() => {
+        return sortedConversations.filter(conv => {
+            const displayName = conv.isGroup ? conv.groupName : conv.otherUser?.displayName || '';
+            return displayName.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+    }, [sortedConversations, searchQuery]);
 
-    // Get display info for conversation
-    const getConversationDisplay = (conv) => {
+    // Get display info for conversation - simple online/offline for SideChat
+    // ✅ useCallback to make it reactive to userStatuses changes
+    const getConversationDisplay = useCallback((conv) => {
         if (conv.isGroup) {
             return {
                 name: conv.groupName || 'Nhóm',
@@ -752,11 +816,19 @@ export default function SideChat() {
             return {
                 name: otherUser?.fullName || 'User',
                 avatar: otherUser?.avatarUrl || '/channels/myprofile.jpg',
-                status: userStatus.isOnline ? 'Đang hoạt động' : (userStatus.lastSeen !== 'unknown' ? userStatus.lastSeen : 'Không hoạt động'),
+                status: '', // No status text needed, blue dot shows online status
                 isOnline: userStatus.isOnline,
             };
         }
-    };
+    }, [currentUserId, userStatuses]); // Track userStatuses changes
+
+    // Compute display info for all conversations to trigger re-render when userStatuses changes
+    const conversationsWithDisplay = useMemo(() => {
+        return filteredConversations.map(conv => ({
+            ...conv,
+            displayInfo: getConversationDisplay(conv)
+        }));
+    }, [filteredConversations, getConversationDisplay]);
 
     // Format last message display with truncation
     const getLastMessageDisplay = (conv) => {
@@ -864,11 +936,11 @@ export default function SideChat() {
                 <div className="chat-friends-list">
                     {isLoading ? (
                         <div className="chat-loading">Đang tải...</div>
-                    ) : filteredConversations.length === 0 ? (
+                    ) : conversationsWithDisplay.length === 0 ? (
                         <div className="chat-empty">Không có đoạn chat nào</div>
                     ) : (
-                        filteredConversations.map((conv) => {
-                            const display = getConversationDisplay(conv);
+                        conversationsWithDisplay.map((conv) => {
+                            const display = conv.displayInfo; // ✅ Use pre-computed display info
                             const hasUnread = conv.unreadCount > 0;
                             const showBlueDot = hasUnread && conv.unreadCount <= 5; // Show dot for 1-5 unread
 
