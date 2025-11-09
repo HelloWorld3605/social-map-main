@@ -638,6 +638,21 @@ export default function SideChat() {
     // Use realtime status hook
     useRealtimeStatus(handleStatusChange);
 
+    // ✅ Listen for status updates from ChatWindow
+    useEffect(() => {
+        const handleUserStatusChange = (event) => {
+            const { userId, status } = event.detail;
+            console.log('🔄 SideChat received status change from ChatWindow:', { userId, status });
+            handleStatusChange(userId, status);
+        };
+
+        window.addEventListener('userStatusChange', handleUserStatusChange);
+
+        return () => {
+            window.removeEventListener('userStatusChange', handleUserStatusChange);
+        };
+    }, [handleStatusChange]);
+
     const handleChatToggle = useCallback(() => {
         setIsChatOpen(prev => !prev);
     }, []);

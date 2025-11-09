@@ -624,6 +624,11 @@ export default function ChatWindow({
                 }
                 return prev;
             });
+
+            // ✅ Dispatch event to notify SideChat about status change
+            window.dispatchEvent(new CustomEvent('userStatusChange', {
+                detail: { userId, status }
+            }));
         }
     }, [conversation, currentUserId]);
 
