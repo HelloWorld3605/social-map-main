@@ -9,7 +9,7 @@ class WebSocketChatService {
     stompClient = null;
     subscriptions = new Map(); // Map<destination, Set<{sub, callback}>>
     reconnectCallbacks = { onConnected: null, onError: null };
-    isConnecting = false;
+    connecting = false;
 
      // 🆕 Thêm các biến cho auto-reconnect và heartbeat
     reconnectAttempts = 0;
@@ -107,7 +107,7 @@ class WebSocketChatService {
             this.disconnect();
         }
 
-        this.isConnecting = true;
+        this.connecting = true;
 
         // ✅ Sử dụng Client API mới - hỗ trợ auto-reconnect chính thức
         this.stompClient = new Client({
@@ -132,7 +132,7 @@ class WebSocketChatService {
 
             onConnect: () => {
                 console.log("✅ Connected to WebSocket");
-                this.isConnecting = false;
+                this.connecting = false;
                 this.reconnectAttempts = 0; // Reset reconnect attempts
 
                 // 🆕 Kiểm tra và phát âm thanh cho tin nhắn mới sau reconnect
@@ -146,7 +146,7 @@ class WebSocketChatService {
 
             onStompError: (frame) => {
                 console.error("❌ STOMP error:", frame);
-                this.isConnecting = false;
+                this.connecting = false;
 
                 // Check if error is due to authentication
                 if (frame.headers?.message?.includes('Authentication')) {
@@ -162,14 +162,14 @@ class WebSocketChatService {
 
             onWebSocketError: (error) => {
                 console.error("❌ WebSocket error:", error);
-                this.isConnecting = false;
+                this.connecting = false;
                 // 🆕 Thử reconnect
                 this.attemptReconnect();
             },
 
             onDisconnect: () => {
                 console.log('🔌 WebSocket disconnected');
-                this.isConnecting = false;
+                this.connecting = false;
                 // 🆕 Ghi lại thời gian disconnect
                 this.lastDisconnectTime = Date.now();
                 this.hasNewMessagesAfterReconnect = false;
@@ -196,7 +196,7 @@ class WebSocketChatService {
         console.log(`[WebSocket] Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
 
         this.reconnectTimer = setTimeout(() => {
-            if (!this.isConnected() && !this.isConnecting) {
+            if (!this.isConnected() && !this.connecting) {
                 const { onConnected, onError } = this.reconnectCallbacks;
                 this.connect(onConnected, onError);
             }
@@ -553,12 +553,12 @@ class WebSocketChatService {
 
     // 🆕 Kiểm tra trạng thái kết nối
     isConnected() {
-        return this.stompClient?.connected && !this.isConnecting;
+        return this.stompClient?.connected && !this.connecting;
     }
 
     // 🆕 Kiểm tra có đang kết nối không
     isConnecting() {
-        return this.isConnecting;
+        return this.connecting;
     }
 }
 
