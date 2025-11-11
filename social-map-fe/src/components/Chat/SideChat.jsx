@@ -614,24 +614,16 @@ export default function SideChat() {
             const newMap = new Map(prev);
             const currentStatus = newMap.get(userId) || { isOnline: false, lastSeen: 'unknown' };
 
-            // ✅ Check if status actually changed to avoid unnecessary updates
-            const shouldUpdateOnline = status === 'online' && !currentStatus.isOnline;
-            const shouldUpdateOffline = status === 'offline' && currentStatus.isOnline;
-
-            if (!shouldUpdateOnline && !shouldUpdateOffline) {
-                console.log(`⏭️ Skipping status update for ${userId} - no change`);
-                return prev; // No change, return same reference
-            }
-
-            if (status === 'online' && !currentStatus.isOnline) {
+            // Always update to ensure all users get real-time updates
+            if (status === 'online') {
                 console.log(`✅ User ${userId} is now ONLINE`);
                 newMap.set(userId, { isOnline: true, lastSeen: null });
-            } else if (status === 'offline' && currentStatus.isOnline) {
+            } else if (status === 'offline') {
                 console.log(`⭕ User ${userId} is now OFFLINE`);
                 newMap.set(userId, { isOnline: false, lastSeen: new Date().toISOString() });
             }
 
-            return newMap; // Always return new map when updated
+            return newMap;
         });
     }, []);
 
@@ -908,6 +900,47 @@ export default function SideChat() {
         // For messages older than 4 weeks, show date
         return messageTime.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
     };
+
+    // Refresh user statuses when SideChat popup opens
+    useEffect(() => {
+        if (isChatOpen && conversations.length > 0 && currentUserId) {
+            console.log('💬 SideChat opened - refreshing user statuses for real-time updates');
+
+            const userIdsToRefresh = new Set();
+            conversations.forEach(conv => {
+                if (!conv.isGroup) {
+                    const otherUser = conv.otherUser || conv.members?.find(m => m.userId !== currentUserId);
+                    if (otherUser?.userId) {
+                        userIdsToRefresh.add(otherUser.userId);
+                    }
+                }
+            });
+
+            if (userIdsToRefresh.size === 0) return;
+
+            const loadPromises = Array.from(userIdsToRefresh).map(async (userId) => {
+                try {
+                    const status = await userService.getUserStatus(userId);
+                    return { userId, status };
+                } catch (error) {
+                    console.error(`Failed to refresh status for user ${userId}:`, error);
+                    return null;
+                }
+            });
+
+            Promise.all(loadPromises).then(results => {
+                setUserStatuses(prev => {
+                    const newMap = new Map(prev);
+                    results.forEach(result => {
+                        if (result) {
+                            newMap.set(result.userId, result.status);
+                        }
+                    });
+                    return newMap;
+                });
+            });
+        }
+    }, [isChatOpen, conversations, currentUserId]);
 
     return (
         <>
