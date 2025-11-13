@@ -5,8 +5,6 @@ import './shopMarkers.css';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useMapContext } from '../../context/MapContext';
-import { useLocationSharing } from '../../hooks/useLocationSharing';
-import { HANOI_MARKER, generateMarkerPopupHTML } from '../../constants/markers';
 import LocationSharing from '../../js/location-sharing';
 
 mapboxgl.accessToken = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
@@ -34,9 +32,6 @@ export default function MapSection() {
     const maxRetries = 3;
     const mapContainer = useRef(null);
     const mapInstance = useRef(null);
-    const markerRef = useRef(null);
-
-    const { handleMarkerMouseDown } = useLocationSharing();
 
     const loadMapbox = () => {
         setShowLoading(true);
@@ -92,45 +87,6 @@ export default function MapSection() {
                 setTimeout(() => {
                     setShowLoading(false);
                     setRetryCount(0);
-
-                    // Add Hanoi marker using shared constants
-                    const hanoiPopupHTML = generateMarkerPopupHTML(HANOI_MARKER);
-
-                    const marker = new mapboxgl.Marker({
-                        color: "#EC5E95",
-                        scale: 1.2
-                    })
-                        .setLngLat(HANOI_MARKER.coordinates)
-                        .setPopup(new mapboxgl.Popup({
-                            closeButton: true,
-                            closeOnClick: false,
-                            maxWidth: '320px',
-                            className: 'custom-popup'
-                        }).setHTML(hanoiPopupHTML))
-                        .addTo(map);
-
-                    markerRef.current = marker;
-                    window.mapboxManager.hanoiMarker = marker;
-
-                    // Set global marker data
-                    window.HANOI_MARKER = HANOI_MARKER;
-
-                    // Add marker drag functionality
-                    const markerEl = marker.getElement();
-                    markerEl.style.cursor = 'grab';
-                    markerEl.dataset.hasListener = 'true';
-
-                    // Use shared marker data
-                    const markerData = {
-                        name: HANOI_MARKER.name,
-                        coordinates: HANOI_MARKER.coordinates,
-                        image: HANOI_MARKER.image,
-                        description: HANOI_MARKER.description
-                    };
-
-                    // markerEl.addEventListener('mousedown', (e) => {
-                    //     handleMarkerMouseDown(e, markerEl, markerData);
-                    // });
 
                     // Add attribution
                     map.addControl(new mapboxgl.AttributionControl({
@@ -205,7 +161,7 @@ export default function MapSection() {
         };
 
         // Global focus location function
-        window.focusLocation = (lng, lat, name) => {
+        window.focusLocation = (lng, lat) => {
             if (mapInstance.current) {
                 mapInstance.current.flyTo({
                     center: [lng, lat],

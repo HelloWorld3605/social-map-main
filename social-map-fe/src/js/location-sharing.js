@@ -256,21 +256,8 @@ class LocationSharing {
             this.draggedMarker = shopData;
             console.log('initiateDrag: shop marker', this.draggedMarker);
         } else {
-            // Regular marker - use from shared constants
-            this.draggedMarker = window.HANOI_MARKER ? {
-                name: window.HANOI_MARKER.name,
-                coordinates: window.HANOI_MARKER.coordinates,
-                image: window.HANOI_MARKER.image,
-                description: window.HANOI_MARKER.description,
-                type: 'location'
-            } : {
-                name: 'Unknown Location',
-                coordinates: [0, 0],
-                image: '',
-                description: '',
-                type: 'location'
-            };
-            console.log('initiateDrag: regular marker', this.draggedMarker);
+            // Skip non-shop markers
+            return;
         }
 
         this.isDragging = true;
@@ -344,7 +331,7 @@ class LocationSharing {
         this.toggleMapInteractions(false);
 
         // Extract data from popup
-        this.draggedPopup = this.extractPopupData(popupEl);
+        this.draggedPopup = this.extractPopupData();
 
         this.isDragging = true;
         document.body.style.cursor = 'grabbing';
@@ -355,22 +342,9 @@ class LocationSharing {
         console.log(`[LocationSharing] Dragging started for popup ${this.draggedPopup.name}`);
     }
 
-    extractPopupData(popupEl) {
-        console.log('extractPopupData: popupEl', popupEl);
-        console.log('extractPopupData: window.HANOI_MARKER', window.HANOI_MARKER);
-
-        // For popup, use the same data as marker
-        return window.HANOI_MARKER ? {
-            name: window.HANOI_MARKER.name,
-            coordinates: window.HANOI_MARKER.coordinates,
-            image: window.HANOI_MARKER.image,
-            description: window.HANOI_MARKER.description
-        } : {
-            name: 'Unknown Location',
-            coordinates: [0, 0],
-            image: '',
-            description: ''
-        };
+    extractPopupData() {
+        // No longer used since fixed markers are removed
+        return null;
     }
 
     handleMarkerClick(markerEl) {
@@ -385,11 +359,12 @@ class LocationSharing {
     }
 
     findMarkerFromElement(element) {
-        // Find marker from mapbox manager
-        if (window.mapboxManager && window.mapboxManager.hanoiMarker) {
-            const marker = window.mapboxManager.hanoiMarker;
-            if (marker.getElement() === element) {
-                return marker;
+        // Only check shop markers now
+        if (window.shopMarkersManager && window.shopMarkersManager.shopPopups) {
+            for (const [, marker] of window.shopMarkersManager.shopPopups) {
+                if (marker.getElement() === element) {
+                    return marker;
+                }
             }
         }
         return null;
@@ -556,7 +531,7 @@ class LocationSharing {
         const { location, timestamp } = msg;
         return `
     <div class="chat-window-message location-message sent">
-        <div class="location-card" onclick="focusLocation(${location.coordinates[0]},${location.coordinates[1]},'${location.name}')">
+        <div class="location-card" onclick="focusLocation(${location.coordinates[0]},${location.coordinates[1]})">
             <div class="location-card-image">
                 <img src="${location.image}" alt="${location.name}">
                 <div class="overlay-icon">📍</div>
@@ -585,10 +560,10 @@ class LocationSharing {
 }
 
 // ==== Focus marker ====
-window.focusLocation = (lng, lat, name) => {
+window.focusLocation = (lng, lat) => {
     if (window.mapboxManager?.map) {
         window.mapboxManager.map.flyTo({ center: [lng, lat], zoom: 15, duration: 1500 });
-        window.locationSharing?.showMessage(`Đang di chuyển đến ${name}...`, 'info');
+        window.locationSharing?.showMessage(`Đang di chuyển đến ...`, 'info');
     }
 };
 

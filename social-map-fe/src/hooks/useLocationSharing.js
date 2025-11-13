@@ -59,7 +59,7 @@ export function useLocationSharing() {
 
         const locationHTML = `
             <div class="chat-window-message location-message sent">
-                <div class="location-card" onclick="window.focusLocation(${msg.location.coordinates[0]},${msg.location.coordinates[1]},'${msg.location.name}')">
+                <div class="location-card" onclick="window.focusLocation(${msg.location.coordinates[0]},${msg.location.coordinates[1]})">
                     <div class="location-card-image">
                         <img src="${msg.location.image}" alt="${msg.location.name}">
                         <div class="overlay-icon">📍</div>
@@ -138,7 +138,7 @@ export function useLocationSharing() {
                 setDraggedMarker(markerData);
                 toggleMapInteractions(false);
 
-                // 🔥 ĐÓNG POPUP khi bắt đầu drag
+                // ĐÓNG POPUP khi bắt đầu drag
                 const marker = window.mapboxManager?.hanoiMarker;
                 if (marker && marker.getPopup() && marker.getPopup().isOpen()) {
                     marker.togglePopup(); // Đóng popup
