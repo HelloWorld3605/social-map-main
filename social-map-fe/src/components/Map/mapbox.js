@@ -250,3 +250,43 @@ if (document.readyState === 'loading') {
         window.mapboxManager = new MapboxManager();
     }
 }
+
+// Global function for explore location button
+window.exploreLocation = function (locationId) {
+    switch (locationId) {
+        case 'hanoi':
+            // Zoom to location and show more details
+            if (window.mapboxManager && window.mapboxManager.map) {
+                window.mapboxManager.map.flyTo({
+                    center: [105.8542, 21.0285],
+                    zoom: 12,
+                    duration: 2000
+                });
+            }
+
+            // You can add more actions here like:
+            // - Show detailed information panel
+            // - Load nearby locations
+            // - Open photo gallery
+            console.log('Exploring Hanoi...');
+
+            // Optional: Show notification
+            if (typeof showNotification === 'function') {
+                showNotification('Đang khám phá Hà Nội...', 'info');
+            }
+            break;
+
+        default:
+            console.log('Exploring location:', locationId);
+    }
+};
+
+// Global function for focus location
+window.focusLocation = function (lng, lat, name) {
+    if (window.mapboxManager && window.mapboxManager.map) {
+        window.mapboxManager.map.flyTo({ center: [lng, lat], zoom: 15, duration: 1500 });
+        if (window.locationSharing) {
+            window.locationSharing.showMessage(`Đang di chuyển đến ${name}...`, 'info');
+        }
+    }
+};

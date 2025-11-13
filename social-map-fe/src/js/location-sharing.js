@@ -531,7 +531,7 @@ class LocationSharing {
         const { location, timestamp } = msg;
         return `
     <div class="chat-window-message location-message sent">
-        <div class="location-card" onclick="focusLocation(${location.coordinates[0]},${location.coordinates[1]})">
+        <div class="location-card" onclick="focusLocation(${location.coordinates[0]},${location.coordinates[1]},'${location.name}')">
             <div class="location-card-image">
                 <img src="${location.image}" alt="${location.name}">
                 <div class="overlay-icon">📍</div>
@@ -560,10 +560,10 @@ class LocationSharing {
 }
 
 // ==== Focus marker ====
-window.focusLocation = (lng, lat) => {
+window.focusLocation = (lng, lat, name) => {
     if (window.mapboxManager?.map) {
         window.mapboxManager.map.flyTo({ center: [lng, lat], zoom: 15, duration: 1500 });
-        window.locationSharing?.showMessage(`Đang di chuyển đến ...`, 'info');
+        window.locationSharing?.showMessage(`Đang di chuyển đến ${name}...`, 'info');
     }
 };
 

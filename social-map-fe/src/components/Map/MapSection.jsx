@@ -161,13 +161,17 @@ export default function MapSection() {
         };
 
         // Global focus location function
-        window.focusLocation = (lng, lat) => {
+        window.focusLocation = (lng, lat, name) => {
             if (mapInstance.current) {
                 mapInstance.current.flyTo({
                     center: [lng, lat],
                     zoom: 15,
                     duration: 1500
                 });
+                // Hiển thị thông báo
+                if (window.locationSharing) {
+                    window.locationSharing.showMessage(`Đang di chuyển đến ${name}...`, 'info');
+                }
             }
         };
 
