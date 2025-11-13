@@ -81,7 +81,7 @@ export default function ProfileMenu() {
     <>
       <div className="chat-container" id="chatToggle">
         <img className="chat-icon" src="/icons/chatbubbles-outline.svg" alt="Chat" />
-        <span className="unread-messages">1</span>
+        {/*<span className="unread-messages">1</span>*/}
       </div>
 
       <div className="notifications-container">
