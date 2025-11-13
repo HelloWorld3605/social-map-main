@@ -13,11 +13,12 @@ export default function ProfilePage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [friendshipStatus, setFriendshipStatus] = useState(null);
-    const [friendshipId, setFriendshipId] = useState(null);
     const [mutualFriendsCount, setMutualFriendsCount] = useState(0);
     const [isProcessing, setIsProcessing] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [userStatus, setUserStatus] = useState({ isOnline: false, lastSeen: 'unknown' });
+
+    const isOwnProfile = !userId || (currentUser && user && user.id === currentUser.id);
 
     // Load user profile
     useEffect(() => {
@@ -298,8 +299,6 @@ export default function ProfilePage() {
             </div>
         );
     }
-
-    const isOwnProfile = !userId || (currentUser && user.id === currentUser.id);
 
     return (
         <div className="profile-page">
