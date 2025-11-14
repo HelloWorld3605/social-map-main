@@ -1205,7 +1205,7 @@ export default function ChatWindow({
                                                                 <div className="shop-card-detail">⭐ {shopData.rating.toFixed(1)}</div>
                                                             )}
                                                             <button className="shop-card-button">
-                                                                🗺️ Xem trên bản đồ
+                                                                <img src="/icons/map-outline.svg" alt="map"/> Xem trên bản đồ
                                                             </button>
                                                         </div>
                                                     </div>
@@ -1219,7 +1219,7 @@ export default function ChatWindow({
                                         <div className="location-message-card">
                                             <div className="location-card-image">
                                                 <img src={msg.content.image} alt={msg.content.name} />
-                                                <div className="location-card-overlay">📍</div>
+                                                <div className="location-card-overlay"><img src="/icons/location.svg" alt="location"/></div>
                                             </div>
                                             <div className="location-card-content">
                                                 <div className="location-card-title">{msg.content.name}</div>
@@ -1229,6 +1229,7 @@ export default function ChatWindow({
                                                     onClick={() => window.focusLocation?.(msg.content.coordinates[0], msg.content.coordinates[1], msg.content.name)}
                                                 >
                                                     🗺️ Xem trên bản đồ
+                                                    {/*<img src="/icons/map-outline.svg" alt="map"/> Xem trên bản đồ*/}
                                                 </button>
                                             </div>
                                         </div>

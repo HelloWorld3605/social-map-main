@@ -320,7 +320,7 @@
 
 .info-item {
     display: flex;
-    align-items: start;
+    align-items: center; /* center icons and text */
     gap: 0.5rem;
     font-size: 0.875rem;
 }
@@ -331,9 +331,28 @@
     margin-top: 2px;
 }
 
+/* Info icon image used in popups */
+.info-icon-img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    margin-right: 8px;
+    flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.info-item .info-icon, .info-item .info-icon-img {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .info-text {
     color: #64748b;
     line-height: 1.5;
+    display: inline-block;
+    vertical-align: middle;
 }
 
 .phone-link {
@@ -490,4 +509,3 @@
     font-weight: 600;
     color: #64748b;
 }
-

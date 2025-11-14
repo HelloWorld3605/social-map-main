@@ -531,15 +531,15 @@ class LocationSharing {
         const { location, timestamp } = msg;
         return `
     <div class="chat-window-message location-message sent">
-        <div class="location-card" onclick="focusLocation(${location.coordinates[0]},${location.coordinates[1]},'${location.name}')">
+        <div class="location-card" onclick="focusLocation(${location.coordinates[0]},${location.coordinates[1]},'${location.name.replace(/'/g, "\\'")}')">
             <div class="location-card-image">
                 <img src="${location.image}" alt="${location.name}">
-                <div class="overlay-icon">📍</div>
+                <div class="overlay-icon"><img src="/icons/location.svg" alt="location"/></div>
             </div>
             <div class="location-card-content">
                 <h4>${location.name}</h4>
                 <p>${location.description}</p>
-                <button class="location-card-btn">🗺️ Xem trên bản đồ</button>
+                <button class="location-card-btn"><img src="/icons/map-outline.svg" alt="map"/> Xem trên bản đồ</button>
                 <span class="location-time">${timestamp.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
         </div>

@@ -740,6 +740,22 @@ body.dark-mode .load-more-messages button:hover {
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.location-card-overlay img {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    display: block;
+}
+
+.location-card-button img {
+    width: 16px;
+    height: 16px;
+    object-fit: contain;
+    margin-right: 8px;
+    vertical-align: middle;
+    display: inline-block;
+}
+
 /* ===== DROP ZONE FOR SHOP SHARING ===== */
 .chat-window-input-container {
     position: relative;

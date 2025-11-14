@@ -244,20 +244,20 @@ class ShopMarkersManager {
                     
                     <div class="shop-popup-info">
                         <div class="info-item">
-                            <span class="info-icon">📍</span>
+                            <img class="info-icon-img" src="/icons/location.svg" alt="location" />
                             <span class="info-text">${shop.address}</span>
                         </div>
                         
                         ${shop.phoneNumber ? `
                             <div class="info-item">
-                                <span class="info-icon">📞</span>
+                                <img class="info-icon-img" src="/icons/call-outline.svg" alt="call" />
                                 <a href="tel:${shop.phoneNumber}" class="info-text phone-link">${shop.phoneNumber}</a>
                             </div>
                         ` : ''}
                         
                         ${shop.openingTime && shop.closingTime ? `
                             <div class="info-item">
-                                <span class="info-icon">🕐</span>
+                                <img class="info-icon-img" src="/icons/clock-outline.svg" alt="clock" />
                                 <span class="info-text">${shop.openingTime} - ${shop.closingTime}</span>
                             </div>
                         ` : ''}

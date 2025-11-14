@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useMapContext } from '../context/MapContext';
 
 export function useLocationSharing() {
@@ -37,9 +37,32 @@ export function useLocationSharing() {
         return preview; // Return để dùng ngay
     }, []);
 
+    // Helper: find a Mapbox marker instance from a DOM element using shopMarkersManager if available
+    const findMarkerFromElement = useCallback((element) => {
+        if (!element) return null;
+        if (globalThis.shopMarkersManager?.shopPopups) {
+            for (const [, marker] of globalThis.shopMarkersManager.shopPopups) {
+                if (marker.getElement && marker.getElement() === element) return marker;
+            }
+        }
+        return null;
+    }, []);
+
     const highlightChats = useCallback((state) => {
         document.querySelectorAll('.chat-window, .side-chat')
             .forEach(el => el.classList.toggle('location-drop-zone', state));
+    }, []);
+
+    const showNotification = useCallback((text, type = 'info') => {
+        const n = document.createElement('div');
+        n.className = `location-notification ${type}`;
+        n.textContent = text;
+        document.body.appendChild(n);
+        setTimeout(() => n.classList.add('show'), 10);
+        setTimeout(() => {
+            n.classList.remove('show');
+            setTimeout(() => n.remove(), 300);
+        }, 2500);
     }, []);
 
     const shareLocation = useCallback((friendId, type, markerData) => {
@@ -59,15 +82,15 @@ export function useLocationSharing() {
 
         const locationHTML = `
             <div class="chat-window-message location-message sent">
-                <div class="location-card" onclick="window.focusLocation(${msg.location.coordinates[0]},${msg.location.coordinates[1]},'${msg.location.name}')">
+                <div class="location-card" onclick="focusLocation(${msg.location.coordinates[0]},${msg.location.coordinates[1]},'${msg.location.name.replace(/'/g, "\\'")}')">
                     <div class="location-card-image">
                         <img src="${msg.location.image}" alt="${msg.location.name}">
-                        <div class="overlay-icon">📍</div>
+                        <div class="overlay-icon"><img src="/icons/location.svg" alt="location"/></div>
                     </div>
                     <div class="location-card-content">
                         <h4>${msg.location.name}</h4>
                         <p>${msg.location.description}</p>
-                        <button class="location-card-btn">🗺️ Xem trên bản đồ</button>
+                        <button class="location-card-btn"><img src="/icons/map-outline.svg" alt="map"/> Xem trên bản đồ</button>
                         <span class="location-time">${msg.timestamp.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                 </div>
@@ -77,19 +100,7 @@ export function useLocationSharing() {
         container.scrollTop = container.scrollHeight;
 
         showNotification(`Đã chia sẻ vị trí "${msg.location.name}"`, 'success');
-    }, []);
-
-    const showNotification = useCallback((text, type = 'info') => {
-        const n = document.createElement('div');
-        n.className = `location-notification ${type}`;
-        n.textContent = text;
-        document.body.appendChild(n);
-        setTimeout(() => n.classList.add('show'), 10);
-        setTimeout(() => {
-            n.classList.remove('show');
-            setTimeout(() => n.remove(), 300);
-        }, 2500);
-    }, []);
+    }, [showNotification]);
 
     const cleanupDrag = useCallback(() => {
         setIsDragging(false);
@@ -139,8 +150,8 @@ export function useLocationSharing() {
                 toggleMapInteractions(false);
 
                 // ĐÓNG POPUP khi bắt đầu drag
-                const marker = window.mapboxManager?.hanoiMarker;
-                if (marker && marker.getPopup() && marker.getPopup().isOpen()) {
+                const marker = findMarkerFromElement(markerEl);
+                if (marker && marker.getPopup && marker.getPopup() && marker.getPopup().isOpen && marker.getPopup().isOpen()) {
                     marker.togglePopup(); // Đóng popup
                 }
 
@@ -169,8 +180,8 @@ export function useLocationSharing() {
 
             if (!hasMoved && clickDuration < clickThreshold) {
                 // Handle click - show popup
-                const marker = window.mapboxManager?.hanoiMarker;
-                if (marker && marker.getPopup()) {
+                const marker = findMarkerFromElement(markerEl);
+                if (marker && marker.getPopup) {
                     marker.togglePopup();
                 }
             } else if (dragStartedRef.current) {
@@ -196,7 +207,7 @@ export function useLocationSharing() {
 
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
-    }, [isDragging, toggleMapInteractions, createDragPreview, highlightChats, shareLocation, showNotification, cleanupDrag]);
+    }, [isDragging, toggleMapInteractions, createDragPreview, highlightChats, shareLocation, showNotification, cleanupDrag, findMarkerFromElement]);
 
     return {
         isDragging,
