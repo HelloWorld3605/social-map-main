@@ -106,16 +106,19 @@ public class ShopServiceImpl implements ShopService {
         Shop shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new EntityNotFoundException("Shop not found"));
 
-        UserShop userShop = userShopRepository.findByUserIdAndShopId(userId, shopId)
-                .orElseThrow(() -> new SecurityException("Bạn không quản lý shop này"));
-
+        // Load user first so admin roles can delete without needing a UserShop relation
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
+        // Admins and super-admins can delete any shop
         if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.SUPER_ADMIN) {
             shopRepository.delete(shop);
             return;
         }
+
+        // Non-admins must have a UserShop relation and be OWNER
+        UserShop userShop = userShopRepository.findByUserIdAndShopId(userId, shopId)
+                .orElseThrow(() -> new SecurityException("Bạn không quản lý shop này"));
 
         if (userShop.getManagerRole() != ShopRole.OWNER) {
             throw new SecurityException("Chỉ chủ shop (OWNER) mới được xóa shop");
