@@ -1,3 +1,5 @@
+import { formatLocationContent } from '../utils/locationMessageUtils';
+
 class LocationSharing {
     constructor(map) {
         this.map = map;
@@ -493,57 +495,18 @@ class LocationSharing {
         console.log('shareLocation: sending location', { friendId, draggedItem, type });
 
         // Gửi qua REST API để backend save và broadcast qua WebSocket
-        if (window.ChatService) {
-            console.log('shareLocation: using ChatService');
-            window.ChatService.sendMessage(friendId, {
-                content: 'LOCATION:' + JSON.stringify(draggedItem),
-                messageType: 'LOCATION'  // ✅ Changed from TEXT to LOCATION
-            }).then((response) => {
-                console.log('shareLocation: success', response);
-                this.showMessage(`Đã chia sẻ vị trí "${draggedItem.name}"`, 'success');
-            }).catch((error) => {
-                console.error('shareLocation: failed', error);
-                this.showMessage('Không thể chia sẻ vị trí', 'warning');
-            });
-        } else {
-            console.error('shareLocation: ChatService not available');
-            // Fallback: hiển thị local nếu không có ChatService
-            const msg = {
-                id: `loc_${Date.now()}`,
-                location: draggedItem,
-                timestamp: new Date()
-            };
-
-            const container = type === 'chat-window'
-                ? document.querySelector(`[data-friend-id="${friendId}"] .chat-window-messages`)
-                : document.querySelector('.messages-container');
-
-            if (container) {
-                container.insertAdjacentHTML('beforeend', this.renderLocationMessage(msg));
-                container.scrollTop = container.scrollHeight;
-            }
-            this.showMessage(`Đã chia sẻ vị trí "${msg.location.name}"`, 'success');
-        }
-    }
-
-    //Giao diện tin nhắn đẹp hơn
-    renderLocationMessage(msg) {
-        const { location, timestamp } = msg;
-        return `
-    <div class="chat-window-message location-message sent">
-        <div class="location-card" onclick="focusLocation(${location.coordinates[0]},${location.coordinates[1]},'${location.name.replace(/'/g, "\\'")}')">
-            <div class="location-card-image">
-                <img src="${location.image}" alt="${location.name}">
-                <div class="overlay-icon"><img src="/icons/location.svg" alt="location"/></div>
-            </div>
-            <div class="location-card-content">
-                <h4>${location.name}</h4>
-                <p>${location.description}</p>
-                <button class="location-card-btn"><img src="/icons/map-outline.svg" alt="map"/> Xem trên bản đồ</button>
-                <span class="location-time">${timestamp.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
-            </div>
-        </div>
-    </div>`;
+        // window.ChatService luôn có sẵn (được set trong main.jsx)
+        console.log('shareLocation: using ChatService');
+        window.ChatService.sendMessage(friendId, {
+            content: formatLocationContent(draggedItem),
+            messageType: 'LOCATION'
+        }).then((response) => {
+            console.log('shareLocation: success', response);
+            this.showMessage(`Đã chia sẻ vị trí "${draggedItem.name}"`, 'success');
+        }).catch((error) => {
+            console.error('shareLocation: failed', error);
+            this.showMessage('Không thể chia sẻ vị trí', 'warning');
+        });
     }
 
     showMessage(text, type = 'info') {

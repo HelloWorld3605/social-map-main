@@ -62,7 +62,9 @@ public class CustomUserDetailsService implements UserDetailsService {
 
         @Override
         public String getName() {
-            return user.getEmail(); // or user.getId().toString() if you prefer
+            // ✅ Return userId (not email) for WebSocket user destination mapping
+            // Spring WebSocket convertAndSendToUser uses Principal.getName() to map userId
+            return user.getId().toString();
         }
 
         @Override

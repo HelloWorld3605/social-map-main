@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
 import { userService } from '../../services/userService';
+import { processLocationMessages, processLocationMessage } from '../../utils/locationMessageUtils';
 import './ChatWindows.css';
 import useRealtimeStatus from '../../hooks/useRealtimeStatus';
 
@@ -30,19 +31,13 @@ export default function ChatWindow({
 
     // 🆕 Animation states for header effects
     const [headerAnimation, setHeaderAnimation] = useState(''); // 'unread', 'flash', 'pulse'
-    const [hasNewMessageWhileMinimized, setHasNewMessageWhileMinimized] = useState(false);
-    const [hasNewMessageWhileInactive, setHasNewMessageWhileInactive] = useState(false);
 
-    const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
-    const lastScrollHeightRef = useRef(0);
     const inputRef = useRef(null);
-    const dropZoneRef = useRef(null);
     const navigate = useNavigate();
 
     // Track if user is currently typing to avoid unnecessary cleanup messages
     const isTypingRef = useRef(false);
-    const [isDragOver, setIsDragOver] = useState(false);
 
     // ✅ Track active/minimized state for real-time mark as read
     const isActiveRef = useRef(isActive);
@@ -146,29 +141,25 @@ export default function ChatWindow({
 
         try {
             console.log('📥 Loading recent messages for conversation:', conversation.id);
-            
-            const response = await ChatService.getMessages(conversation.id, { 
-                page: 0, 
+
+            const response = await ChatService.getMessages(conversation.id, {
+                page: 0,
                 size: 30 // Load 30 tin nhắn mới nhất
             });
 
-            // Process location messages
-            const processedMessages = response.content.map(msg => {
-                if (typeof msg.content === 'string' && msg.content.startsWith('LOCATION:')) {
-                    try {
-                        const locationData = JSON.parse(msg.content.substring(9));
-                        return { ...msg, content: locationData, isLocation: true };
-                    } catch (e) {
-                        console.error('Failed to parse location message:', e);
-                        return msg;
-                    }
-                }
-                return msg;
-            }).reverse(); // ✅ Đảo để hiển thị từ cũ → mới (backend trả mới → cũ)
+            // Process location messages using utility function
+            const processedMessages = processLocationMessages(response.content).reverse(); // ✅ Đảo để hiển thị từ cũ → mới (backend trả mới → cũ)
 
-            setMessages(processedMessages);
+            // ✅ Ensure all messages have status and seenBy
+            const messagesWithStatus = processedMessages.map(msg => ({
+                ...msg,
+                status: msg.status || 'SENT',
+                seenBy: msg.seenBy || []
+            }));
+
+            setMessages(messagesWithStatus);
             setHasMore(!response.last);
-            
+
             console.log(`✅ Loaded ${processedMessages.length} recent messages`);
             console.log('📊 Pagination info:', {
                 isLast: response.last,
@@ -202,13 +193,31 @@ export default function ChatWindow({
                             canScrollUp: container.scrollTop > 0
                         });
                     }
+
+                    // ✅ Facebook-style: Mark as read after messages load if window is active
+                    // Check window state after messages load (use refs to get latest state)
+                    setTimeout(() => {
+                        if (isActiveRef.current && !isMinimizedRef.current && messagesWithStatus.length > 0) {
+                            const lastMessage = messagesWithStatus[messagesWithStatus.length - 1];
+                            if (lastMessage && lastMessage.senderId !== currentUserId) {
+                                console.log('👁️ Marking messages as read (after load, window is active)...');
+                                const now = Date.now();
+                                lastMarkAsReadTimeRef.current = now;
+                                webSocketService.sendMarkAsRead({ conversationId: conversation.id });
+                                ChatService.markAsRead(conversation.id).catch(console.error);
+                                if (onMarkAsRead) {
+                                    onMarkAsRead(conversation.id);
+                                }
+                            }
+                        }
+                    }, 100); // Small delay to ensure state is updated
                 }, 50); // Đợi scroll complete
             }, 50);
         } catch (error) {
             console.error('Failed to load recent messages:', error);
             setIsInitialLoad(false); // Hiện UI dù lỗi
         }
-    }, [conversation?.id]);
+    }, [conversation?.id, currentUserId, onMarkAsRead]);
 
     // 🔹 Load older messages (Facebook-style infinite scroll with PAGE-based pagination)
     const loadOlderMessages = useCallback(async () => {
@@ -236,18 +245,15 @@ export default function ChatWindow({
                 return;
             }
 
-            // Xử lý tin nhắn (giữ thứ tự cũ → mới)
-            const processedMessages = response.content.map(msg => {
-                if (typeof msg.content === 'string' && msg.content.startsWith('LOCATION:')) {
-                    try {
-                        const data = JSON.parse(msg.content.substring(9));
-                        return { ...msg, content: data, isLocation: true };
-                    } catch {
-                        return msg;
-                    }
-                }
-                return msg;
-            }).reverse();
+            // Xử lý tin nhắn (giữ thứ tự cũ → mới) using utility function
+            const processedMessages = processLocationMessages(response.content).reverse();
+
+            // ✅ Ensure all messages have status and seenBy
+            const messagesWithStatus = processedMessages.map(msg => ({
+                ...msg,
+                status: msg.status || 'SENT',
+                seenBy: msg.seenBy || []
+            }));
 
             // Giữ vị trí scroll khi prepend
             const container = messagesContainerRef.current;
@@ -257,7 +263,7 @@ export default function ChatWindow({
 
             setMessages(prev => {
                 const existingIds = new Set(prev.map(m => m.id));
-                const newMessages = processedMessages.filter(m => !existingIds.has(m.id));
+                const newMessages = messagesWithStatus.filter(m => !existingIds.has(m.id));
 
                 if (newMessages.length === 0) {
                     console.log('⚠️ All duplicates skipped - Page may overlap');
@@ -325,16 +331,6 @@ export default function ChatWindow({
         }
     }, [hasMore, loadOlderMessages, messages.length, isLoadingMore]); // ✅ Add to deps
 
-    // Maintain scroll position after loading more
-    useEffect(() => {
-        const container = messagesContainerRef.current;
-        if (container && lastScrollHeightRef.current > 0) {
-            const newScrollHeight = container.scrollHeight;
-            container.scrollTop = newScrollHeight - lastScrollHeightRef.current;
-            lastScrollHeightRef.current = 0;
-        }
-    }, [messages]);
-
     // Scroll to bottom for new messages
     const scrollToBottom = useCallback((smooth = false) => {
         if (messagesContainerRef.current) {
@@ -357,53 +353,58 @@ export default function ChatWindow({
         }
     }, [conversation?.id, loadRecentMessages]);
 
-    // Track previous isActive state to detect actual changes
-    // ✅ IMPORTANT: Start with false so first active=true will be detected as transition
-    const prevIsActiveRef = useRef(false);
+    // ✅ Facebook-style: Mark as read whenever window becomes active and messages are loaded
+    // Track last mark as read time to avoid spamming
+    const lastMarkAsReadTimeRef = useRef(0);
+    const MARK_AS_READ_THROTTLE_MS = 1000; // Throttle: only mark once per second
 
-    // Mark as read ONLY when isActive changes to true (not just when window opens)
+    // Mark as read when window becomes active AND messages are loaded
     useEffect(() => {
-        const wasActive = prevIsActiveRef.current;
-        const isNowActive = isActive;
-
-        console.log('🔍 Mark as read check:', {
-            conversationId: conversation?.id,
-            minimized,
-            wasActive,
-            isNowActive,
-            isActiveChanged: wasActive !== isNowActive,
-            shouldMark: conversation?.id && !minimized && isNowActive && !wasActive
-        });
-
         // Only mark as read when:
-        // 1. Window becomes active (wasActive = false → isNowActive = true)
-        // 2. AND window is not minimized
-        // 3. AND last message is from another user (Messenger-style)
-        if (conversation?.id && !minimized && isNowActive && !wasActive) {
+        // 1. Window is active (not minimized)
+        // 2. AND messages are loaded (not initial load)
+        // 3. AND there are messages
+        // 4. AND enough time has passed since last mark (throttle)
+        if (conversation?.id && !minimized && isActive && !isInitialLoad && messages.length > 0) {
+            const now = Date.now();
+            const timeSinceLastMark = now - lastMarkAsReadTimeRef.current;
+
+            // Throttle: only mark if enough time has passed
+            if (timeSinceLastMark < MARK_AS_READ_THROTTLE_MS) {
+                console.log('⏭️ Mark as read throttled:', { timeSinceLastMark, throttle: MARK_AS_READ_THROTTLE_MS });
+                return;
+            }
+
             const lastMessage = messages[messages.length - 1];
+
+            // Mark as read if last message is from another user (has unread messages)
             if (lastMessage && lastMessage.senderId !== currentUserId) {
-                console.log('👁️ Marking messages as read...');
+                console.log('👁️ Marking messages as read (window is active)...', {
+                    conversationId: conversation.id,
+                    lastMessageId: lastMessage.id,
+                    lastMessageSender: lastMessage.senderId,
+                    currentUserId
+                });
+
+                lastMarkAsReadTimeRef.current = now;
+
+                // Send via WebSocket (faster) and REST API (backup)
                 webSocketService.sendMarkAsRead({ conversationId: conversation.id });
                 ChatService.markAsRead(conversation.id).catch(console.error);
+
                 if (onMarkAsRead) {
                     onMarkAsRead(conversation.id);
                 }
             } else {
-                console.log('⏭️ Skipping mark as read: last message is from current user or no messages');
+                console.log('⏭️ Skipping mark as read: last message is from current user');
             }
-        } else {
-            console.log('⏭️ Skipping mark as read:', {
-                hasId: !!conversation?.id,
-                minimized,
-                wasActive,
-                isNowActive,
-                reason: !isNowActive ? 'not active' : wasActive ? 'already was active' : 'minimized'
-            });
         }
+    }, [conversation?.id, minimized, isActive, onMarkAsRead, messages, currentUserId, isInitialLoad]);
 
-        // Update previous state
-        prevIsActiveRef.current = isNowActive;
-    }, [conversation?.id, minimized, isActive, onMarkAsRead, messages, currentUserId]);
+    // Reset throttle when conversation changes
+    useEffect(() => {
+        lastMarkAsReadTimeRef.current = 0;
+    }, [conversation?.id]);
 
     // Create stable callback refs to avoid recreating subscriptions
     const messageCallbackRef = useRef();
@@ -412,33 +413,48 @@ export default function ChatWindow({
     const messageStatusCallbackRef = useRef();
     const readReceiptCallbackRef = useRef();
 
+    // ✅ Store subscription callbacks in refs for proper cleanup
+    const subscriptionCallbacksRef = useRef({
+        messageCallback: null,
+        typingCallback: null,
+        updateCallback: null,
+        messageStatusCallback: null,
+        readReceiptCallback: null
+    });
+
     // Update callback refs when dependencies change
     useEffect(() => {
         messageCallbackRef.current = (message) => {
             console.log('📨 ChatWindow received new message:', message);
-            let processedMessage = message;
+            // Process location message using utility function
+            const processedMessage = processLocationMessage(message);
 
-            // Type check before using string methods
-            if (typeof message.content === 'string' && message.content.startsWith('LOCATION:')) {
-                try {
-                    const locationData = JSON.parse(message.content.substring(9));
-                    processedMessage = {
-                        ...message,
-                        content: locationData,
-                        isLocation: true
-                    };
-                } catch (e) {
-                    console.error('Failed to parse location message:', e);
-                }
+            // ✅ Ensure message has status (default to SENT if not set)
+            if (!processedMessage.status) {
+                processedMessage.status = 'SENT';
+            }
+            // ✅ Ensure seenBy array exists
+            if (!processedMessage.seenBy) {
+                processedMessage.seenBy = [];
             }
 
-            // ⚠️ Check duplicate trước khi append
+            // ⚠️ Check duplicate trước khi append (Facebook-style: prevent duplicate messages)
             setMessages(prev => {
                 // Nếu message đã tồn tại, không append
-                if (prev.some(m => m.id === processedMessage.id)) {
-                    console.warn('⚠️ Duplicate message received, skipping:', processedMessage.id);
+                const isDuplicate = prev.some(m => m.id === processedMessage.id);
+                if (isDuplicate) {
+                    console.warn('⚠️ Duplicate message received, skipping:', {
+                        messageId: processedMessage.id,
+                        currentMessagesCount: prev.length,
+                        messageContent: processedMessage.content?.substring(0, 50)
+                    });
                     return prev;
                 }
+                console.log('✅ Adding new message:', {
+                    messageId: processedMessage.id,
+                    senderId: processedMessage.senderId,
+                    currentMessagesCount: prev.length
+                });
                 return [...prev, processedMessage];
             });
             scrollToBottom(true);
@@ -447,7 +463,7 @@ export default function ChatWindow({
                 onNewMessage(processedMessage);
             }
 
-            // ✅ Auto mark as read if window is active and message is from another user
+            // ✅ Facebook-style: Auto mark as read if window is active and message is from another user
             // Use refs to get the LATEST state values (not stale closure values)
             const isWindowActive = isActiveRef.current;
             const isWindowMinimized = isMinimizedRef.current;
@@ -461,16 +477,24 @@ export default function ChatWindow({
             });
 
             if (isWindowActive && !isWindowMinimized && message.senderId !== currentUserId) {
-                console.log('✅ Auto-marking as read (window is active)');
-                webSocketService.sendMarkAsRead({ conversationId: conversation.id });
-                ChatService.markAsRead(conversation.id).catch(console.error);
-                if (onMarkAsRead) {
-                    onMarkAsRead(conversation.id);
+                console.log('✅ Auto-marking as read (new message received, window is active)');
+                // Throttle: only mark if enough time has passed
+                const now = Date.now();
+                const timeSinceLastMark = now - lastMarkAsReadTimeRef.current;
+                if (timeSinceLastMark >= MARK_AS_READ_THROTTLE_MS) {
+                    lastMarkAsReadTimeRef.current = now;
+                    webSocketService.sendMarkAsRead({ conversationId: conversation.id });
+                    ChatService.markAsRead(conversation.id).catch(console.error);
+                    if (onMarkAsRead) {
+                        onMarkAsRead(conversation.id);
+                    }
+                } else {
+                    console.log('⏭️ Auto-mark as read throttled:', { timeSinceLastMark });
                 }
             } else {
                 console.log('⏭️ Skipping auto-mark as read:', {
                     reason: !isWindowActive ? 'window not active' :
-                            isWindowMinimized ? 'window minimized' :
+                        isWindowMinimized ? 'window minimized' :
                             'message from current user'
                 });
             }
@@ -545,11 +569,17 @@ export default function ChatWindow({
             console.log('👁️ Looking for message ID:', receipt.lastMessageId);
 
             // Map backend DTO fields to frontend format
+            // ReadReceiptDTO has: readByUserId, readByUserName, readByUserAvatar, readAt
+            if (!receipt.readByUserId || !receipt.lastMessageId) {
+                console.error('👁️ ❌ Invalid read receipt: missing required fields', receipt);
+                return;
+            }
+
             const seenByUser = {
-                userId: receipt.readByUserId || receipt.userId,
-                userName: receipt.readByUserName || receipt.userName,
-                userAvatar: receipt.readByUserAvatar || receipt.userAvatar,
-                seenAt: receipt.readAt || receipt.seenAt,
+                userId: receipt.readByUserId,
+                userName: receipt.readByUserName || 'User',
+                userAvatar: receipt.readByUserAvatar || '/channels/myprofile.jpg',
+                seenAt: receipt.readAt || new Date().toISOString(),
             };
 
             console.log('👁️ Mapped seenBy user:', seenByUser);
@@ -557,9 +587,11 @@ export default function ChatWindow({
             setMessages((prev) => {
                 console.log('👁️ Messages before update:', prev.length);
 
+                let found = false;
                 const updated = prev.map(msg => {
                     if (msg.id === receipt.lastMessageId) {
-                        console.log('👁️ Found matching message!', msg.id);
+                        found = true;
+                        console.log('👁️ ✅ Found matching message!', msg.id);
 
                         // Check if this user already in seenBy list
                         const existingSeenBy = msg.seenBy || [];
@@ -581,6 +613,11 @@ export default function ChatWindow({
                     }
                     return msg;
                 });
+
+                if (!found) {
+                    console.warn('👁️ ⚠️ Message not found in current messages list:', receipt.lastMessageId);
+                    console.log('👁️ Available message IDs:', prev.map(m => m.id));
+                }
 
                 console.log('👁️ Messages after update:', updated.length);
                 console.log('👁️ ========== END READ RECEIPT ==========');
@@ -639,12 +676,40 @@ export default function ChatWindow({
     useEffect(() => {
         if (!conversation?.id) return;
 
-        // Wrapper functions that call the refs
-        const messageCallback = (msg) => messageCallbackRef.current?.(msg);
+        // ✅ Unsubscribe old callbacks first to prevent duplicates
+        const oldCallbacks = subscriptionCallbacksRef.current;
+        if (oldCallbacks.messageCallback) {
+            console.log('🧹 Unsubscribing old callbacks before re-subscribing');
+            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, oldCallbacks.messageCallback);
+            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, oldCallbacks.typingCallback);
+            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, oldCallbacks.updateCallback);
+            if (oldCallbacks.messageStatusCallback) {
+                webSocketService.unsubscribe('/user/queue/message-status', oldCallbacks.messageStatusCallback);
+            }
+            if (oldCallbacks.readReceiptCallback) {
+                webSocketService.unsubscribe('/user/queue/read-receipt', oldCallbacks.readReceiptCallback);
+            }
+        }
+
+        // ✅ Create stable wrapper functions that call the refs
+        // These functions are recreated on each effect run, but they call the latest refs
+        const messageCallback = (msg) => {
+            console.log('📨 ChatWindow messageCallback wrapper called for message:', msg.id);
+            messageCallbackRef.current?.(msg);
+        };
         const typingCallback = (dto) => typingCallbackRef.current?.(dto);
         const updateCallback = (msg) => updateCallbackRef.current?.(msg);
         const messageStatusCallback = (statusUpdate) => messageStatusCallbackRef.current?.(statusUpdate);
         const readReceiptCallback = (receipt) => readReceiptCallbackRef.current?.(receipt);
+
+        // ✅ Store callbacks in ref for cleanup
+        subscriptionCallbacksRef.current = {
+            messageCallback,
+            typingCallback,
+            updateCallback,
+            messageStatusCallback,
+            readReceiptCallback
+        };
 
         console.log('🔔 ChatWindow subscribing to conversation:', conversation.id);
         webSocketService.subscribeToConversation(
@@ -655,6 +720,8 @@ export default function ChatWindow({
         );
 
         // ✅ Subscribe to message status updates (Messenger-style)
+        // These are global subscriptions (per user), so they should only be subscribed once
+        // But we'll let WebSocketChatService handle duplicate prevention
         console.log('📬 ========== SUBSCRIBING TO MESSAGE STATUS ==========');
         console.log('📬 WebSocket connected:', webSocketService.stompClient?.connected);
         console.log('📬 Current userId:', currentUserId);
@@ -711,12 +778,35 @@ export default function ChatWindow({
             }
 
             console.log('🧹 ChatWindow cleanup: unsubscribing for', conversation.id);
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, messageCallback);
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, typingCallback);
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, updateCallback);
+            // ✅ Use stored callbacks from ref for proper cleanup
+            const callbacks = subscriptionCallbacksRef.current;
+            if (callbacks.messageCallback) {
+                webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, callbacks.messageCallback);
+            }
+            if (callbacks.typingCallback) {
+                webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, callbacks.typingCallback);
+            }
+            if (callbacks.updateCallback) {
+                webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, callbacks.updateCallback);
+            }
+            if (callbacks.messageStatusCallback) {
+                webSocketService.unsubscribe('/user/queue/message-status', callbacks.messageStatusCallback);
+            }
+            if (callbacks.readReceiptCallback) {
+                webSocketService.unsubscribe('/user/queue/read-receipt', callbacks.readReceiptCallback);
+            }
 
             // Clear typing users on unmount
             setTypingUsers([]);
+
+            // ✅ Reset callbacks ref
+            subscriptionCallbacksRef.current = {
+                messageCallback: null,
+                typingCallback: null,
+                updateCallback: null,
+                messageStatusCallback: null,
+                readReceiptCallback: null
+            };
         };
     }, [conversation?.id, currentUserId]); // Only re-subscribe when conversation or user changes
 
@@ -807,87 +897,6 @@ export default function ChatWindow({
         }
     }, [inputValue, isSending, conversation?.id, sendTypingIndicator]);
 
-    // Send shop message
-    const sendShopMessage = useCallback(async (shopData) => {
-        if (isSending || !conversation?.id) return;
-
-        try {
-            setIsSending(true);
-
-            // Format shop content as JSON string with SHOP: prefix
-            const shopContent = `SHOP:${JSON.stringify({
-                shopId: shopData.shopId,
-                shopName: shopData.shopName,
-                address: shopData.address,
-                latitude: shopData.latitude,
-                longitude: shopData.longitude,
-                phoneNumber: shopData.phoneNumber,
-                imageUrl: shopData.imageUrl,
-                rating: shopData.rating,
-                status: shopData.status
-            })}`;
-
-            // Send via REST API
-            await ChatService.sendMessage(conversation.id, {
-                content: shopContent,
-                messageType: 'TEXT'
-            });
-
-            console.log('✅ Shop shared successfully:', shopData.shopName);
-        } catch (error) {
-            console.error('Failed to send shop message:', error);
-        } finally {
-            setIsSending(false);
-        }
-    }, [isSending, conversation?.id]);
-
-    // Handle drop events for shop sharing
-    useEffect(() => {
-        const dropZone = dropZoneRef.current;
-        if (!dropZone) return;
-
-        const handleDragOver = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDragOver(true);
-        };
-
-        const handleDragLeave = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDragOver(false);
-        };
-
-        const handleDrop = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            setIsDragOver(false);
-
-            try {
-                const data = e.dataTransfer.getData('application/json');
-                if (!data) return;
-
-                const shopData = JSON.parse(data);
-                if (shopData.type === 'SHOP') {
-                    console.log('🏪 Dropped shop:', shopData);
-                    sendShopMessage(shopData);
-                }
-            } catch (error) {
-                console.error('Failed to handle shop drop:', error);
-            }
-        };
-
-        dropZone.addEventListener('dragover', handleDragOver);
-        dropZone.addEventListener('dragleave', handleDragLeave);
-        dropZone.addEventListener('drop', handleDrop);
-
-        return () => {
-            dropZone.removeEventListener('dragover', handleDragOver);
-            dropZone.removeEventListener('dragleave', handleDragLeave);
-            dropZone.removeEventListener('drop', handleDrop);
-        };
-    }, [sendShopMessage]);
-
     // Handle key press
     const handleKeyPress = useCallback((e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -895,29 +904,6 @@ export default function ChatWindow({
             handleSend();
         }
     }, [handleSend]);
-
-    // Handle shop click - zoom to shop on map
-    const handleShopClick = useCallback((shopData) => {
-        console.log('🏪 Clicked shop:', shopData);
-
-        // Focus on map and zoom to shop location
-        if (window.shopMarkersManager && shopData.shopId) {
-            window.shopMarkersManager.focusOnShop(shopData.shopId);
-        } else if (shopData.latitude && shopData.longitude) {
-            // Fallback: zoom to coordinates
-            const map = window.mapboxManager?.map;
-            if (map) {
-                map.flyTo({
-                    center: [shopData.longitude, shopData.latitude],
-                    zoom: 16,
-                    duration: 1500
-                });
-            }
-        }
-
-        // Optionally navigate to shop detail page
-        // navigate(`/shop/${shopData.shopId}`);
-    }, []);
 
     // Linkify text
     const linkify = (text) => {
@@ -1011,19 +997,15 @@ export default function ChatWindow({
             if (minimized) {
                 // Window minimized with unread messages - apply glow effect
                 setHeaderAnimation('unread');
-                setHasNewMessageWhileMinimized(true);
             } else if (!isActive) {
                 // Window open but not active with new message - apply flash effect
                 setHeaderAnimation('flash');
-                setHasNewMessageWhileInactive(true);
                 // Remove flash after animation completes
                 setTimeout(() => setHeaderAnimation(''), 600);
             }
         } else {
             // No unread messages - clear animations
             setHeaderAnimation('');
-            setHasNewMessageWhileMinimized(false);
-            setHasNewMessageWhileInactive(false);
         }
     }, [unreadCount, minimized, isActive]);
 
@@ -1045,8 +1027,6 @@ export default function ChatWindow({
     const handleWindowClick = useCallback(() => {
         // Clear all animations when user clicks on window
         setHeaderAnimation('');
-        setHasNewMessageWhileMinimized(false);
-        setHasNewMessageWhileInactive(false);
 
         // Call parent onWindowClick
         onWindowClick();
@@ -1181,45 +1161,11 @@ export default function ChatWindow({
                                     {!isSent && showAvatar && (
                                         <div className="chat-window-message-sender">{msg.senderName}</div>
                                     )}
-                                    {msg.content && typeof msg.content === 'string' && msg.content.startsWith('SHOP:') ? (
-                                        (() => {
-                                            try {
-                                                const shopData = JSON.parse(msg.content.substring(5));
-                                                return (
-                                                    <div className="shop-message-card" onClick={() => handleShopClick(shopData)}>
-                                                        {shopData.imageUrl && (
-                                                            <div className="shop-card-image">
-                                                                <img src={shopData.imageUrl} alt={shopData.shopName} />
-                                                                <div className="shop-card-overlay">🏪</div>
-                                                            </div>
-                                                        )}
-                                                        <div className="shop-card-content">
-                                                            <div className="shop-card-title">{shopData.shopName}</div>
-                                                            {shopData.address && (
-                                                                <div className="shop-card-detail">📍 {shopData.address}</div>
-                                                            )}
-                                                            {shopData.phoneNumber && (
-                                                                <div className="shop-card-detail">📞 {shopData.phoneNumber}</div>
-                                                            )}
-                                                            {shopData.rating > 0 && (
-                                                                <div className="shop-card-detail">⭐ {shopData.rating.toFixed(1)}</div>
-                                                            )}
-                                                            <button className="shop-card-button">
-                                                                <img src="/icons/map-outline.svg" alt="map"/> Xem trên bản đồ
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            } catch (e) {
-                                                console.error('Failed to parse shop message:', e);
-                                                return <div className="chat-window-message-text" dangerouslySetInnerHTML={{ __html: linkify(msg.content) }} />;
-                                            }
-                                        })()
-                                    ) : msg.isLocation ? (
+                                    {msg.isLocation ? (
                                         <div className="location-message-card">
                                             <div className="location-card-image">
                                                 <img src={msg.content.image} alt={msg.content.name} />
-                                                <div className="location-card-overlay"><img src="/icons/location.svg" alt="location"/></div>
+                                                <div className="location-card-overlay"><img src="/icons/location.svg" alt="location" /></div>
                                             </div>
                                             <div className="location-card-content">
                                                 <div className="location-card-title">{msg.content.name}</div>
@@ -1269,14 +1215,9 @@ export default function ChatWindow({
                         </div>
                     </div>
                 )}
-
-                <div ref={messagesEndRef} />
             </div>
 
-            <div
-                className={`chat-window-input-container ${isDragOver ? 'drag-over' : ''}`}
-                ref={dropZoneRef}
-            >
+            <div className="chat-window-input-container">
                 <input
                     type="text"
                     placeholder="Aa"

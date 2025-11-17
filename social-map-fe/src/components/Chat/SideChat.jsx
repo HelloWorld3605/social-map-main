@@ -228,29 +228,10 @@ export default function SideChat() {
 
     // Separate effect to subscribe to NEW conversations when they appear
     useEffect(() => {
-        console.log('🔄 Effect 2 triggered:', {
-            isConnected,
-            conversationsLength: conversations.length,
-            currentUserId,
-            trackedIds: Array.from(conversationIdsRef.current)
-        });
-
-        if (!isConnected) {
-            console.log('⏸️ Waiting for connection...');
+        // ✅ Reduced logging - only process when ready
+        if (!isConnected || conversations.length === 0 || !currentUserId) {
             return;
         }
-
-        if (conversations.length === 0) {
-            console.log('⏸️ No conversations yet, waiting...');
-            return;
-        }
-
-        if (!currentUserId) {
-            console.log('⏸️ Waiting for currentUserId...');
-            return;
-        }
-
-        console.log('✅ Ready to subscribe! Processing conversations...');
 
         let subscribedCount = 0;
         let skippedCount = 0;
@@ -1045,14 +1026,6 @@ export default function SideChat() {
 
                     // ✅ IMPORTANT: Minimized windows should NEVER be active
                     const isActive = chatData.minimized ? false : (activeChatWindow === conversationId);
-
-                    // DEBUG: Log render to verify isActive state
-                    console.log('🎨 Rendering ChatWindow:', {
-                        conversationId: conversationId.substring(0, 8) + '...',
-                        isActive,
-                        activeChatWindow: activeChatWindow ? activeChatWindow.substring(0, 8) + '...' : 'null',
-                        minimized: chatData.minimized
-                    });
 
                     return (
                         <ChatWindow
