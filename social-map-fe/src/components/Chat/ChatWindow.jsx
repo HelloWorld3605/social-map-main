@@ -172,7 +172,7 @@ export default function ChatWindow({
                 currentPage: response.number
             });
             console.log('📊 Message order (first 3):');
-            console.log('   [0] (oldest):', processedMessages[0]?.createdAt, processedMessages[0]?.content?.substring?.(0, 20));
+            console.log('   [0] (oldest):', processedMessages[0]?.createdAt, typeof processedMessages[0]?.content === 'string' ? processedMessages[0]?.content.substring(0, 20) : JSON.stringify(processedMessages[0]?.content).substring(0, 20));
             console.log('   [1]:', processedMessages[1]?.createdAt);
             console.log('   [last] (newest):', processedMessages[processedMessages.length - 1]?.createdAt);
 
@@ -450,7 +450,7 @@ export default function ChatWindow({
                     console.warn('⚠️ Duplicate message received, skipping:', {
                         messageId: processedMessage.id,
                         currentMessagesCount: prev.length,
-                        messageContent: processedMessage.content?.substring(0, 50)
+                        messageContent: typeof processedMessage.content === 'string' ? processedMessage.content.substring(0, 50) : JSON.stringify(processedMessage.content).substring(0, 50)
                     });
                     return prev;
                 }
