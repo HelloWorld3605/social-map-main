@@ -1,0 +1,14 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Spring Boot-MapSocialApplication<map-social>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.mapsocial.MapSocialApplication",
+            "projectName": "map-social",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        }
+    ]
+}

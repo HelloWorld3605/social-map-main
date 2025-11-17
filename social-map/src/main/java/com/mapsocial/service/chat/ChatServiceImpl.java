@@ -420,6 +420,8 @@ public class ChatServiceImpl implements ChatService {
             boolean alreadySeen = message.getSeenBy().stream()
                     .anyMatch(s -> s.getUserId().equals(userId));
 
+            System.out.println("📖 Message " + message.getId() + " seenBy before: " + message.getSeenBy().size() + " items, alreadySeen: " + alreadySeen);
+
             if (!alreadySeen) {
                 com.mapsocial.entity.Chat.MessageSeenBy seenBy = com.mapsocial.entity.Chat.MessageSeenBy.builder()
                         .userId(userId)
@@ -429,7 +431,9 @@ public class ChatServiceImpl implements ChatService {
 
                 // Update message status to SEEN
                 message.setStatus(com.mapsocial.enums.MessageStatus.SEEN);
-                messageRepository.save(message);
+                Message savedMessage = messageRepository.save(message);
+
+                System.out.println("📖 Message " + message.getId() + " saved with seenBy: " + savedMessage.getSeenBy().size() + " items");
 
                 // Create status update DTO
                 List<com.mapsocial.dto.MessageSeenByDTO> seenByDTOs = message.getSeenBy().stream()
@@ -738,6 +742,7 @@ public class ChatServiceImpl implements ChatService {
         // Map seenBy list with user details
         List<com.mapsocial.dto.MessageSeenByDTO> seenByDTOs = new ArrayList<>();
         if (message.getSeenBy() != null) {
+            System.out.println("📖 Mapping message " + message.getId() + " with seenBy size: " + message.getSeenBy().size());
             for (com.mapsocial.entity.Chat.MessageSeenBy seenBy : message.getSeenBy()) {
                 User user = userRepository.findById(UUID.fromString(seenBy.getUserId())).orElse(null);
                 if (user != null) {
@@ -750,6 +755,8 @@ public class ChatServiceImpl implements ChatService {
                             .build());
                 }
             }
+        } else {
+            System.out.println("📖 Message " + message.getId() + " has null seenBy");
         }
 
         return MessageDTO.builder()

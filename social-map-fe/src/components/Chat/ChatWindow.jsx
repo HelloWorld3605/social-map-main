@@ -200,10 +200,10 @@ export default function ChatWindow({
                     // ✅ Facebook-style: Mark as read after messages load if window is active
                     // Check window state after messages load (use refs to get latest state)
                     setTimeout(() => {
-                        if (isActiveRef.current && !isMinimizedRef.current && messagesWithStatus.length > 0) {
+                        if (messagesWithStatus.length > 0) {
                             const lastMessage = messagesWithStatus[messagesWithStatus.length - 1];
                             if (lastMessage && lastMessage.senderId !== currentUserId) {
-                                console.log('👁️ Marking messages as read (after load, window is active)...');
+                                console.log('👁️ Marking messages as read (conversation opened)...');
                                 const now = Date.now();
                                 lastMarkAsReadTimeRef.current = now;
                                 webSocketService.sendMarkAsRead({ conversationId: conversation.id });
@@ -1251,4 +1251,3 @@ export default function ChatWindow({
         </div>
     );
 }
-
