@@ -29,6 +29,9 @@ export default function ChatWindow({
     const [isLoadingMore, setIsLoadingMore] = useState(false); // State instead of ref for UI updates
     const [userStatus, setUserStatus] = useState({ isOnline: false, lastSeen: 'unknown' });
 
+    // 🆕 Track tab visibility for mark as read logic
+    const [isTabVisible, setIsTabVisible] = useState(document.visibilityState === 'visible');
+
     // 🆕 Animation states for header effects
     const [headerAnimation, setHeaderAnimation] = useState(''); // 'unread', 'flash', 'pulse'
 
@@ -362,10 +365,11 @@ export default function ChatWindow({
     useEffect(() => {
         // Only mark as read when:
         // 1. Window is active (not minimized)
-        // 2. AND messages are loaded (not initial load)
-        // 3. AND there are messages
-        // 4. AND enough time has passed since last mark (throttle)
-        if (conversation?.id && !minimized && isActive && !isInitialLoad && messages.length > 0) {
+        // 2. AND tab is visible (user is looking at this tab)
+        // 3. AND messages are loaded (not initial load)
+        // 4. AND there are messages
+        // 5. AND enough time has passed since last mark (throttle)
+        if (conversation?.id && !minimized && isActive && isTabVisible && !isInitialLoad && messages.length > 0) {
             const now = Date.now();
             const timeSinceLastMark = now - lastMarkAsReadTimeRef.current;
 
@@ -399,7 +403,7 @@ export default function ChatWindow({
                 console.log('⏭️ Skipping mark as read: last message is from current user');
             }
         }
-    }, [conversation?.id, minimized, isActive, onMarkAsRead, messages, currentUserId, isInitialLoad]);
+    }, [conversation?.id, minimized, isActive, onMarkAsRead, messages, currentUserId, isInitialLoad, isTabVisible]);
 
     // Reset throttle when conversation changes
     useEffect(() => {
@@ -471,12 +475,13 @@ export default function ChatWindow({
             console.log('📨 New message check for auto-read:', {
                 isWindowActive,
                 isWindowMinimized,
+                isTabVisible,
                 isFromOtherUser: message.senderId !== currentUserId,
                 conversationId: conversation.id,
                 messageId: message.id
             });
 
-            if (isWindowActive && !isWindowMinimized && message.senderId !== currentUserId) {
+            if (isWindowActive && !isWindowMinimized && isTabVisible && message.senderId !== currentUserId) {
                 console.log('✅ Auto-marking as read (new message received, window is active)');
                 // Throttle: only mark if enough time has passed
                 const now = Date.now();
@@ -624,7 +629,7 @@ export default function ChatWindow({
                 return updated;
             });
         };
-    }, [conversation, currentUserId, isActive, minimized, onNewMessage, onMarkAsRead, scrollToBottom]);
+    }, [conversation, currentUserId, isActive, minimized, onNewMessage, onMarkAsRead, scrollToBottom, isTabVisible]);
 
     // Load user status for conversation
     useEffect(() => {
@@ -971,12 +976,14 @@ export default function ChatWindow({
             const firstViewer = msg.seenBy[0];
             return (
                 <div className="message-status-wrapper">
-                    <img
-                        src={firstViewer.userAvatar || displayInfo.avatar}
-                        alt={firstViewer.userName || displayInfo.name}
-                        className="message-status-avatar"
-                        title={`Đã xem bởi ${firstViewer.userName || displayInfo.name}`}
-                    />
+                    {conversation.isGroup && (
+                        <img
+                            src={firstViewer.userAvatar || displayInfo.avatar}
+                            alt={firstViewer.userName || displayInfo.name}
+                            className="message-status-avatar"
+                            title={`Đã xem bởi ${firstViewer.userName || displayInfo.name}`}
+                        />
+                    )}
                     <span className="message-status-text seen">Đã xem</span>
                 </div>
             );
@@ -1012,7 +1019,10 @@ export default function ChatWindow({
     // 🆕 Handle visibility change for pulse effect when returning to tab
     useEffect(() => {
         const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible' && unreadCount > 0) {
+            const isVisible = document.visibilityState === 'visible';
+            setIsTabVisible(isVisible);
+
+            if (isVisible && unreadCount > 0) {
                 // User returned to tab with unread messages - apply pulse effect
                 setHeaderAnimation('pulse');
                 setTimeout(() => setHeaderAnimation(''), 800);
