@@ -998,6 +998,26 @@ export default function SideChat() {
                                             {!conv.typingUsers?.length && conv.lastMessageAt && conv.lastMessageContent && (
                                                 <span className="friend-message-time"> · {formatTimeAgo(conv.lastMessageAt)}</span>
                                             )}
+                                            {/* Show seen avatars if last message has been seen by others */}
+                                            {conv.lastMessageSeenByUserIds && conv.lastMessageSeenByUserIds.length > 0 && (
+                                                <div className="seen-avatars">
+                                                    {conv.lastMessageSeenByUserIds
+                                                        .filter(userId => userId !== currentUserId) // Exclude current user
+                                                        .slice(0, 3) // Show max 3 avatars
+                                                        .map(userId => {
+                                                            const member = conv.members.find(m => m.userId === userId);
+                                                            return member ? (
+                                                                <img
+                                                                    key={userId}
+                                                                    src={member.avatarUrl || '/default-avatar.png'}
+                                                                    alt=""
+                                                                    className="seen-avatar"
+                                                                    title={member.username}
+                                                                />
+                                                            ) : null;
+                                                        })}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                     {hasUnread && (

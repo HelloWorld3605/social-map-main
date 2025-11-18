@@ -5,6 +5,6 @@ package com.mapsocial.enums;
  */
 public enum MessageStatus {
     SENT,    // Message sent but not delivered to any recipient
+    DELIVERED, // Message delivered to recipients
     SEEN     // Message has been seen by at least one recipient
 }
-

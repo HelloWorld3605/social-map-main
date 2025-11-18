@@ -13,6 +13,7 @@ import com.mapsocial.entity.Chat.Message;
 import com.mapsocial.entity.Friendship;
 import com.mapsocial.entity.User;
 import com.mapsocial.enums.FriendshipStatus;
+import com.mapsocial.enums.MessageStatus;
 import com.mapsocial.enums.MessageType;
 import com.mapsocial.exception.ChatException;
 import com.mapsocial.repository.ConversationMemberRepository;
@@ -21,12 +22,14 @@ import com.mapsocial.repository.FriendshipRepository;
 import com.mapsocial.repository.MessageRepository;
 import com.mapsocial.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.redis.core.RedisTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -42,6 +45,8 @@ public class ChatServiceImpl implements ChatService {
     private final UserRepository userRepository;
     private final FriendshipRepository friendshipRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    @Autowired(required = false)
+    private RedisTemplate<String, Object> redisTemplate;
 
     private static final String CONVERSATION_NOT_FOUND = "Không tìm thấy cuộc trò chuyện";
     private static final String USER_NOT_IN_CONVERSATION = "Không tìm thấy người dùng trong cuộc trò chuyện";
@@ -76,6 +81,12 @@ public class ChatServiceImpl implements ChatService {
                 .build();
 
         Message savedMessage = messageRepository.save(message);
+
+        // Set initial status to DELIVERED in Redis (assuming sent via WebSocket means delivered)
+        if (redisTemplate != null) {
+            String statusKey = "message:status:" + savedMessage.getId();
+            redisTemplate.opsForValue().set(statusKey, MessageStatus.DELIVERED.name());
+        }
 
         Conversation conversation = conversationRepository.findById(request.getConversationId())
                 .orElseThrow(() -> new ChatException(CONVERSATION_NOT_FOUND));
@@ -405,7 +416,7 @@ public class ChatServiceImpl implements ChatService {
         // 3. Get unread messages to update their status
         List<Message> unreadMessages = messageRepository.findNewMessages(conversationId, oldLastReadAt);
 
-        // 4. Update message status for messages sent by others
+        // 4. Update message status in Redis for messages sent by others
         List<com.mapsocial.dto.MessageStatusUpdateDTO> statusUpdates = new ArrayList<>();
 
         for (Message message : unreadMessages) {
@@ -414,57 +425,59 @@ public class ChatServiceImpl implements ChatService {
                 continue;
             }
 
-            // Add current user to seenBy list if not already present
-            boolean alreadySeen = message.getSeenBy().stream()
-                    .anyMatch(s -> s.getUserId().equals(userId));
+            String statusKey = "message:status:" + message.getId();
+            String seenByKey = "message:seenBy:" + message.getId();
 
-            System.out.println("📖 Message " + message.getId() + " seenBy before: " + message.getSeenBy().size() + " items, alreadySeen: " + alreadySeen);
-
-            if (!alreadySeen) {
-                com.mapsocial.entity.Chat.MessageSeenBy seenBy = com.mapsocial.entity.Chat.MessageSeenBy.builder()
-                        .userId(userId)
-                        .seenAt(LocalDateTime.now())
-                        .build();
-                message.getSeenBy().add(seenBy);
-
-                // Update message status to SEEN
-                message.setStatus(com.mapsocial.enums.MessageStatus.SEEN);
-                Message savedMessage = messageRepository.save(message);
-
-                System.out.println("📖 Message " + message.getId() + " saved with seenBy: " + savedMessage.getSeenBy().size() + " items");
-
-                // Create status update DTO
-                List<com.mapsocial.dto.MessageSeenByDTO> seenByDTOs = message.getSeenBy().stream()
-                        .map(sb -> {
-                            User u = userRepository.findById(UUID.fromString(sb.getUserId())).orElse(null);
-                            String uName = u != null ? (u.getDisplayName() != null ? u.getDisplayName() : u.getEmail()) : UNKNOWN_USER;
-                            String uAvatar = u != null ? u.getAvatarUrl() : null;
-                            return com.mapsocial.dto.MessageSeenByDTO.builder()
-                                    .userId(sb.getUserId())
-                                    .userName(uName)
-                                    .userAvatar(uAvatar)
-                                    .seenAt(sb.getSeenAt())
-                                    .build();
-                        })
-                        .collect(Collectors.toList());
-
-                com.mapsocial.dto.MessageStatusUpdateDTO statusUpdate = com.mapsocial.dto.MessageStatusUpdateDTO.builder()
-                        .messageId(message.getId())
-                        .conversationId(conversationId)
-                        .status(message.getStatus())
-                        .seenBy(seenByDTOs)
-                        .updatedAt(LocalDateTime.now())
-                        .build();
-
-                statusUpdates.add(statusUpdate);
-
-                // Broadcast status update to message sender
-                messagingTemplate.convertAndSendToUser(
-                        message.getSenderId(),
-                        "/queue/message-status",
-                        statusUpdate
-                );
+            // Check if already seen in Redis
+            Object existingSeen = redisTemplate != null ? redisTemplate.opsForHash().get(seenByKey, userId) : null;
+            if (existingSeen != null) {
+                continue; // Already seen
             }
+
+            // Store seen in Redis
+            if (redisTemplate != null) {
+                redisTemplate.opsForHash().put(seenByKey, userId, LocalDateTime.now().toString());
+                // Set TTL for seenBy (24-48 hours, let's use 36 hours)
+                redisTemplate.expire(seenByKey, java.time.Duration.ofHours(36));
+
+                // Update status to SEEN in Redis
+                redisTemplate.opsForValue().set(statusKey, com.mapsocial.enums.MessageStatus.SEEN.name());
+            }
+
+            // Get current seenBy from Redis for DTO
+            Map<Object, Object> seenByMap = redisTemplate != null ? redisTemplate.opsForHash().entries(seenByKey) : new HashMap<>();
+            List<com.mapsocial.dto.MessageSeenByDTO> seenByDTOs = seenByMap.entrySet().stream()
+                    .map(entry -> {
+                        String uid = (String) entry.getKey();
+                        LocalDateTime seenAt = LocalDateTime.parse((String) entry.getValue());
+                        User u = userRepository.findById(UUID.fromString(uid)).orElse(null);
+                        String uName = u != null ? (u.getDisplayName() != null ? u.getDisplayName() : u.getEmail()) : UNKNOWN_USER;
+                        String uAvatar = u != null ? u.getAvatarUrl() : null;
+                        return com.mapsocial.dto.MessageSeenByDTO.builder()
+                                .userId(uid)
+                                .userName(uName)
+                                .userAvatar(uAvatar)
+                                .seenAt(seenAt)
+                                .build();
+                    })
+                    .collect(Collectors.toList());
+
+            com.mapsocial.dto.MessageStatusUpdateDTO statusUpdate = com.mapsocial.dto.MessageStatusUpdateDTO.builder()
+                    .messageId(message.getId())
+                    .conversationId(conversationId)
+                    .status(com.mapsocial.enums.MessageStatus.SEEN)
+                    .seenBy(seenByDTOs)
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+
+            statusUpdates.add(statusUpdate);
+
+            // Broadcast status update to message sender
+            messagingTemplate.convertAndSendToUser(
+                    message.getSenderId(),
+                    "/queue/message-status",
+                    statusUpdate
+            );
         }
 
         // 5. Update member lastReadAt after processing
@@ -635,9 +648,23 @@ public class ChatServiceImpl implements ChatService {
 
         String lastMessageContent = null;
         String lastMessageSenderId = null;
+        List<String> lastMessageSeenByUserIds = null;
         if (lastMessage.isPresent()) {
-            lastMessageContent = lastMessage.get().getContent();
-            lastMessageSenderId = lastMessage.get().getSenderId();
+            Message msg = lastMessage.get();
+            lastMessageContent = msg.getContent();
+            lastMessageSenderId = msg.getSenderId();
+            // Get seenBy userIds
+            if (redisTemplate != null) {
+                String seenByKey = "message:seenBy:" + msg.getId();
+                Map<Object, Object> seenByMap = redisTemplate.opsForHash().entries(seenByKey);
+                lastMessageSeenByUserIds = seenByMap.keySet().stream()
+                        .map(Object::toString)
+                        .collect(Collectors.toList());
+            } else {
+                lastMessageSeenByUserIds = msg.getSeenBy().stream()
+                        .map(com.mapsocial.entity.Chat.MessageSeenBy::getUserId)
+                        .collect(Collectors.toList());
+            }
         }
 
         int unreadCount = getUnreadCount(conversation.getId(), currentUserId);
@@ -651,6 +678,7 @@ public class ChatServiceImpl implements ChatService {
                 .lastMessageContent(lastMessageContent)
                 .lastMessageSenderId(lastMessageSenderId)
                 .lastMessageAt(conversation.getLastMessageAt())
+                .lastMessageSeenByUserIds(lastMessageSeenByUserIds)
                 .unreadCount(unreadCount)
                 .members(memberDTOs)
                 .typingUserIds(typingUserIds)
@@ -717,25 +745,36 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
-        // Map seenBy list with user details
-        List<com.mapsocial.dto.MessageSeenByDTO> seenByDTOs = new ArrayList<>();
-        if (message.getSeenBy() != null) {
-            System.out.println("📖 Mapping message " + message.getId() + " with seenBy size: " + message.getSeenBy().size());
-            for (com.mapsocial.entity.Chat.MessageSeenBy seenBy : message.getSeenBy()) {
-                User user = userRepository.findById(UUID.fromString(seenBy.getUserId())).orElse(null);
-                if (user != null) {
-                    String userName = user.getDisplayName() != null ? user.getDisplayName() : user.getEmail();
-                    seenByDTOs.add(com.mapsocial.dto.MessageSeenByDTO.builder()
-                            .userId(seenBy.getUserId())
-                            .userName(userName)
-                            .userAvatar(user.getAvatarUrl())
-                            .seenAt(seenBy.getSeenAt())
-                            .build());
-                }
+        // Get status from Redis first, fallback to DB
+        String statusKey = "message:status:" + message.getId();
+        String statusStr = redisTemplate != null ? (String) redisTemplate.opsForValue().get(statusKey) : null;
+        com.mapsocial.enums.MessageStatus status = message.getStatus() != null ? message.getStatus() : com.mapsocial.enums.MessageStatus.SENT;
+        if (statusStr != null) {
+            try {
+                status = com.mapsocial.enums.MessageStatus.valueOf(statusStr);
+            } catch (IllegalArgumentException e) {
+                // Invalid status, use default
             }
-        } else {
-            System.out.println("📖 Message " + message.getId() + " has null seenBy");
         }
+
+        // Get seenBy from Redis
+        String seenByKey = "message:seenBy:" + message.getId();
+        Map<Object, Object> seenByMap = redisTemplate != null ? redisTemplate.opsForHash().entries(seenByKey) : new HashMap<>();
+        List<com.mapsocial.dto.MessageSeenByDTO> seenByDTOs = seenByMap.entrySet().stream()
+                .map(entry -> {
+                    String uid = (String) entry.getKey();
+                    LocalDateTime seenAt = LocalDateTime.parse((String) entry.getValue());
+                    User u = userRepository.findById(UUID.fromString(uid)).orElse(null);
+                    String uName = u != null ? (u.getDisplayName() != null ? u.getDisplayName() : u.getEmail()) : UNKNOWN_USER;
+                    String uAvatar = u != null ? u.getAvatarUrl() : null;
+                    return com.mapsocial.dto.MessageSeenByDTO.builder()
+                            .userId(uid)
+                            .userName(uName)
+                            .userAvatar(uAvatar)
+                            .seenAt(seenAt)
+                            .build();
+                })
+                .collect(Collectors.toList());
 
         return MessageDTO.builder()
                 .id(message.getId())
@@ -751,7 +790,7 @@ public class ChatServiceImpl implements ChatService {
                 .isEdited(message.isEdited())
                 .updatedAt(message.getUpdatedAt())
                 .createdAt(message.getCreatedAt())
-                .status(message.getStatus() != null ? message.getStatus() : com.mapsocial.enums.MessageStatus.SENT)
+                .status(status)
                 .seenBy(seenByDTOs)
                 .build();
     }

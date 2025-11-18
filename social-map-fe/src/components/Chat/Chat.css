@@ -843,3 +843,27 @@ body.dark-mode .message-input-container {
     background: #2d2d2d;
     border-top-color: #333;
 }
+
+/* Seen Avatars in Side Chat */
+.seen-avatars {
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
+    gap: 2px;
+}
+
+.seen-avatar {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid #fff;
+    flex-shrink: 0;
+}
+
+.seen-avatar:nth-child(2) {
+    margin-left: -4px;
+}
+
+.seen-avatar:nth-child(3) {
+    margin-left: -4px;
+}

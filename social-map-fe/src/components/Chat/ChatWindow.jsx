@@ -35,6 +35,9 @@ export default function ChatWindow({
     // 🆕 Animation states for header effects
     const [headerAnimation, setHeaderAnimation] = useState(''); // 'unread', 'flash', 'pulse'
 
+    // 🆕 Track user interaction for mark as read
+    const [userInteracted, setUserInteracted] = useState(false);
+
     const messagesContainerRef = useRef(null);
     const inputRef = useRef(null);
     const navigate = useNavigate();
@@ -304,6 +307,9 @@ export default function ChatWindow({
 
     // 🔹 Phát hiện scroll lên trên để load tin nhắn cũ (Facebook-style)
     const handleScroll = useCallback(() => {
+        // Mark user as interacted when scrolling
+        setUserInteracted(true);
+
         const container = messagesContainerRef.current;
 
         // ✅ Always log scroll events để debug
@@ -368,8 +374,9 @@ export default function ChatWindow({
         // 2. AND tab is visible (user is looking at this tab)
         // 3. AND messages are loaded (not initial load)
         // 4. AND there are messages
-        // 5. AND enough time has passed since last mark (throttle)
-        if (conversation?.id && !minimized && isActive && isTabVisible && !isInitialLoad && messages.length > 0) {
+        // 5. AND user has interacted with the window (clicked or focused)
+        // 6. AND enough time has passed since last mark (throttle)
+        if (conversation?.id && !minimized && isActive && isTabVisible && !isInitialLoad && messages.length > 0 && userInteracted) {
             const now = Date.now();
             const timeSinceLastMark = now - lastMarkAsReadTimeRef.current;
 
@@ -383,7 +390,7 @@ export default function ChatWindow({
 
             // Mark as read if last message is from another user (has unread messages)
             if (lastMessage && lastMessage.senderId !== currentUserId) {
-                console.log('👁️ Marking messages as read (window is active)...', {
+                console.log('👁️ Marking messages as read (user interacted)...', {
                     conversationId: conversation.id,
                     lastMessageId: lastMessage.id,
                     lastMessageSender: lastMessage.senderId,
@@ -403,11 +410,12 @@ export default function ChatWindow({
                 console.log('⏭️ Skipping mark as read: last message is from current user');
             }
         }
-    }, [conversation?.id, minimized, isActive, onMarkAsRead, messages, currentUserId, isInitialLoad, isTabVisible]);
+    }, [conversation?.id, minimized, isActive, onMarkAsRead, messages, currentUserId, isInitialLoad, isTabVisible, userInteracted]);
 
     // Reset throttle when conversation changes
     useEffect(() => {
         lastMarkAsReadTimeRef.current = 0;
+        setUserInteracted(false); // Reset interaction state for new conversation
     }, [conversation?.id]);
 
     // Create stable callback refs to avoid recreating subscriptions
@@ -481,7 +489,7 @@ export default function ChatWindow({
                 messageId: message.id
             });
 
-            if (isWindowActive && !isWindowMinimized && isTabVisible && message.senderId !== currentUserId) {
+            if (isWindowActive && !isWindowMinimized && isTabVisible && message.senderId !== currentUserId && userInteracted) {
                 console.log('✅ Auto-marking as read (new message received, window is active)');
                 // Throttle: only mark if enough time has passed
                 const now = Date.now();
@@ -500,7 +508,8 @@ export default function ChatWindow({
                 console.log('⏭️ Skipping auto-mark as read:', {
                     reason: !isWindowActive ? 'window not active' :
                         isWindowMinimized ? 'window minimized' :
-                            'message from current user'
+                            !userInteracted ? 'user not interacted' :
+                                'message from current user'
                 });
             }
         };
@@ -532,12 +541,14 @@ export default function ChatWindow({
         };
 
         updateCallbackRef.current = (updatedMessage) => {
-            setMessages(prev =>
-                prev.map(msg =>
+            setMessages(prev => {
+                return prev.map(msg =>
                     msg.id === updatedMessage.id ? updatedMessage : msg
-                )
-            );
+                );
+            });
         };
+
+
 
         // Message status update callback
         messageStatusCallbackRef.current = (statusUpdate) => {
@@ -629,7 +640,7 @@ export default function ChatWindow({
                 return updated;
             });
         };
-    }, [conversation, currentUserId, isActive, minimized, onNewMessage, onMarkAsRead, scrollToBottom, isTabVisible]);
+    }, [conversation, currentUserId, isActive, minimized, onNewMessage, onMarkAsRead, scrollToBottom, isTabVisible, userInteracted]);
 
     // Load user status for conversation
     useEffect(() => {
@@ -1037,6 +1048,8 @@ export default function ChatWindow({
     const handleWindowClick = useCallback(() => {
         // Clear all animations when user clicks on window
         setHeaderAnimation('');
+        // Mark user as interacted
+        setUserInteracted(true);
 
         // Call parent onWindowClick
         onWindowClick();
@@ -1235,7 +1248,7 @@ export default function ChatWindow({
                     value={inputValue}
                     onInput={handleInputChange}
                     onKeyPress={handleKeyPress}
-                    onFocus={() => { if (inputValue.length > 0) sendTypingIndicator(true); }}
+                    onFocus={() => { if (inputValue.length > 0) sendTypingIndicator(true); setUserInteracted(true); }}
                     onBlur={() => sendTypingIndicator(false)}
                     disabled={isSending}
                     ref={inputRef}

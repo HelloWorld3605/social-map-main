@@ -21,6 +21,9 @@ public class ConversationDTO {
     private String lastMessageSenderId;
     private LocalDateTime lastMessageAt;
 
+    // Seen by users for last message
+    private List<String> lastMessageSeenByUserIds;
+
     // Unread count (calculated)
     private int unreadCount;
 
@@ -32,4 +35,3 @@ public class ConversationDTO {
 
     private LocalDateTime createdAt;
 }
-

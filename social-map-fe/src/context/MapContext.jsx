@@ -37,3 +37,4 @@ export function MapProvider({ children }) {
 export function useMapContext() {
     return useContext(MapContext);
 }
+
