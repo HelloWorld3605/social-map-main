@@ -385,14 +385,13 @@ public class ChatServiceImpl implements ChatService {
     @Override
     @Transactional
     public void markMessagesAsRead(String conversationId, String userId) {
-        // 1. Update member lastReadAt
+        // 1. Get member and old lastReadAt
         ConversationMember member = conversationMemberRepository
                 .findByConversationIdAndUserId(conversationId, userId)
                 .orElseThrow(() -> new ChatException(USER_NOT_IN_CONVERSATION));
 
-        member.setLastReadAt(LocalDateTime.now());
-        member.setLastActiveAt(LocalDateTime.now());
-        conversationMemberRepository.save(member);
+        LocalDateTime oldLastReadAt = member.getLastReadAt() != null ?
+                member.getLastReadAt() : member.getJoinedAt();
 
         // 2. Get user info for read receipt
         User currentUser = userRepository.findById(UUID.fromString(userId)).orElse(null);
@@ -404,8 +403,7 @@ public class ChatServiceImpl implements ChatService {
         }
 
         // 3. Get unread messages to update their status
-        LocalDateTime lastReadAt = member.getLastReadAt();
-        List<Message> unreadMessages = messageRepository.findNewMessages(conversationId, lastReadAt);
+        List<Message> unreadMessages = messageRepository.findNewMessages(conversationId, oldLastReadAt);
 
         // 4. Update message status for messages sent by others
         List<com.mapsocial.dto.MessageStatusUpdateDTO> statusUpdates = new ArrayList<>();
@@ -469,49 +467,29 @@ public class ChatServiceImpl implements ChatService {
             }
         }
 
-        // 5. Get last message in conversation to broadcast read receipt (existing logic)
-        Optional<Message> lastMessage = messageRepository
-                .findTop1ByConversationIdAndDeletedFalseOrderByCreatedAtDesc(conversationId);
+        // 5. Update member lastReadAt after processing
+        member.setLastReadAt(LocalDateTime.now());
+        member.setLastActiveAt(LocalDateTime.now());
+        conversationMemberRepository.save(member);
 
-        ReadReceiptDTO receipt = null;
-        if (lastMessage.isPresent() && !lastMessage.get().getSenderId().equals(userId)) {
-            // Create read receipt
-            receipt = new ReadReceiptDTO(
-                    conversationId,
-                    lastMessage.get().getId(),
-                    userId,
-                    userName,
-                    userAvatar,
-                    LocalDateTime.now()
-            );
+        // 6. Send read receipt to other members
+        List<ConversationMember> otherMembers = conversationMemberRepository
+                .findByConversationIdAndUserIdNotAndDeletedFalse(conversationId, userId);
 
-            // Broadcast read receipt to message sender
+        for (ConversationMember otherMember : otherMembers) {
+            // Send read receipt
+            ReadReceiptDTO receipt = new ReadReceiptDTO();
+            receipt.setReadByUserId(userId);
+            receipt.setReadByUserName(userName);
+            receipt.setReadByUserAvatar(userAvatar);
+            receipt.setLastMessageId(unreadMessages.isEmpty() ? null : unreadMessages.get(unreadMessages.size() - 1).getId());
+            receipt.setReadAt(LocalDateTime.now());
+
             messagingTemplate.convertAndSendToUser(
-                    lastMessage.get().getSenderId(),
+                    otherMember.getUserId(),
                     "/queue/read-receipt",
                     receipt
             );
-        }
-
-        // 6. Broadcast unread count = 0 to current user
-        UnreadCountDTO unreadDTO = new UnreadCountDTO(conversationId, 0);
-        messagingTemplate.convertAndSendToUser(userId, "/queue/unread", unreadDTO);
-
-        // 7. Broadcast to all members that conversation was updated (for last seen status)
-        if (receipt != null) {
-            List<ConversationMember> allMembers = conversationMemberRepository
-                    .findByConversationId(conversationId);
-
-            for (ConversationMember mem : allMembers) {
-                if (!mem.getUserId().equals(userId)) {
-                    // Notify other members that this user read the messages
-                    messagingTemplate.convertAndSendToUser(
-                            mem.getUserId(),
-                            "/queue/conversation-read",
-                            receipt
-                    );
-                }
-            }
         }
     }
 

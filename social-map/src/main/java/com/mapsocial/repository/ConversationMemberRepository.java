@@ -43,4 +43,8 @@ public interface ConversationMemberRepository extends MongoRepository<Conversati
 
     // Xóa tất cả members của conversation (khi xóa group)
     void deleteByConversationId(String conversationId);
+
+    // Tìm members khác trong conversation (không phải user hiện tại)
+    @Query("{'conversationId': ?0, 'userId': {$ne: ?1}, 'deleted': false}")
+    List<ConversationMember> findByConversationIdAndUserIdNotAndDeletedFalse(String conversationId, String userId);
 }
