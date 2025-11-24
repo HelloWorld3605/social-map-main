@@ -12,7 +12,8 @@ export default function SearchBar() {
     const [isLoading, setIsLoading] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
     const [userLocation, setUserLocation] = useState(null); // Store user's current location
-    const [locationPermission, setLocationPermission] = useState('prompt'); // 'granted', 'denied', 'prompt'
+    const [searchHistory, setSearchHistory] = useState([]);
+    const [isShowingHistory, setIsShowingHistory] = useState(false); // Track if showing history
     const searchTimeoutRef = useRef(null);
     const dropdownRef = useRef(null);
     const tempMarkerRef = useRef(null); // Store temporary marker reference
@@ -25,7 +26,6 @@ export default function SearchBar() {
             try {
                 const location = JSON.parse(savedLocation);
                 setUserLocation(location);
-                setLocationPermission('granted');
             } catch (e) {
                 console.error('Error parsing saved location:', e);
                 setUserLocation({ lng: 105.85, lat: 21.03 }); // Default to Hanoi
@@ -39,11 +39,9 @@ export default function SearchBar() {
         const handleLocationUpdate = (event) => {
             if (event.detail) {
                 setUserLocation(event.detail);
-                setLocationPermission('granted');
             } else {
                 // Location turned off
                 setUserLocation({ lng: 105.85, lat: 21.03 }); // Fallback to Hanoi
-                setLocationPermission('denied');
             }
         };
 
@@ -52,6 +50,18 @@ export default function SearchBar() {
         return () => {
             window.removeEventListener('locationUpdated', handleLocationUpdate);
         };
+    }, []);
+
+    // Load search history on component mount
+    useEffect(() => {
+        const savedHistory = localStorage.getItem('searchHistory');
+        if (savedHistory) {
+            try {
+                setSearchHistory(JSON.parse(savedHistory));
+            } catch (e) {
+                console.error('Error parsing search history:', e);
+            }
+        }
     }, []);
 
     // Close dropdown when clicking outside
@@ -108,6 +118,7 @@ export default function SearchBar() {
             if (data.features) {
                 setSearchResults(data.features);
                 setShowDropdown(true);
+                setIsShowingHistory(false);
             }
         } catch (error) {
             console.error('Search error:', error);
@@ -168,6 +179,12 @@ export default function SearchBar() {
 
         setSearchQuery(name);
         setShowDropdown(false);
+        setIsShowingHistory(false);
+
+        // Add to search history, limit to 5, and save to localStorage
+        const updatedHistory = [location, ...searchHistory.filter(h => h.place_name !== location.place_name)].slice(0, 5);
+        setSearchHistory(updatedHistory);
+        localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
     };
 
     // Handle search button click
@@ -203,6 +220,13 @@ export default function SearchBar() {
                     value={searchQuery}
                     onChange={handleSearchChange}
                     onKeyPress={handleKeyPress}
+                    onFocus={() => {
+                        if (!searchQuery.trim() && searchHistory.length > 0) {
+                            setSearchResults(searchHistory);
+                            setShowDropdown(true);
+                            setIsShowingHistory(true); // Show history
+                        }
+                    }}
                 />
 
                 <button className="search-button" onClick={handleSearchClick}>
@@ -225,7 +249,7 @@ export default function SearchBar() {
                             className="search-result-item"
                             onClick={() => handleLocationSelect(result)}
                         >
-                            <div className="search-result-icon">📍</div>
+                            <div className="search-result-icon">{isShowingHistory ? '🕒' : '📍'}</div>
                             <div className="search-result-content">
                                 <div className="search-result-name">
                                     {result.text}
