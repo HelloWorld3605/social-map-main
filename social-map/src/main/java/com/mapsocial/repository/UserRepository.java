@@ -38,6 +38,13 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     org.springframework.data.domain.Page<User> searchActiveUsers(@Param("search") String search,
                                                                    org.springframework.data.domain.Pageable pageable);
 
+    @Query("SELECT u FROM User u WHERE u.deletedAt IS NULL AND u.id != :currentUserId AND " +
+           "(LOWER(u.displayName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')))" )
+    org.springframework.data.domain.Page<User> searchActiveUsersExcludingSelf(@Param("search") String search,
+                                                                              @Param("currentUserId") UUID currentUserId,
+                                                                              org.springframework.data.domain.Pageable pageable);
+
     @Query("SELECT u FROM User u WHERE " +
            "LOWER(u.displayName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
            "LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))")

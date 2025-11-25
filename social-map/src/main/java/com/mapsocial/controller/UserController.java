@@ -5,10 +5,15 @@ import com.mapsocial.dto.response.user.UserResponse;
 import com.mapsocial.service.UserService;
 import com.mapsocial.service.UserStatusService;
 import com.mapsocial.service.impl.CustomUserDetailsService.UserPrincipal;
+import com.mapsocial.repository.UserRepository;
+import com.mapsocial.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +29,7 @@ public class UserController {
 
     private final UserService userService;
     private final UserStatusService userStatusService;
+    private final UserRepository userRepository;
 
     @GetMapping("/{id}")
     @Operation(summary = "Lấy thông tin profile người dùng")
@@ -104,5 +110,20 @@ public class UserController {
                 "isOnline", isOnline,
                 "lastSeen", lastSeen
         ));
+    }
+
+    @GetMapping("/search-users")
+    @Operation(summary = "Tìm kiếm người dùng")
+    public ResponseEntity<Page<UserResponse>> searchUsers(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @RequestParam String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        UUID currentUserId = userPrincipal.getUser().getId();
+        Pageable pageable = PageRequest.of(page, size);
+        Page<User> users = userRepository.searchActiveUsersExcludingSelf(query, currentUserId, pageable);
+        Page<UserResponse> userResponses = users.map(user -> userService.getProfile(user.getId()));
+        return ResponseEntity.ok(userResponses);
     }
 }
