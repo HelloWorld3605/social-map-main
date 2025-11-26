@@ -81,8 +81,13 @@ class ShopMarkersManager {
         el.setAttribute('data-shop-id', shop.id);
         el.setAttribute('data-shop-name', shop.name);
         el.innerHTML = `
-            <div class="shop-marker-icon">
-                🏪
+            <div class="shop-marker-container" style="display: flex; align-items: center; position: relative;">
+                <div class="shop-marker-icon" style="font-size: 18px;">
+                    🏪
+                </div>
+                <div class="shop-marker-label" style="margin-left: 6px; font-size: 10px; font-weight: bold; color: #333; background: rgba(255,255,255,0.9); padding: 1px 3px; border-radius: 3px; white-space: nowrap; max-width: 80px; overflow: hidden; text-overflow: ellipsis;">
+                    ${shop.name}
+                </div>
             </div>
         `;
 
@@ -107,13 +112,18 @@ class ShopMarkersManager {
         this.markers.push(marker);
         this.shopPopups.set(shop.id, marker);
 
-        // Add hover effect
-        el.addEventListener('mouseenter', () => {
-            el.classList.add('hover');
+        // Add hover effect only to the icon
+        const iconEl = el.querySelector('.shop-marker-icon');
+        iconEl.addEventListener('mouseenter', () => {
+            iconEl.style.backgroundColor = 'rgba(0, 123, 255, 0.3)';
+            iconEl.style.borderRadius = '50%';
+            iconEl.style.padding = '2px';
         });
 
-        el.addEventListener('mouseleave', () => {
-            el.classList.remove('hover');
+        iconEl.addEventListener('mouseleave', () => {
+            iconEl.style.backgroundColor = '';
+            iconEl.style.borderRadius = '';
+            iconEl.style.padding = '';
         });
 
         // DISABLED: Let LocationSharing handle drag & drop functionality
@@ -386,4 +396,3 @@ window.shopCarousel = {
 // Export singleton instance
 export const shopMarkersManager = new ShopMarkersManager();
 export default shopMarkersManager;
-
