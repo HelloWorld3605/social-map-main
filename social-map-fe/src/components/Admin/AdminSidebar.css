@@ -4,7 +4,7 @@
     left: 0;
     top: 90px; /* Sau header */
     width: 250px;
-    height: calc(100vh - 80px);
+    height: calc(100vh - 90px);
     background: #1e293b;
     color: white;
     display: flex;
@@ -133,4 +133,3 @@
         width: 100%;
     }
 }
-

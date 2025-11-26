@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getDashboardStats } from '../../services/adminService';
 import AdminSidebar from '../../components/Admin/AdminSidebar';
 import './DashboardPage.css';
@@ -7,6 +8,7 @@ export default function DashboardPage() {
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const navigate = useNavigate();
 
     useEffect(() => {
         loadStats();
@@ -28,6 +30,11 @@ export default function DashboardPage() {
         }
     };
 
+    const handleRetry = () => {
+        setError(null);
+        loadStats();
+    };
+
     if (loading) {
         return (
             <div className="dashboard-container">
@@ -44,7 +51,7 @@ export default function DashboardPage() {
             <div className="dashboard-container">
                 <div className="error-container">
                     <p className="error-message">{error}</p>
-                    <button onClick={loadStats} className="retry-button">
+                    <button onClick={handleRetry} className="retry-button">
                         Thử lại
                     </button>
                 </div>
@@ -197,8 +204,38 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Quick Actions */}
+            <div className="quick-actions">
+                <h2>Quick Actions</h2>
+                <div className="action-buttons">
+                    <button className="action-btn primary" onClick={() => navigate('/dashboard/seller-requests')}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Xem Seller Requests
+                    </button>
+                    <button className="action-btn secondary" onClick={() => navigate('/dashboard/users')}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                        Quản lý Users
+                    </button>
+                    <button className="action-btn success" onClick={() => navigate('/dashboard/shops')}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        Quản lý Shops
+                    </button>
+                    <button className="action-btn info" onClick={() => navigate('/dashboard/tags')}>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        Quản lý Tags
+                    </button>
+                </div>
+            </div>
             </div>
         </>
     );
 }
-
