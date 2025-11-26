@@ -62,7 +62,13 @@ export default function SearchBar() {
         const savedHistory = localStorage.getItem('searchHistory');
         if (savedHistory) {
             try {
-                setSearchHistory(JSON.parse(savedHistory));
+                const history = JSON.parse(savedHistory);
+                // Ensure old format is converted to new format
+                const convertedHistory = history.map(item => {
+                    if (item.type) return item; // Already new format
+                    return { type: 'location', data: item }; // Convert old location format
+                });
+                setSearchHistory(convertedHistory);
             } catch (e) {
                 console.error('Error parsing search history:', e);
             }
@@ -182,6 +188,12 @@ export default function SearchBar() {
         navigate(`/profile/${user.id}`);
         setShowDropdown(false);
         setSearchQuery(user.displayName);
+
+        // Add to search history, limit to 5, and save to localStorage
+        const newHistoryItem = { type: 'user', data: user };
+        const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'user' && h.data.id === user.id))].slice(0, 5);
+        setSearchHistory(updatedHistory);
+        localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
     };
 
     // Handle location selection
@@ -222,9 +234,17 @@ export default function SearchBar() {
         setIsShowingHistory(false);
 
         // Add to search history, limit to 5, and save to localStorage
-        const updatedHistory = [location, ...searchHistory.filter(h => h.place_name !== location.place_name)].slice(0, 5);
+        const newHistoryItem = { type: 'location', data: location };
+        const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'location' && h.data.place_name === location.place_name))].slice(0, 5);
         setSearchHistory(updatedHistory);
         localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
+    };
+
+    // Handle query selection from history
+    const handleQuerySelect = (queryData) => {
+        setSearchQuery(queryData.query);
+        setShowDropdown(false);
+        performSearch(queryData.query);
     };
 
     // Handle search button click
@@ -248,8 +268,13 @@ export default function SearchBar() {
                     handleLocationSelect(firstResult);
                 }
             }
-            // Otherwise, trigger search
+            // Otherwise, add query to history if it's not empty
             else if (searchQuery.trim()) {
+                // Add query to search history
+                const newHistoryItem = { type: 'query', data: { query: searchQuery.trim() } };
+                const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'query' && h.data.query === searchQuery.trim()))].slice(0, 5);
+                setSearchHistory(updatedHistory);
+                localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
                 performSearch(searchQuery);
             }
         }
@@ -267,7 +292,12 @@ export default function SearchBar() {
                     onKeyPress={handleKeyPress}
                     onFocus={() => {
                         if (!searchQuery.trim() && searchHistory.length > 0) {
-                            setLocationResults(searchHistory);
+                            const historyResults = searchHistory.filter(item => item && item.data).map((item, index) => {
+                                const data = item.data;
+                                const id = item.type === 'query' ? data.query : data.id || data.place_name || `history-${index}`;
+                                return { ...data, type: item.type, id };
+                            });
+                            setCombinedResults(historyResults);
                             setShowDropdown(true);
                             setIsShowingHistory(true); // Show history
                         }
@@ -292,17 +322,33 @@ export default function SearchBar() {
                         <div
                             key={result.id || index}
                             className="search-result-item"
-                            onClick={() => result.type === 'user' ? handleUserSelect(result) : handleLocationSelect(result)}
+                            onClick={() => {
+                                if (result.type === 'user') {
+                                    handleUserSelect(result);
+                                } else if (result.type === 'query') {
+                                    handleQuerySelect(result);
+                                } else {
+                                    handleLocationSelect(result);
+                                }
+                            }}
                         >
                             <div className="search-result-icon">
-                                {isShowingHistory ? '🕒' : result.type === 'user' ? '👤' : '📍'}
+                                {isShowingHistory ? (
+                                    <img src="/icons/clock-outline.svg" alt="history" style={{ width: '20px', height: '20px' }} />
+                                ) : result.type === 'user' ? (
+                                    <img src="/icons/person-outline.svg" alt="user" style={{ width: '20px', height: '20px' }} />
+                                ) : result.type === 'query' ? (
+                                    <img src="/icons/location-outline.svg" alt="query" style={{ width: '20px', height: '20px' }} />
+                                ) : (
+                                    <img src="/icons/location-outline.svg" alt="location" style={{ width: '20px', height: '20px' }} />
+                                )}
                             </div>
                             <div className="search-result-content">
                                 <div className="search-result-name">
-                                    {result.type === 'user' ? result.displayName : result.text}
+                                    {result.type === 'user' ? result.displayName : result.type === 'query' ? result.query : result.text}
                                 </div>
                                 <div className="search-result-address">
-                                    {result.type === 'user' ? result.email : result.place_name}
+                                    {result.type === 'user' ? result.email : result.type === 'query' ? 'Tìm kiếm' : result.place_name}
                                 </div>
                             </div>
                         </div>
