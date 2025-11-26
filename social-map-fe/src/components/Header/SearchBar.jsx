@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
+import { userService } from '../../services/userService';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
 
@@ -8,7 +10,9 @@ const VIETNAM_BBOX = '102,8,110,23';
 
 export default function SearchBar() {
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
+    const [locationResults, setLocationResults] = useState([]);
+    const [userResults, setUserResults] = useState([]);
+    const [combinedResults, setCombinedResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
     const [userLocation, setUserLocation] = useState(null); // Store user's current location
@@ -17,6 +21,7 @@ export default function SearchBar() {
     const searchTimeoutRef = useRef(null);
     const dropdownRef = useRef(null);
     const tempMarkerRef = useRef(null); // Store temporary marker reference
+    const navigate = useNavigate();
 
     // Request user location on component mount
     useEffect(() => {
@@ -85,10 +90,36 @@ export default function SearchBar() {
         };
     }, []);
 
-    // Search with Mapbox Geocoding API
-    const searchLocation = async (query) => {
+    // Search users
+    const searchUsers = async (query) => {
         if (!query.trim()) {
-            setSearchResults([]);
+            setUserResults([]);
+            return;
+        }
+
+        try {
+            const response = await userService.searchUsers(query, 0, 5);
+            setUserResults(response.content || []);
+        } catch (error) {
+            console.error('User search error:', error);
+            setUserResults([]);
+        }
+    };
+
+    // Combine results
+    useEffect(() => {
+        const combined = [
+            ...locationResults.map(result => ({ ...result, type: 'location' })),
+            ...userResults.map(result => ({ ...result, type: 'user' }))
+        ];
+        setCombinedResults(combined);
+    }, [locationResults, userResults]);
+
+    // Perform search for both locations and users
+    const performSearch = async (query) => {
+        if (!query.trim()) {
+            setLocationResults([]);
+            setUserResults([]);
             setShowDropdown(false);
             return;
         }
@@ -96,12 +127,12 @@ export default function SearchBar() {
         setIsLoading(true);
 
         try {
-            // Build proximity parameter based on user location
+            // Search locations
             const proximityParam = userLocation
                 ? `&proximity=${userLocation.lng},${userLocation.lat}`
                 : '';
 
-            const response = await fetch(
+            const locationResponse = await fetch(
                 `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?` +
                 `access_token=${MAPBOX_TOKEN}` +
                 `&language=vi` +
@@ -113,16 +144,18 @@ export default function SearchBar() {
                 `&fuzzyMatch=true`
             );
 
-            const data = await response.json();
+            const locationData = await locationResponse.json();
+            setLocationResults(locationData.features || []);
 
-            if (data.features) {
-                setSearchResults(data.features);
-                setShowDropdown(true);
-                setIsShowingHistory(false);
-            }
+            // Search users
+            await searchUsers(query);
+
+            setShowDropdown(true);
+            setIsShowingHistory(false);
         } catch (error) {
             console.error('Search error:', error);
-            setSearchResults([]);
+            setLocationResults([]);
+            setUserResults([]);
         } finally {
             setIsLoading(false);
         }
@@ -140,8 +173,15 @@ export default function SearchBar() {
 
         // Set new timeout for search
         searchTimeoutRef.current = setTimeout(() => {
-            searchLocation(query);
+            performSearch(query);
         }, 500);
+    };
+
+    // Handle user selection
+    const handleUserSelect = (user) => {
+        navigate(`/profile/${user.id}`);
+        setShowDropdown(false);
+        setSearchQuery(user.displayName);
     };
 
     // Handle location selection
@@ -190,7 +230,7 @@ export default function SearchBar() {
     // Handle search button click
     const handleSearchClick = () => {
         if (searchQuery.trim()) {
-            searchLocation(searchQuery);
+            performSearch(searchQuery);
         }
     };
 
@@ -200,12 +240,17 @@ export default function SearchBar() {
             e.preventDefault();
 
             // If dropdown is showing and has results, select first result
-            if (showDropdown && searchResults.length > 0) {
-                handleLocationSelect(searchResults[0]);
+            if (showDropdown && combinedResults.length > 0) {
+                const firstResult = combinedResults[0];
+                if (firstResult.type === 'user') {
+                    handleUserSelect(firstResult);
+                } else {
+                    handleLocationSelect(firstResult);
+                }
             }
             // Otherwise, trigger search
             else if (searchQuery.trim()) {
-                searchLocation(searchQuery);
+                performSearch(searchQuery);
             }
         }
     };
@@ -222,7 +267,7 @@ export default function SearchBar() {
                     onKeyPress={handleKeyPress}
                     onFocus={() => {
                         if (!searchQuery.trim() && searchHistory.length > 0) {
-                            setSearchResults(searchHistory);
+                            setLocationResults(searchHistory);
                             setShowDropdown(true);
                             setIsShowingHistory(true); // Show history
                         }
@@ -241,21 +286,23 @@ export default function SearchBar() {
             </div>
 
             {/* Dropdown Results */}
-            {showDropdown && searchResults.length > 0 && (
+            {showDropdown && combinedResults.length > 0 && (
                 <div className="search-dropdown">
-                    {searchResults.map((result, index) => (
+                    {combinedResults.map((result, index) => (
                         <div
                             key={result.id || index}
                             className="search-result-item"
-                            onClick={() => handleLocationSelect(result)}
+                            onClick={() => result.type === 'user' ? handleUserSelect(result) : handleLocationSelect(result)}
                         >
-                            <div className="search-result-icon">{isShowingHistory ? '🕒' : '📍'}</div>
+                            <div className="search-result-icon">
+                                {isShowingHistory ? '🕒' : result.type === 'user' ? '👤' : '📍'}
+                            </div>
                             <div className="search-result-content">
                                 <div className="search-result-name">
-                                    {result.text}
+                                    {result.type === 'user' ? result.displayName : result.text}
                                 </div>
                                 <div className="search-result-address">
-                                    {result.place_name}
+                                    {result.type === 'user' ? result.email : result.place_name}
                                 </div>
                             </div>
                         </div>
@@ -264,7 +311,7 @@ export default function SearchBar() {
             )}
 
             {/* No Results */}
-            {showDropdown && !isLoading && searchQuery && searchResults.length === 0 && (
+            {showDropdown && !isLoading && searchQuery && combinedResults.length === 0 && (
                 <div className="search-dropdown">
                     <div className="search-no-results">
                         <div className="no-results-icon">🔍</div>

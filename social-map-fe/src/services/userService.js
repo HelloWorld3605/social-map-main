@@ -48,6 +48,14 @@ export const userService = {
     getUserStatus: async (userId) => {
         return await api.get(`/users/${userId}/status`);
     },
+
+    /**
+     * Tìm kiếm người dùng
+     * GET /api/users/search-users?query={query}&page={page}&size={size}
+     */
+    searchUsers: async (query, page = 0, size = 10) => {
+        return await api.get(`/users/search-users?query=${encodeURIComponent(query)}&page=${page}&size=${size}`);
+    },
 };
 
 // Export default để tương thích
