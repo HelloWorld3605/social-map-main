@@ -325,6 +325,20 @@ class ShopMarkersManager {
         }
     }
 
+    focusShop(shopId) {
+        const marker = this.shopPopups.get(shopId);
+        if (marker) {
+            this.map.flyTo({
+                center: marker.getLngLat(),
+                zoom: 16,
+                duration: 1500
+            });
+            marker.togglePopup();
+        } else {
+            console.warn('Shop marker not found for ID:', shopId);
+        }
+    }
+
     refresh() {
         this.loadShops();
     }

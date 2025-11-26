@@ -8,10 +8,71 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmp
 // Vietnam bounding box: [min_lng, min_lat, max_lng, max_lat]
 const VIETNAM_BBOX = '102,8,110,23';
 
+// Hàm bỏ dấu tiếng Việt (chuẩn)
+const removeVietnameseTone = (str) => {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D");
+};
+
+// Hàm tạo token mạnh / phrase / token phụ
+const extractQueryParts = (query) => {
+  if (!query) return { strong: "", phrase: "", tokens: [] };
+
+  const clean = query.trim().toLowerCase();
+  const tokens = clean.split(/\s+/).filter(Boolean);
+
+  return {
+    strong: tokens[0],                // từ mạnh nhất
+    phrase: tokens.join(" "),         // toàn bộ cụm
+    tokens                           // toàn bộ token
+  };
+};
+
+// Hàm highlight PRO (Google Maps-style)
+const highlightPro = (text, query) => {
+  if (!query || !text) return text;
+
+  const { strong, phrase, tokens } = extractQueryParts(query);
+
+  const original = text;
+  const normalizedText = removeVietnameseTone(text.toLowerCase());
+  const normalizedStrong = removeVietnameseTone(strong.toLowerCase());
+  const normalizedPhrase = removeVietnameseTone(phrase.toLowerCase());
+
+  let result = original;
+
+  // 1) Highlight phrase trước (ưu tiên cao)
+  if (phrase.includes(" ") && normalizedText.includes(normalizedPhrase)) {
+    const regex = new RegExp("(" + phrase + ")", "gi");
+    result = result.replace(regex, `<mark class="hl-pro">$1</mark>`);
+  }
+
+  // 2) Highlight strong token
+  if (normalizedStrong && normalizedText.includes(normalizedStrong)) {
+    const strongRegex = new RegExp("(" + strong + ")", "gi");
+    result = result.replace(strongRegex, `<mark class="hl-strong">$1</mark>`);
+  }
+
+  // 3) Highlight token khác (nhưng không quá yếu)
+  tokens.forEach((tk, i) => {
+    if (i === 0 || tk.length < 3) return; // bỏ token yếu
+    if (!normalizedText.includes(removeVietnameseTone(tk))) return;
+
+    const regex = new RegExp("(" + tk + ")", "gi");
+    result = result.replace(regex, `<mark class="hl-sub">$1</mark>`);
+  });
+
+  return result;
+};
+
 export default function SearchBar() {
     const [searchQuery, setSearchQuery] = useState('');
     const [locationResults, setLocationResults] = useState([]);
     const [userResults, setUserResults] = useState([]);
+    const [shopResults, setShopResults] = useState([]);
     const [combinedResults, setCombinedResults] = useState([]);
     const [isLoading, setIsLoading] = useState(false);
     const [showDropdown, setShowDropdown] = useState(false);
@@ -116,16 +177,18 @@ export default function SearchBar() {
     useEffect(() => {
         const combined = [
             ...locationResults.map(result => ({ ...result, type: 'location' })),
-            ...userResults.map(result => ({ ...result, type: 'user' }))
+            ...userResults.map(result => ({ ...result, type: 'user' })),
+            ...shopResults.map(result => ({ ...result, type: 'shop' }))
         ];
         setCombinedResults(combined);
-    }, [locationResults, userResults]);
+    }, [locationResults, userResults, shopResults]);
 
     // Perform search for both locations and users
     const performSearch = async (query) => {
         if (!query.trim()) {
             setLocationResults([]);
             setUserResults([]);
+            setShopResults([]);
             setShowDropdown(false);
             return;
         }
@@ -150,11 +213,28 @@ export default function SearchBar() {
                 `&fuzzyMatch=true`
             );
 
-            const locationData = await locationResponse.json();
+            let locationData;
+            try {
+                locationData = await locationResponse.json();
+            } catch (jsonError) {
+                console.error('Failed to parse location JSON:', jsonError);
+                locationData = { features: [] };
+            }
             setLocationResults(locationData.features || []);
 
             // Search users
             await searchUsers(query);
+
+            // Search shops
+            const shopResponse = await fetch(`http://localhost:8080/api/shops/search?query=${encodeURIComponent(query)}&lng=${userLocation.lng}&lat=${userLocation.lat}`);
+            let shopData;
+            try {
+                shopData = await shopResponse.json();
+            } catch (jsonError) {
+                console.error('Failed to parse shop JSON:', jsonError);
+                shopData = [];
+            }
+            setShopResults(shopData || []);
 
             setShowDropdown(true);
             setIsShowingHistory(false);
@@ -162,6 +242,7 @@ export default function SearchBar() {
             console.error('Search error:', error);
             setLocationResults([]);
             setUserResults([]);
+            setShopResults([]);
         } finally {
             setIsLoading(false);
         }
@@ -236,6 +317,44 @@ export default function SearchBar() {
         // Add to search history, limit to 5, and save to localStorage
         const newHistoryItem = { type: 'location', data: location };
         const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'location' && h.data.place_name === location.place_name))].slice(0, 5);
+        setSearchHistory(updatedHistory);
+        localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
+    };
+
+    // Handle shop selection
+    const handleShopSelect = (shop) => {
+        // Focus on existing shop marker instead of creating new one
+        if (window.shopMarkersManager) {
+            window.shopMarkersManager.focusShop(shop.id);
+        } else {
+            // Fallback: create temporary marker if shopMarkersManager not available
+            if (window.mapboxManager?.map) {
+                window.mapboxManager.map.flyTo({
+                    center: [shop.longitude, shop.latitude],
+                    zoom: 16,
+                    duration: 1500
+                });
+
+                const marker = new mapboxgl.Marker({ color: '#EC5E95' })
+                    .setLngLat([shop.longitude, shop.latitude])
+                    .setPopup(
+                        new mapboxgl.Popup({ offset: 25 })
+                            .setHTML(`<div style="padding: 10px;"><strong>${shop.name}</strong><br/><span>${shop.address}</span></div>`)
+                    )
+                    .addTo(window.mapboxManager.map)
+                    .togglePopup();
+
+                tempMarkerRef.current = marker;
+            }
+        }
+
+        setSearchQuery(shop.name);
+        setShowDropdown(false);
+        setIsShowingHistory(false);
+
+        // Add to search history, limit to 5, and save to localStorage
+        const newHistoryItem = { type: 'shop', data: shop };
+        const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'shop' && h.data.id === shop.id))].slice(0, 5);
         setSearchHistory(updatedHistory);
         localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
     };
@@ -325,6 +444,8 @@ export default function SearchBar() {
                             onClick={() => {
                                 if (result.type === 'user') {
                                     handleUserSelect(result);
+                                } else if (result.type === 'shop') {
+                                    handleShopSelect(result);
                                 } else if (result.type === 'query') {
                                     handleQuerySelect(result);
                                 } else {
@@ -337,6 +458,8 @@ export default function SearchBar() {
                                     <img src="/icons/timer-outline.svg" alt="history" style={{ width: '20px', height: '20px' }} />
                                 ) : result.type === 'user' ? (
                                     <img src="/icons/person-outline.svg" alt="user" style={{ width: '20px', height: '20px' }} />
+                                ) : result.type === 'shop' ? (
+                                    <img src="/icons/store.png" alt="shop" style={{ width: '20px', height: '20px' }} />
                                 ) : result.type === 'query' ? (
                                     <img src="/icons/location-outline.svg" alt="query" style={{ width: '20px', height: '20px' }} />
                                 ) : (
@@ -344,12 +467,36 @@ export default function SearchBar() {
                                 )}
                             </div>
                             <div className="search-result-content">
-                                <div className="search-result-name">
-                                    {result.type === 'user' ? result.displayName : result.type === 'query' ? result.query : result.text}
-                                </div>
-                                <div className="search-result-address">
-                                    {result.type === 'user' ? result.email : result.type === 'query' ? 'Tìm kiếm' : result.place_name}
-                                </div>
+                                <div
+                                    className="search-result-name"
+                                    dangerouslySetInnerHTML={{
+                                        __html: highlightPro(
+                                            result.type === 'user'
+                                                ? result.displayName
+                                                : result.type === 'shop'
+                                                ? result.name
+                                                : result.type === 'query'
+                                                ? result.query
+                                                : result.text,
+                                            searchQuery
+                                        ),
+                                    }}
+                                ></div>
+                                <div
+                                    className="search-result-address"
+                                    dangerouslySetInnerHTML={{
+                                        __html: highlightPro(
+                                            result.type === 'user'
+                                                ? result.email
+                                                : result.type === 'shop'
+                                                ? result.address
+                                                : result.type === 'query'
+                                                ? 'Tìm kiếm'
+                                                : result.place_name,
+                                            searchQuery
+                                        ),
+                                    }}
+                                ></div>
                             </div>
                         </div>
                     ))}

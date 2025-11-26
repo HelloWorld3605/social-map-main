@@ -27,3 +27,22 @@ body,
   min-height: 100vh;
   position: relative;
 }
+
+/* CSS HIGHLIGHT ĐẸP KIỂU GOOGLE MAPS */
+mark.hl-strong {
+    background: transparent;
+    color: #ec5e95;
+    font-weight: 700;
+}
+
+mark.hl-pro {
+    background: rgba(236, 94, 149, 0.15);
+    padding: 0 2px;
+    border-radius: 3px;
+}
+
+mark.hl-sub {
+    background: transparent;
+    color: #666;
+    font-weight: 600;
+}
