@@ -85,6 +85,9 @@ public class SecurityConfig {
                 // Health check endpoints
                 .requestMatchers("/actuator/health").permitAll()
 
+                // Public shop search (like Google Maps)
+                .requestMatchers("/api/shops/search").permitAll()
+
                 // All other requests need authentication
                 .anyRequest().authenticated()
             )

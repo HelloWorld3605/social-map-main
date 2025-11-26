@@ -6,6 +6,7 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.Coordinate;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -27,6 +28,7 @@ public abstract class Marker {
     private Double longitude;
 
     @Column(columnDefinition = "geography(Point,4326)")
+    @JsonIgnore
     private Point location;
 
     @Column(nullable = false, updatable = false)

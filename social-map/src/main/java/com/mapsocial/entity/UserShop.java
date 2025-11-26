@@ -1,5 +1,6 @@
 package com.mapsocial.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.mapsocial.enums.ShopRole;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,6 +26,7 @@ public class UserShop {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "shop_id", nullable = false)
+    @JsonIgnore
     private Shop shop;
 
     @Enumerated(EnumType.STRING)

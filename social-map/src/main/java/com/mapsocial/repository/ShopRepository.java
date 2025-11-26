@@ -28,9 +28,9 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
      * Sử dụng ST_MakeEnvelope cho hiệu suất tốt nhất
      */
     @Query(value = "SELECT * FROM shops WHERE " +
-           "location && ST_MakeEnvelope(:west, :south, :east, :north, 4326) AND " +
-           "status = 'OPEN'",
-           nativeQuery = true)
+            "location && ST_MakeEnvelope(:west, :south, :east, :north, 4326) AND " +
+            "status = 'OPEN'",
+            nativeQuery = true)
     List<Shop> findShopsInBoundingBox(
             @Param("north") Double north,
             @Param("south") Double south,
@@ -42,10 +42,10 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
      * Lấy shops trong vùng bounding box với giới hạn số lượng (PostGIS)
      */
     @Query(value = "SELECT * FROM shops WHERE " +
-           "location && ST_MakeEnvelope(:west, :south, :east, :north, 4326) AND " +
-           "status = 'OPEN' " +
-           "LIMIT :limit",
-           nativeQuery = true)
+            "location && ST_MakeEnvelope(:west, :south, :east, :north, 4326) AND " +
+            "status = 'OPEN' " +
+            "LIMIT :limit",
+            nativeQuery = true)
     List<Shop> findShopsInBoundingBoxWithLimit(
             @Param("north") Double north,
             @Param("south") Double south,
@@ -58,9 +58,9 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
      * Đếm số lượng shops trong vùng bounding box (PostGIS)
      */
     @Query(value = "SELECT COUNT(*) FROM shops WHERE " +
-           "location && ST_MakeEnvelope(:west, :south, :east, :north, 4326) AND " +
-           "status = 'OPEN'",
-           nativeQuery = true)
+            "location && ST_MakeEnvelope(:west, :south, :east, :north, 4326) AND " +
+            "status = 'OPEN'",
+            nativeQuery = true)
     Long countShopsInBoundingBox(
             @Param("north") Double north,
             @Param("south") Double south,
@@ -73,9 +73,9 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
      * Sử dụng PostGIS cho performance tốt nhất
      */
     @Query(value = "SELECT s.id, s.latitude, s.longitude, s.name FROM shops s WHERE " +
-           "s.location && ST_MakeEnvelope(:west, :south, :east, :north, 4326) AND " +
-           "s.status = 'OPEN'",
-           nativeQuery = true)
+            "s.location && ST_MakeEnvelope(:west, :south, :east, :north, 4326) AND " +
+            "s.status = 'OPEN'",
+            nativeQuery = true)
     List<Object[]> findShopLocationsInBoundingBox(
             @Param("north") Double north,
             @Param("south") Double south,
@@ -91,17 +91,43 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
      * @param limit Giới hạn số lượng
      */
     @Query(value = "SELECT *, " +
-           "ST_Distance(location, ST_SetSRID(ST_MakePoint(:centerLng, :centerLat), 4326)::geography) as distance " +
-           "FROM shops WHERE " +
-           "ST_DWithin(location, ST_SetSRID(ST_MakePoint(:centerLng, :centerLat), 4326)::geography, :radiusMeters) AND " +
-           "status = 'OPEN' " +
-           "ORDER BY distance " +
-           "LIMIT :limit",
-           nativeQuery = true)
+            "ST_Distance(location, ST_SetSRID(ST_MakePoint(:centerLng, :centerLat), 4326)::geography) as distance " +
+            "FROM shops WHERE " +
+            "ST_DWithin(location, ST_SetSRID(ST_MakePoint(:centerLng, :centerLat), 4326)::geography, :radiusMeters) AND " +
+            "status = 'OPEN' " +
+            "ORDER BY distance " +
+            "LIMIT :limit",
+            nativeQuery = true)
     List<Shop> findShopsWithinRadius(
             @Param("centerLat") Double centerLat,
             @Param("centerLng") Double centerLng,
             @Param("radiusMeters") Double radiusMeters,
             @Param("limit") Integer limit
     );
+
+    /**
+     * Tìm kiếm shops với Full-Text Search và khoảng cách (Best Practice)
+     */
+    @Query(value = "SELECT *, " +
+            "ts_rank(" +
+            "    (" +
+            "        setweight(to_tsvector('simple', coalesce(name,'')), 'A') || " +
+            "        setweight(to_tsvector('simple', coalesce(address,'')), 'B') || " +
+            "        setweight(to_tsvector('simple', coalesce(description,'')), 'C') " +
+            "    ), " +
+            "    plainto_tsquery('simple', :query)" +
+            ") AS score, " +
+            "ST_Distance(" +
+            "    geography(ST_MakePoint(longitude, latitude)), " +
+            "    geography(ST_MakePoint(:lng, :lat))" +
+            ") AS distance " +
+            "FROM shops " +
+            "WHERE (" +
+            "    setweight(to_tsvector('simple', coalesce(name,'')), 'A') || " +
+            "    setweight(to_tsvector('simple', coalesce(address,'')), 'B') || " +
+            "    setweight(to_tsvector('simple', coalesce(description,'')), 'C') " +
+            ") @@ plainto_tsquery('simple', :query) " +
+            "ORDER BY score DESC, distance ASC " +
+            "LIMIT 20", nativeQuery = true)
+    List<Shop> searchShopsFTS(@Param("query") String query, @Param("lng") double lng, @Param("lat") double lat);
 }

@@ -13,4 +13,5 @@ public interface ShopService {
     void deleteShop(UUID userId, UUID shopId);
     ShopResponse getShopById(UUID shopId);
     List<ShopResponse> getAllShops();
+    List<ShopResponse> searchShops(String query, double lng, double lat);
 }

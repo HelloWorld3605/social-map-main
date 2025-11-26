@@ -34,7 +34,7 @@ public class ShopController {
 
     @GetMapping("/map")
     @Operation(summary = "Lấy shops/clusters trong vùng bản đồ (Bounding Box)",
-               description = "Tự động quyết định trả về clusters hoặc individual shops dựa vào zoom level và số lượng")
+            description = "Tự động quyết định trả về clusters hoặc individual shops dựa vào zoom level và số lượng")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Thành công"),
             @ApiResponse(responseCode = "400", description = "Tọa độ không hợp lệ")
@@ -62,7 +62,7 @@ public class ShopController {
 
     @PostMapping("/map/bounds")
     @Operation(summary = "Lấy shops/clusters trong vùng bản đồ (POST method)",
-               description = "Alternative endpoint với POST body cho complex queries")
+            description = "Alternative endpoint với POST body cho complex queries")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Thành công"),
             @ApiResponse(responseCode = "400", description = "Request body không hợp lệ")
@@ -75,7 +75,7 @@ public class ShopController {
 
     @GetMapping("/map/individual")
     @Operation(summary = "Lấy individual shops (không cluster)",
-               description = "Dùng cho zoom level cao, luôn trả về individual shops")
+            description = "Dùng cho zoom level cao, luôn trả về individual shops")
     public ResponseEntity<List<ShopClusterResponse>> getIndividualShops(
             @RequestParam Double north,
             @RequestParam Double south,
@@ -97,7 +97,7 @@ public class ShopController {
 
     @GetMapping("/map/clusters")
     @Operation(summary = "Lấy clusters (luôn cluster)",
-               description = "Dùng cho zoom level thấp, luôn trả về clusters")
+            description = "Dùng cho zoom level thấp, luôn trả về clusters")
     public ResponseEntity<List<ShopClusterResponse>> getClusters(
             @RequestParam Double north,
             @RequestParam Double south,
@@ -153,5 +153,24 @@ public class ShopController {
     @GetMapping
     public ResponseEntity<List<ShopResponse>> getAllShops() {
         return ResponseEntity.ok(shopService.getAllShops());
+    }
+
+    @GetMapping("/search")
+    @Operation(summary = "Tìm kiếm shops giống Google Maps",
+            description = "Tìm kiếm theo tên, địa chỉ, mô tả, số điện thoại. Sắp xếp theo khoảng cách.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Thành công")
+    })
+    public ResponseEntity<List<ShopResponse>> searchShops(
+            @RequestParam String query,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double lat) {
+        // Default to Hanoi if no location
+        if (lng == null || lat == null) {
+            lng = 105.85;
+            lat = 21.03;
+        }
+        List<ShopResponse> results = shopService.searchShops(query, lng, lat);
+        return ResponseEntity.ok(results);
     }
 }
