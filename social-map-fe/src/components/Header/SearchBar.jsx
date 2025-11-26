@@ -334,7 +334,7 @@ export default function SearchBar() {
                         >
                             <div className="search-result-icon">
                                 {isShowingHistory ? (
-                                    <img src="/icons/clock-outline.svg" alt="history" style={{ width: '20px', height: '20px' }} />
+                                    <img src="/icons/timer-outline.svg" alt="history" style={{ width: '20px', height: '20px' }} />
                                 ) : result.type === 'user' ? (
                                     <img src="/icons/person-outline.svg" alt="user" style={{ width: '20px', height: '20px' }} />
                                 ) : result.type === 'query' ? (
