@@ -205,6 +205,7 @@
     cursor: pointer;
     transition: background-color 0.2s;
     border-bottom: 1px solid #f0f0f0;
+    position: relative;
 }
 
 .search-result-item:last-child {
@@ -213,6 +214,10 @@
 
 .search-result-item:hover {
     background-color: #f8f9fa;
+}
+
+.search-result-item.no-hover:hover {
+    background-color: transparent;
 }
 
 .search-result-icon {
@@ -243,6 +248,23 @@
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.4;
+}
+
+.search-result-delete {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    color: #999;
+    padding: 5px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+
+.search-result-delete:hover {
+    background-color: #f0f0f0;
+    color: #666;
 }
 
 /* No Results */

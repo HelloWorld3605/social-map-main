@@ -88,6 +88,9 @@ public class SecurityConfig {
                 // Public shop search (like Google Maps)
                 .requestMatchers("/api/shops/search").permitAll()
 
+                // Search history endpoints - require authentication
+                .requestMatchers("/api/search-history/**").authenticated()
+
                 // All other requests need authentication
                 .anyRequest().authenticated()
             )

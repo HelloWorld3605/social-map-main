@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import { userService } from '../../services/userService';
+import { searchHistoryService } from '../../services/searchHistoryService';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
 
@@ -120,20 +121,26 @@ export default function SearchBar() {
 
     // Load search history on component mount
     useEffect(() => {
-        const savedHistory = localStorage.getItem('searchHistory');
-        if (savedHistory) {
-            try {
-                const history = JSON.parse(savedHistory);
-                // Ensure old format is converted to new format
-                const convertedHistory = history.map(item => {
-                    if (item.type) return item; // Already new format
-                    return { type: 'location', data: item }; // Convert old location format
-                });
-                setSearchHistory(convertedHistory);
-            } catch (e) {
-                console.error('Error parsing search history:', e);
+        const loadSearchHistory = async () => {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                console.log('No auth token, skipping load search history');
+                return;
             }
-        }
+            try {
+                const response = await searchHistoryService.getSearchHistory();
+                // Convert API response to frontend format
+                const convertedHistory = response.map(item => ({
+                    type: item.type,
+                    data: item.type === 'query' ? { query: item.query } : JSON.parse(item.data || '{}'),
+                    id: item.id  // Keep the SearchHistory id for deletion
+                }));
+                setSearchHistory(convertedHistory);
+            } catch (error) {
+                console.error('Error loading search history:', error);
+            }
+        };
+        loadSearchHistory();
     }, []);
 
     // Close dropdown when clicking outside
@@ -270,11 +277,23 @@ export default function SearchBar() {
         setShowDropdown(false);
         setSearchQuery(user.displayName);
 
-        // Add to search history, limit to 5, and save to localStorage
-        const newHistoryItem = { type: 'user', data: user };
-        const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'user' && h.data.id === user.id))].slice(0, 5);
-        setSearchHistory(updatedHistory);
-        localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
+        // Save to search history via API
+        const saveHistory = async () => {
+            try {
+                await searchHistoryService.saveSearchHistory(user.displayName, 'user', JSON.stringify(user));
+                // Reload history
+                const response = await searchHistoryService.getSearchHistory();
+                const convertedHistory = response.map(item => ({
+                    type: item.type,
+                    data: item.type === 'query' ? { query: item.query } : JSON.parse(item.data || '{}'),
+                    id: item.id  // Keep the SearchHistory id for deletion
+                }));
+                setSearchHistory(convertedHistory);
+            } catch (error) {
+                console.error('Error saving search history:', error);
+            }
+        };
+        saveHistory();
     };
 
     // Handle location selection
@@ -314,11 +333,23 @@ export default function SearchBar() {
         setShowDropdown(false);
         setIsShowingHistory(false);
 
-        // Add to search history, limit to 5, and save to localStorage
-        const newHistoryItem = { type: 'location', data: location };
-        const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'location' && h.data.place_name === location.place_name))].slice(0, 5);
-        setSearchHistory(updatedHistory);
-        localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
+        // Save to search history via API
+        const saveHistory = async () => {
+            try {
+                await searchHistoryService.saveSearchHistory(name, 'location', JSON.stringify(location));
+                // Reload history
+                const response = await searchHistoryService.getSearchHistory();
+                const convertedHistory = response.map(item => ({
+                    type: item.type,
+                    data: item.type === 'query' ? { query: item.query } : JSON.parse(item.data || '{}'),
+                    id: item.id  // Keep the SearchHistory id for deletion
+                }));
+                setSearchHistory(convertedHistory);
+            } catch (error) {
+                console.error('Error saving search history:', error);
+            }
+        };
+        saveHistory();
     };
 
     // Handle shop selection
@@ -352,11 +383,23 @@ export default function SearchBar() {
         setShowDropdown(false);
         setIsShowingHistory(false);
 
-        // Add to search history, limit to 5, and save to localStorage
-        const newHistoryItem = { type: 'shop', data: shop };
-        const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'shop' && h.data.id === shop.id))].slice(0, 5);
-        setSearchHistory(updatedHistory);
-        localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
+        // Save to search history via API
+        const saveHistory = async () => {
+            try {
+                await searchHistoryService.saveSearchHistory(shop.name, 'shop', JSON.stringify(shop));
+                // Reload history
+                const response = await searchHistoryService.getSearchHistory();
+                const convertedHistory = response.map(item => ({
+                    type: item.type,
+                    data: item.type === 'query' ? { query: item.query } : JSON.parse(item.data || '{}'),
+                    id: item.id  // Keep the SearchHistory id for deletion
+                }));
+                setSearchHistory(convertedHistory);
+            } catch (error) {
+                console.error('Error saving search history:', error);
+            }
+        };
+        saveHistory();
     };
 
     // Handle query selection from history
@@ -389,13 +432,64 @@ export default function SearchBar() {
             }
             // Otherwise, add query to history if it's not empty
             else if (searchQuery.trim()) {
-                // Add query to search history
-                const newHistoryItem = { type: 'query', data: { query: searchQuery.trim() } };
-                const updatedHistory = [newHistoryItem, ...searchHistory.filter(h => !(h.type === 'query' && h.data.query === searchQuery.trim()))].slice(0, 5);
-                setSearchHistory(updatedHistory);
-                localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
+                // Save to search history via API
+                const saveHistory = async () => {
+                    try {
+                        await searchHistoryService.saveSearchHistory(searchQuery.trim(), 'query', null);
+                        // Reload history
+                        const response = await searchHistoryService.getSearchHistory();
+                        const convertedHistory = response.map(item => ({
+                            type: item.type,
+                            data: item.type === 'query' ? { query: item.query } : JSON.parse(item.data || '{}'),
+                            id: item.id  // Keep the SearchHistory id for deletion
+                        }));
+                        setSearchHistory(convertedHistory);
+                    } catch (error) {
+                        console.error('Error saving search history:', error);
+                    }
+                };
+                saveHistory();
                 performSearch(searchQuery);
             }
+        }
+    };
+
+    // Handle clear history
+    const handleClearHistory = async () => {
+        try {
+            await searchHistoryService.deleteSearchHistory();
+            setSearchHistory([]);
+            setCombinedResults([]);
+            setShowDropdown(false);
+        } catch (error) {
+            console.error('Error clearing search history:', error);
+        }
+    };
+
+    // Handle delete history item
+    const handleDeleteHistoryItem = async (id, e) => {
+        e.stopPropagation(); // Prevent triggering the item click
+        try {
+            await searchHistoryService.deleteSearchHistoryItem(id);
+            // Reload history
+            const response = await searchHistoryService.getSearchHistory();
+            const convertedHistory = response.map(item => ({
+                type: item.type,
+                data: item.type === 'query' ? { query: item.query } : JSON.parse(item.data || '{}'),
+                id: item.id
+            }));
+            setSearchHistory(convertedHistory);
+            // Update combinedResults if showing history
+            if (isShowingHistory) {
+                const historyResults = convertedHistory.filter(item => item && item.data).map((item, index) => {
+                    const data = item.data;
+                    const id = item.type === 'query' ? data.query : data.id || data.place_name || `history-${index}`;
+                    return { ...data, type: item.type, id: item.id }; // Use item.id as the SearchHistory id
+                });
+                setCombinedResults(historyResults);
+            }
+        } catch (error) {
+            console.error('Error deleting search history item:', error);
         }
     };
 
@@ -414,7 +508,7 @@ export default function SearchBar() {
                             const historyResults = searchHistory.filter(item => item && item.data).map((item, index) => {
                                 const data = item.data;
                                 const id = item.type === 'query' ? data.query : data.id || data.place_name || `history-${index}`;
-                                return { ...data, type: item.type, id };
+                                return { ...data, type: item.type, id: item.id }; // Use item.id as the SearchHistory id
                             });
                             setCombinedResults(historyResults);
                             setShowDropdown(true);
@@ -439,7 +533,7 @@ export default function SearchBar() {
                 <div className="search-dropdown">
                     {combinedResults.map((result, index) => (
                         <div
-                            key={result.id || index}
+                            key={index}
                             className="search-result-item"
                             onClick={() => {
                                 if (result.type === 'user') {
@@ -498,8 +592,23 @@ export default function SearchBar() {
                                     }}
                                 ></div>
                             </div>
+                            {isShowingHistory && (
+                                <div className="search-result-delete" onClick={(e) => handleDeleteHistoryItem(result.id, e)}
+                                     onMouseEnter={(e) => e.currentTarget.parentElement.classList.add('no-hover')}
+                                     onMouseLeave={(e) => e.currentTarget.parentElement.classList.remove('no-hover')}>
+                                    <img src="/icons/trash-outline.svg" alt="delete" style={{ width: '16px', height: '16px' }} />
+                                </div>
+                            )}
                         </div>
                     ))}
+                    {isShowingHistory && (
+                        <div
+                            style={{ textAlign: 'center', padding: '10px', borderTop: '1px solid #f0f0f0', cursor: 'pointer', color: '#666' }}
+                            onClick={handleClearHistory}
+                        >
+                            Xóa tất cả
+                        </div>
+                    )}
                 </div>
             )}
 
