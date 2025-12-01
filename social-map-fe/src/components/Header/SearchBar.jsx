@@ -386,6 +386,9 @@ export default function SearchBar() {
         // Save to search history via API
         const saveHistory = async () => {
             try {
+                console.log('Saving shop to history:', shop);
+                console.log('Shop ID:', shop.id);
+                console.log('Shop JSON:', JSON.stringify(shop));
                 await searchHistoryService.saveSearchHistory(shop.name, 'shop', JSON.stringify(shop));
                 // Reload history
                 const response = await searchHistoryService.getSearchHistory();

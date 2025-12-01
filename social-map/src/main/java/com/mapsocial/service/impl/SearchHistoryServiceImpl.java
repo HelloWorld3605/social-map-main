@@ -72,21 +72,33 @@ public class SearchHistoryServiceImpl implements SearchHistoryService {
         // For user/shop types, MUST check by entity ID ONLY (not by name)
         if (("user".equals(type) || "shop".equals(type)) && data != null) {
             String entityId = extractEntityId(data);
+            System.out.println("=== DEBUG SEARCH HISTORY ===");
+            System.out.println("Type: " + type);
+            System.out.println("Query: " + query);
+            System.out.println("Data: " + data);
+            System.out.println("Extracted Entity ID: " + entityId);
+
             if (entityId != null && !entityId.trim().isEmpty()) {
                 try {
                     // Use the repository method to find by entity ID
                     List<SearchHistory> existingByEntityId = searchHistoryRepository.findByUserIdAndTypeAndEntityId(userId, type, entityId);
+                    System.out.println("Found existing by entity ID: " + existingByEntityId.size() + " records");
                     if (!existingByEntityId.isEmpty()) {
                         existingMatch = existingByEntityId.get(0);
+                        System.out.println("Existing match found! ID: " + existingMatch.getId());
                     }
                 } catch (Exception e) {
                     // If native query fails, try manual comparison
                     System.err.println("Error finding by entity ID: " + e.getMessage());
+                    e.printStackTrace();
                     List<SearchHistory> allByType = searchHistoryRepository.findByUserIdAndType(userId, type);
+                    System.out.println("Fallback: checking " + allByType.size() + " records manually");
                     for (SearchHistory history : allByType) {
                         String historyEntityId = extractEntityId(history.getData());
+                        System.out.println("  Comparing: " + historyEntityId + " vs " + entityId);
                         if (entityId.equals(historyEntityId)) {
                             existingMatch = history;
+                            System.out.println("  Match found via fallback!");
                             break;
                         }
                     }
@@ -114,12 +126,15 @@ public class SearchHistoryServiceImpl implements SearchHistoryService {
 
         if (existingMatch != null) {
             // Update the existing one - refresh timestamp and data
+            System.out.println("UPDATING existing record ID: " + existingMatch.getId());
             existingMatch.setCreatedAt(LocalDateTime.now());
             existingMatch.setQuery(query); // Update query (name might have changed)
             existingMatch.setData(data); // Update data with latest version
             searchHistoryRepository.save(existingMatch);
+            System.out.println("Updated successfully!");
         } else {
             // Save new entry - this is a different entity
+            System.out.println("CREATING new record");
             SearchHistory searchHistory = SearchHistory.builder()
                     .user(user)
                     .query(query)
@@ -128,7 +143,9 @@ public class SearchHistoryServiceImpl implements SearchHistoryService {
                     .createdAt(LocalDateTime.now())
                     .build();
             searchHistoryRepository.save(searchHistory);
+            System.out.println("Created successfully! ID: " + searchHistory.getId());
         }
+        System.out.println("=== END DEBUG ===\n");
 
         // Giữ tối đa 20 bản ghi mới nhất cho mỗi user
         searchHistoryRepository.deleteOldSearchHistory(userId, 20);
