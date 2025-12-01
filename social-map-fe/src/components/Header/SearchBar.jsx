@@ -481,9 +481,8 @@ export default function SearchBar() {
             setSearchHistory(convertedHistory);
             // Update combinedResults if showing history
             if (isShowingHistory) {
-                const historyResults = convertedHistory.filter(item => item && item.data).map((item, index) => {
+                const historyResults = convertedHistory.filter(item => item && item.data).map((item) => {
                     const data = item.data;
-                    const id = item.type === 'query' ? data.query : data.id || data.place_name || `history-${index}`;
                     return { ...data, type: item.type, id: item.id }; // Use item.id as the SearchHistory id
                 });
                 setCombinedResults(historyResults);
@@ -505,9 +504,8 @@ export default function SearchBar() {
                     onKeyPress={handleKeyPress}
                     onFocus={() => {
                         if (!searchQuery.trim() && searchHistory.length > 0) {
-                            const historyResults = searchHistory.filter(item => item && item.data).map((item, index) => {
+                            const historyResults = searchHistory.filter(item => item && item.data).map((item) => {
                                 const data = item.data;
-                                const id = item.type === 'query' ? data.query : data.id || data.place_name || `history-${index}`;
                                 return { ...data, type: item.type, id: item.id }; // Use item.id as the SearchHistory id
                             });
                             setCombinedResults(historyResults);
@@ -531,76 +529,85 @@ export default function SearchBar() {
             {/* Dropdown Results */}
             {showDropdown && combinedResults.length > 0 && (
                 <div className="search-dropdown">
-                    {combinedResults.map((result, index) => (
-                        <div
-                            key={index}
-                            className="search-result-item"
-                            onClick={() => {
-                                if (result.type === 'user') {
-                                    handleUserSelect(result);
-                                } else if (result.type === 'shop') {
-                                    handleShopSelect(result);
-                                } else if (result.type === 'query') {
-                                    handleQuerySelect(result);
-                                } else {
-                                    handleLocationSelect(result);
-                                }
-                            }}
-                        >
-                            <div className="search-result-icon">
-                                {isShowingHistory ? (
-                                    <img src="/icons/timer-outline.svg" alt="history" style={{ width: '20px', height: '20px' }} />
-                                ) : result.type === 'user' ? (
-                                    <img src="/icons/person-outline.svg" alt="user" style={{ width: '20px', height: '20px' }} />
-                                ) : result.type === 'shop' ? (
-                                    <img src="/icons/store.png" alt="shop" style={{ width: '20px', height: '20px' }} />
-                                ) : result.type === 'query' ? (
-                                    <img src="/icons/location-outline.svg" alt="query" style={{ width: '20px', height: '20px' }} />
-                                ) : (
-                                    <img src="/icons/location-outline.svg" alt="location" style={{ width: '20px', height: '20px' }} />
+                    {combinedResults.map((result, index) => {
+                        // Generate unique key - prefer SearchHistory id if available, otherwise fallback
+                        const uniqueKey = result.id ||
+                            (result.type === 'user' ? `user-${result.userId || index}` :
+                             result.type === 'shop' ? `shop-${result.shopId || index}` :
+                             result.type === 'query' ? `query-${result.query || index}` :
+                             `location-${result.place_name || index}`);
+
+                        return (
+                            <div
+                                key={uniqueKey}
+                                className="search-result-item"
+                                onClick={() => {
+                                    if (result.type === 'user') {
+                                        handleUserSelect(result);
+                                    } else if (result.type === 'shop') {
+                                        handleShopSelect(result);
+                                    } else if (result.type === 'query') {
+                                        handleQuerySelect(result);
+                                    } else {
+                                        handleLocationSelect(result);
+                                    }
+                                }}
+                            >
+                                <div className="search-result-icon">
+                                    {isShowingHistory ? (
+                                        <img src="/icons/timer-outline.svg" alt="history" style={{ width: '20px', height: '20px' }} />
+                                    ) : result.type === 'user' ? (
+                                        <img src="/icons/person-outline.svg" alt="user" style={{ width: '20px', height: '20px' }} />
+                                    ) : result.type === 'shop' ? (
+                                        <img src="/icons/store.png" alt="shop" style={{ width: '20px', height: '20px' }} />
+                                    ) : result.type === 'query' ? (
+                                        <img src="/icons/location-outline.svg" alt="query" style={{ width: '20px', height: '20px' }} />
+                                    ) : (
+                                        <img src="/icons/location-outline.svg" alt="location" style={{ width: '20px', height: '20px' }} />
+                                    )}
+                                </div>
+                                <div className="search-result-content">
+                                    <div
+                                        className="search-result-name"
+                                        dangerouslySetInnerHTML={{
+                                            __html: highlightPro(
+                                                result.type === 'user'
+                                                    ? result.displayName
+                                                    : result.type === 'shop'
+                                                    ? result.name
+                                                    : result.type === 'query'
+                                                    ? result.query
+                                                    : result.text,
+                                                searchQuery
+                                            ),
+                                        }}
+                                    ></div>
+                                    <div
+                                        className="search-result-address"
+                                        dangerouslySetInnerHTML={{
+                                            __html: highlightPro(
+                                                result.type === 'user'
+                                                    ? result.email
+                                                    : result.type === 'shop'
+                                                    ? result.address
+                                                    : result.type === 'query'
+                                                    ? 'Tìm kiếm'
+                                                    : result.place_name,
+                                                searchQuery
+                                            ),
+                                        }}
+                                    ></div>
+                                </div>
+                                {isShowingHistory && (
+                                    <div className="search-result-delete" onClick={(e) => handleDeleteHistoryItem(result.id, e)}
+                                         onMouseEnter={(e) => e.currentTarget.parentElement.classList.add('no-hover')}
+                                         onMouseLeave={(e) => e.currentTarget.parentElement.classList.remove('no-hover')}>
+                                        <img src="/icons/trash-outline.svg" alt="delete" style={{ width: '16px', height: '16px' }} />
+                                    </div>
                                 )}
                             </div>
-                            <div className="search-result-content">
-                                <div
-                                    className="search-result-name"
-                                    dangerouslySetInnerHTML={{
-                                        __html: highlightPro(
-                                            result.type === 'user'
-                                                ? result.displayName
-                                                : result.type === 'shop'
-                                                ? result.name
-                                                : result.type === 'query'
-                                                ? result.query
-                                                : result.text,
-                                            searchQuery
-                                        ),
-                                    }}
-                                ></div>
-                                <div
-                                    className="search-result-address"
-                                    dangerouslySetInnerHTML={{
-                                        __html: highlightPro(
-                                            result.type === 'user'
-                                                ? result.email
-                                                : result.type === 'shop'
-                                                ? result.address
-                                                : result.type === 'query'
-                                                ? 'Tìm kiếm'
-                                                : result.place_name,
-                                            searchQuery
-                                        ),
-                                    }}
-                                ></div>
-                            </div>
-                            {isShowingHistory && (
-                                <div className="search-result-delete" onClick={(e) => handleDeleteHistoryItem(result.id, e)}
-                                     onMouseEnter={(e) => e.currentTarget.parentElement.classList.add('no-hover')}
-                                     onMouseLeave={(e) => e.currentTarget.parentElement.classList.remove('no-hover')}>
-                                    <img src="/icons/trash-outline.svg" alt="delete" style={{ width: '16px', height: '16px' }} />
-                                </div>
-                            )}
-                        </div>
-                    ))}
+                        );
+                    })}
                     {isShowingHistory && (
                         <div
                             style={{ textAlign: 'center', padding: '10px', borderTop: '1px solid #f0f0f0', cursor: 'pointer', color: '#666' }}

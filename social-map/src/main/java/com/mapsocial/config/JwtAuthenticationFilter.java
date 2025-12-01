@@ -34,21 +34,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String jwt = getJwtFromRequest(request);
 
-            if (StringUtils.hasText(jwt) && jwtUtils.validateToken(jwt)) {
-                String email = jwtUtils.getEmailFromToken(jwt);
+            if (StringUtils.hasText(jwt)) {
+                // Token exists, validate it
+                if (jwtUtils.validateToken(jwt)) {
+                    String email = jwtUtils.getEmailFromToken(jwt);
 
-                UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
+                    UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
 
-                if (userDetails != null) {
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    if (userDetails != null) {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
+                } else {
+                    // Token is invalid/expired - return 401
+                    log.warn("Invalid or expired JWT token");
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"message\":\"Token không hợp lệ hoặc đã hết hạn\"}");
+                    return;
                 }
             }
         } catch (Exception ex) {
             log.error("Could not set user authentication in security context", ex);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("{\"message\":\"Lỗi xác thực\"}");
+            return;
         }
 
         filterChain.doFilter(request, response);

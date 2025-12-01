@@ -154,4 +154,16 @@ public class ShopServiceImpl implements ShopService {
                 .map(ShopMapper::toShopResponse)
                 .toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ShopResponse> searchShopsAdvanced(String query, double lng, double lat) {
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+        return shopRepository.searchShopsAdvanced(query, lng, lat)
+                .stream()
+                .map(ShopMapper::toShopResponse)
+                .toList();
+    }
 }

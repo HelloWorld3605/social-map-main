@@ -107,27 +107,68 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
 
     /**
      * Tìm kiếm shops với Full-Text Search và khoảng cách (Best Practice)
+     * Hỗ trợ prefix matching và fuzzy search giống Google Maps
      */
     @Query(value = "SELECT *, " +
-            "ts_rank(" +
-            "    (" +
-            "        setweight(to_tsvector('simple', coalesce(name,'')), 'A') || " +
-            "        setweight(to_tsvector('simple', coalesce(address,'')), 'B') || " +
-            "        setweight(to_tsvector('simple', coalesce(description,'')), 'C') " +
-            "    ), " +
-            "    plainto_tsquery('simple', :query)" +
-            ") AS score, " +
+            "CASE " +
+            "    WHEN LOWER(name) LIKE LOWER(CONCAT(:query, '%')) THEN 100 " +
+            "    WHEN LOWER(name) LIKE LOWER(CONCAT('%', :query, '%')) THEN 80 " +
+            "    WHEN LOWER(address) LIKE LOWER(CONCAT('%', :query, '%')) THEN 60 " +
+            "    WHEN LOWER(description) LIKE LOWER(CONCAT('%', :query, '%')) THEN 40 " +
+            "    ELSE ts_rank(" +
+            "        (" +
+            "            setweight(to_tsvector('simple', coalesce(name,'')), 'A') || " +
+            "            setweight(to_tsvector('simple', coalesce(address,'')), 'B') || " +
+            "            setweight(to_tsvector('simple', coalesce(description,'')), 'C') " +
+            "        ), " +
+            "        plainto_tsquery('simple', :query)" +
+            "    ) * 20 " +
+            "END AS score, " +
             "ST_Distance(" +
             "    geography(ST_MakePoint(longitude, latitude)), " +
             "    geography(ST_MakePoint(:lng, :lat))" +
             ") AS distance " +
             "FROM shops " +
-            "WHERE (" +
-            "    setweight(to_tsvector('simple', coalesce(name,'')), 'A') || " +
-            "    setweight(to_tsvector('simple', coalesce(address,'')), 'B') || " +
-            "    setweight(to_tsvector('simple', coalesce(description,'')), 'C') " +
-            ") @@ plainto_tsquery('simple', :query) " +
+            "WHERE status = 'OPEN' AND (" +
+            "    LOWER(name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "    LOWER(address) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "    LOWER(description) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "    LOWER(phone_number) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "    (" +
+            "        setweight(to_tsvector('simple', coalesce(name,'')), 'A') || " +
+            "        setweight(to_tsvector('simple', coalesce(address,'')), 'B') || " +
+            "        setweight(to_tsvector('simple', coalesce(description,'')), 'C') " +
+            "    ) @@ plainto_tsquery('simple', :query) " +
+            ") " +
             "ORDER BY score DESC, distance ASC " +
             "LIMIT 20", nativeQuery = true)
     List<Shop> searchShopsFTS(@Param("query") String query, @Param("lng") double lng, @Param("lat") double lat);
+
+    /**
+     * Tìm kiếm shops với unaccent (hỗ trợ tiếng Việt không dấu)
+     * VD: "ca phe" sẽ tìm được "Cà phê", "Cafe"
+     * Yêu cầu: CREATE EXTENSION unaccent; + CREATE FUNCTION immutable_unaccent;
+     */
+    @Query(value = "SELECT *, " +
+            "CASE " +
+            "    WHEN LOWER(immutable_unaccent(name)) LIKE LOWER(immutable_unaccent(CONCAT(:query, '%'))) THEN 100 " +
+            "    WHEN LOWER(immutable_unaccent(name)) LIKE LOWER(immutable_unaccent(CONCAT('%', :query, '%'))) THEN 80 " +
+            "    WHEN LOWER(immutable_unaccent(address)) LIKE LOWER(immutable_unaccent(CONCAT('%', :query, '%'))) THEN 60 " +
+            "    WHEN LOWER(immutable_unaccent(description)) LIKE LOWER(immutable_unaccent(CONCAT('%', :query, '%'))) THEN 40 " +
+            "    ELSE 20 " +
+            "END AS score, " +
+            "ST_Distance(" +
+            "    geography(ST_MakePoint(longitude, latitude)), " +
+            "    geography(ST_MakePoint(:lng, :lat))" +
+            ") AS distance " +
+            "FROM shops " +
+            "WHERE status = 'OPEN' AND (" +
+            "    LOWER(immutable_unaccent(name)) LIKE LOWER(immutable_unaccent(CONCAT('%', :query, '%'))) OR " +
+            "    LOWER(immutable_unaccent(address)) LIKE LOWER(immutable_unaccent(CONCAT('%', :query, '%'))) OR " +
+            "    LOWER(immutable_unaccent(description)) LIKE LOWER(immutable_unaccent(CONCAT('%', :query, '%'))) OR " +
+            "    LOWER(phone_number) LIKE LOWER(CONCAT('%', :query, '%'))" +
+            ") " +
+            "ORDER BY score DESC, distance ASC " +
+            "LIMIT 20", nativeQuery = true)
+    List<Shop> searchShopsAdvanced(@Param("query") String query, @Param("lng") double lng, @Param("lat") double lat);
 }

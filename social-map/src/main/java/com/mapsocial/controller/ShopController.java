@@ -173,4 +173,24 @@ public class ShopController {
         List<ShopResponse> results = shopService.searchShops(query, lng, lat);
         return ResponseEntity.ok(results);
     }
+
+    @GetMapping("/search/advanced")
+    @Operation(summary = "Tìm kiếm shops với hỗ trợ tiếng Việt không dấu",
+            description = "Tìm kiếm nâng cao với unaccent: 'ca phe' sẽ tìm được 'Cà phê', 'Cafe'")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Thành công"),
+            @ApiResponse(responseCode = "500", description = "Cần cài đặt unaccent extension: CREATE EXTENSION unaccent;")
+    })
+    public ResponseEntity<List<ShopResponse>> searchShopsAdvanced(
+            @RequestParam String query,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(required = false) Double lat) {
+        // Default to Hanoi if no location
+        if (lng == null || lat == null) {
+            lng = 105.85;
+            lat = 21.03;
+        }
+        List<ShopResponse> results = shopService.searchShopsAdvanced(query, lng, lat);
+        return ResponseEntity.ok(results);
+    }
 }

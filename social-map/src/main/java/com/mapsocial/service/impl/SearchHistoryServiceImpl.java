@@ -1,5 +1,7 @@
 package com.mapsocial.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mapsocial.entity.SearchHistory;
 import com.mapsocial.entity.User;
 import com.mapsocial.repository.SearchHistoryRepository;
@@ -20,6 +22,44 @@ public class SearchHistoryServiceImpl implements SearchHistoryService {
 
     private final SearchHistoryRepository searchHistoryRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /**
+     * Extract entity ID from JSON data
+     * For user/shop types, data contains {"id": "...", ...}
+     */
+    private String extractEntityId(String data) {
+        if (data == null || data.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            JsonNode jsonNode = objectMapper.readTree(data);
+            JsonNode idNode = jsonNode.get("id");
+            return idNode != null ? idNode.asText() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Check if an existing history item matches the same entity
+     * For user/shop: compare by entity ID from data field
+     * For location/query: compare by data or query
+     */
+    private boolean isSameEntity(SearchHistory existing, String type, String data, String query) {
+        if ("user".equals(type) || "shop".equals(type)) {
+            // Compare by entity ID
+            String existingEntityId = extractEntityId(existing.getData());
+            String newEntityId = extractEntityId(data);
+            return existingEntityId != null && existingEntityId.equals(newEntityId);
+        } else if ("location".equals(type)) {
+            // Compare by data (location coordinates)
+            return existing.getData() != null && existing.getData().equals(data);
+        } else {
+            // For query type, compare by query text
+            return existing.getQuery().equals(query);
+        }
+    }
 
     @Override
     @Transactional
@@ -27,15 +67,59 @@ public class SearchHistoryServiceImpl implements SearchHistoryService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Check if the same search history already exists
-        List<SearchHistory> existingList = searchHistoryRepository.findByUserIdAndQueryAndTypeAndData(userId, query, type, data);
-        if (!existingList.isEmpty()) {
-            // Update the most recent one
-            SearchHistory existing = existingList.get(0);
-            existing.setCreatedAt(LocalDateTime.now());
-            searchHistoryRepository.save(existing);
+        SearchHistory existingMatch = null;
+
+        // For user/shop types, MUST check by entity ID ONLY (not by name)
+        if (("user".equals(type) || "shop".equals(type)) && data != null) {
+            String entityId = extractEntityId(data);
+            if (entityId != null && !entityId.trim().isEmpty()) {
+                try {
+                    // Use the repository method to find by entity ID
+                    List<SearchHistory> existingByEntityId = searchHistoryRepository.findByUserIdAndTypeAndEntityId(userId, type, entityId);
+                    if (!existingByEntityId.isEmpty()) {
+                        existingMatch = existingByEntityId.get(0);
+                    }
+                } catch (Exception e) {
+                    // If native query fails, try manual comparison
+                    System.err.println("Error finding by entity ID: " + e.getMessage());
+                    List<SearchHistory> allByType = searchHistoryRepository.findByUserIdAndType(userId, type);
+                    for (SearchHistory history : allByType) {
+                        String historyEntityId = extractEntityId(history.getData());
+                        if (entityId.equals(historyEntityId)) {
+                            existingMatch = history;
+                            break;
+                        }
+                    }
+                }
+            }
+            // NOTE: Do NOT fallback to query-based search for user/shop types
+            // Different users/shops can have the same name, so we MUST check by ID only
+        }
+
+        // For location type, check by place_name (query) because locations don't have consistent IDs
+        if (existingMatch == null && "location".equals(type)) {
+            List<SearchHistory> existingList = searchHistoryRepository.findByUserIdAndQueryAndType(userId, query, type);
+            if (!existingList.isEmpty()) {
+                existingMatch = existingList.get(0);
+            }
+        }
+
+        // For query type, check by query text
+        if (existingMatch == null && "query".equals(type)) {
+            List<SearchHistory> existingList = searchHistoryRepository.findByUserIdAndQueryAndType(userId, query, type);
+            if (!existingList.isEmpty()) {
+                existingMatch = existingList.get(0);
+            }
+        }
+
+        if (existingMatch != null) {
+            // Update the existing one - refresh timestamp and data
+            existingMatch.setCreatedAt(LocalDateTime.now());
+            existingMatch.setQuery(query); // Update query (name might have changed)
+            existingMatch.setData(data); // Update data with latest version
+            searchHistoryRepository.save(existingMatch);
         } else {
-            // Save new
+            // Save new entry - this is a different entity
             SearchHistory searchHistory = SearchHistory.builder()
                     .user(user)
                     .query(query)

@@ -16,15 +16,25 @@ public interface SearchHistoryRepository extends JpaRepository<SearchHistory, Lo
     @Query("SELECT sh FROM SearchHistory sh WHERE sh.user.id = :userId ORDER BY sh.createdAt DESC")
     List<SearchHistory> findByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId);
 
+
     @Query("SELECT sh FROM SearchHistory sh WHERE sh.user.id = :userId ORDER BY sh.createdAt DESC LIMIT 5")
     List<SearchHistory> findTop5ByUserIdOrderByCreatedAtDesc(@Param("userId") UUID userId);
+
+    @Query("SELECT sh FROM SearchHistory sh WHERE sh.user.id = :userId AND sh.type = :type ORDER BY sh.createdAt DESC")
+    List<SearchHistory> findByUserIdAndType(@Param("userId") UUID userId, @Param("type") String type);
 
     @Modifying
     @Query("DELETE FROM SearchHistory sh WHERE sh.user.id = :userId AND sh.id NOT IN (SELECT sh2.id FROM SearchHistory sh2 WHERE sh2.user.id = :userId ORDER BY sh2.createdAt DESC LIMIT :limit)")
     void deleteOldSearchHistory(@Param("userId") UUID userId, @Param("limit") int limit);
 
+    @Query("SELECT sh FROM SearchHistory sh WHERE sh.user.id = :userId AND sh.query = :query AND sh.type = :type ORDER BY sh.createdAt DESC")
+    List<SearchHistory> findByUserIdAndQueryAndType(@Param("userId") UUID userId, @Param("query") String query, @Param("type") String type);
+
     @Query("SELECT sh FROM SearchHistory sh WHERE sh.user.id = :userId AND sh.query = :query AND sh.type = :type AND COALESCE(sh.data, 'NULL') = COALESCE(:data, 'NULL') ORDER BY sh.createdAt DESC")
     List<SearchHistory> findByUserIdAndQueryAndTypeAndData(@Param("userId") UUID userId, @Param("query") String query, @Param("type") String type, @Param("data") String data);
+
+    @Query(value = "SELECT * FROM search_history sh WHERE sh.user_id = :userId AND sh.type = :type AND sh.data::jsonb->>'id' = :entityId ORDER BY sh.created_at DESC", nativeQuery = true)
+    List<SearchHistory> findByUserIdAndTypeAndEntityId(@Param("userId") UUID userId, @Param("type") String type, @Param("entityId") String entityId);
 
     @Modifying
     @Query("DELETE FROM SearchHistory sh WHERE sh.user.id = :userId")
