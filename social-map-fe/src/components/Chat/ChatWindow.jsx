@@ -581,13 +581,21 @@ export default function ChatWindow({
         readReceiptCallbackRef.current = (receipt) => {
             console.log('👁️ ========== READ RECEIPT RECEIVED ==========');
             console.log('👁️ Raw receipt:', JSON.stringify(receipt, null, 2));
+            console.log('👁️ Current conversation ID:', conversation?.id);
+            console.log('👁️ Receipt conversation ID:', receipt.conversationId);
             console.log('👁️ Current messages count:', messages.length);
             console.log('👁️ Looking for message ID:', receipt.lastMessageId);
 
             // Map backend DTO fields to frontend format
-            // ReadReceiptDTO has: readByUserId, readByUserName, readByUserAvatar, readAt
-            if (!receipt.readByUserId || !receipt.lastMessageId) {
+            // ReadReceiptDTO has: conversationId, lastMessageId, readByUserId, readByUserName, readByUserAvatar, readAt
+            if (!receipt.conversationId || !receipt.lastMessageId || !receipt.readByUserId) {
                 console.error('👁️ ❌ Invalid read receipt: missing required fields', receipt);
+                return;
+            }
+
+            // 🆕 Check if receipt belongs to current conversation
+            if (receipt.conversationId !== conversation?.id) {
+                console.log('👁️ ⏭️ Read receipt for different conversation, skipping');
                 return;
             }
 

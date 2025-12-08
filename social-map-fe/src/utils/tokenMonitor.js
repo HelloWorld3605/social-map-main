@@ -29,17 +29,17 @@ const CONFIG = {
     REFRESH_BUFFER: 60 * 1000,           // Refresh 1 phút trước khi hết hạn
     BACKGROUND_REFRESH_INTERVAL: 10 * 60 * 1000,  // 10 phút (giống Facebook)
     VISIBILITY_CHECK_INTERVAL: 30 * 1000,  // Check mỗi 30s khi tab visible
-    MAX_HIDDEN_TIME: 30 * 60 * 1000,      // Reload nếu tab hidden quá 30 phút
-    TOKEN_CHECK_ON_FOCUS_THRESHOLD: 2 * 60 * 1000, // Kiểm tra token nếu hidden > 2 phút
+    MAX_HIDDEN_TIME: 3 * 60 * 1000,       // 🆕 3 phút ở tab khác → reload
+    TOKEN_CHECK_ON_FOCUS_THRESHOLD: 1 * 60 * 1000, // 🆕 1 phút → kiểm tra token
     STALE_PAGE_THRESHOLD: 60 * 60 * 1000,  // Reload nếu page stale > 1 giờ
     MAX_RETRY_ATTEMPTS: 3,                 // Số lần retry refresh
     RETRY_BASE_DELAY: 500,                 // Base delay cho exponential backoff (ms)
     FORCE_RELOAD_ON_LONG_HIDDEN: true,     // Force reload khi hidden quá lâu (giống Facebook)
 
-    // 🆕 Idle detection config (giống Facebook)
-    IDLE_TIMEOUT: 30 * 60 * 1000,          // 30 phút không tương tác → reload
-    IDLE_CHECK_INTERVAL: 60 * 1000,        // Kiểm tra idle mỗi 1 phút
-    IDLE_WARNING_TIME: 25 * 60 * 1000,     // Cảnh báo sau 25 phút idle (optional)
+    // 🆕 Idle detection config (giống Facebook) - 3 phút
+    IDLE_TIMEOUT: 3 * 60 * 1000,           // 3 phút không tương tác → reload
+    IDLE_CHECK_INTERVAL: 30 * 1000,        // Kiểm tra idle mỗi 30 giây
+    IDLE_WARNING_TIME: 2 * 60 * 1000,      // Cảnh báo sau 2 phút idle
 };
 
 // Key để lưu timestamp vào localStorage (tránh bị throttle)

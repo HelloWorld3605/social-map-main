@@ -486,16 +486,24 @@ public class ChatServiceImpl implements ChatService {
         conversationMemberRepository.save(member);
 
         // 6. Send read receipt to other members
+        // Only send if there were unread messages
+        if (unreadMessages.isEmpty()) {
+            return; // No need to send read receipt if no messages were marked as read
+        }
+
+        String lastReadMessageId = unreadMessages.get(unreadMessages.size() - 1).getId();
+
         List<ConversationMember> otherMembers = conversationMemberRepository
                 .findByConversationIdAndUserIdNotAndDeletedFalse(conversationId, userId);
 
         for (ConversationMember otherMember : otherMembers) {
-            // Send read receipt
+            // Send read receipt with ALL required fields
             ReadReceiptDTO receipt = new ReadReceiptDTO();
+            receipt.setConversationId(conversationId);  // 🆕 Set conversationId
+            receipt.setLastMessageId(lastReadMessageId); // 🆕 Set lastMessageId
             receipt.setReadByUserId(userId);
             receipt.setReadByUserName(userName);
             receipt.setReadByUserAvatar(userAvatar);
-            receipt.setLastMessageId(unreadMessages.isEmpty() ? null : unreadMessages.get(unreadMessages.size() - 1).getId());
             receipt.setReadAt(LocalDateTime.now());
 
             messagingTemplate.convertAndSendToUser(
