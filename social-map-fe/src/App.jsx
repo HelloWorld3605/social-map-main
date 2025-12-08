@@ -14,7 +14,11 @@ import UsersManagementPage from './pages/DashboardPage/UsersManagementPage';
 import ShopManagementDashboard from './pages/DashboardPage/ShopManagementDashboard';
 import MainLayout from './components/Layout/MainLayout';
 import { webSocketService } from './services/WebSocketChatService';
-import { isTokenExpired, scheduleTokenRefresh, startBackgroundTokenRefresh } from './utils/tokenMonitor';
+import {
+  isTokenExpired,
+  initTokenMonitor,
+  cleanupTokenMonitor
+} from './utils/tokenMonitor';
 import apiClient from './services/apiClient';
 import useHeartbeat from './hooks/useHeartbeat';
 
@@ -22,33 +26,8 @@ function App() {
   // Use heartbeat hook for online status
   useHeartbeat();
 
-  // 🆕 Session management với idle detection và WebSocket event handling
+  // 🆕 WebSocket event handling (auth errors, max reconnect)
   useEffect(() => {
-    let idleTimer = null;
-    let lastActivity = Date.now();
-
-    // 🆕 Cập nhật lastActivity khi có tương tác
-    const updateActivity = () => {
-      lastActivity = Date.now();
-    };
-
-    // 🆕 Lắng nghe các event tương tác
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    events.forEach(event => {
-      document.addEventListener(event, updateActivity, true);
-    });
-
-    // 🆕 Kiểm tra idle mỗi phút
-    const checkIdle = () => {
-      const idleMinutes = (Date.now() - lastActivity) / 60000;
-      if (idleMinutes > 60) { // Idle quá 1 giờ
-        console.log('⏰ User idle too long, refreshing page...');
-        window.location.reload();
-      }
-    };
-
-    idleTimer = setInterval(checkIdle, 60000); // Check mỗi phút
-
     // 🆕 Lắng nghe WebSocket events
     const handleWebSocketAuthError = async () => {
       console.warn('🔐 WebSocket auth error - attempting token refresh...');
@@ -80,12 +59,6 @@ function App() {
 
     // Cleanup
     return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, updateActivity, true);
-      });
-      if (idleTimer) {
-        clearInterval(idleTimer);
-      }
       window.removeEventListener('websocket-auth-error', handleWebSocketAuthError);
       window.removeEventListener('websocket-max-reconnect-reached', handleWebSocketMaxReconnect);
     };
@@ -93,15 +66,35 @@ function App() {
 
   // 🌐 Kết nối WebSocket toàn cục khi App mount và có authToken
   useEffect(() => {
+    // 🆕 Token refresh callback - được sử dụng bởi tokenMonitor
+    // Chỉ thực hiện refresh, KHÔNG handle logout (để tokenMonitor xử lý với retry)
+    const tokenRefreshCallback = async () => {
+      console.log('🔄 Token refresh triggered...');
+      const refreshResponse = await apiClient.post('/auth/refresh');
+      const newToken = refreshResponse.data.accessToken;
+      localStorage.setItem('authToken', newToken);
+      console.log('✅ Token refreshed successfully');
+
+      // 🆕 WebSocket sẽ được reconnect bởi tokenMonitor sau khi refresh thành công
+      // Không reconnect ở đây để tránh race condition
+
+      return newToken;
+    };
+
     const connectWebSocket = () => {
       const token = localStorage.getItem('authToken');
 
       // ⚠️ Kiểm tra token có hết hạn không
       if (token && isTokenExpired(token)) {
-        console.warn('⚠️ Token đã hết hạn, đăng xuất và reload');
-        localStorage.clear();
-        sessionStorage.clear();
-        window.location.replace('/login');
+        console.warn('⚠️ Token đã hết hạn, thử refresh...');
+        tokenRefreshCallback().catch(() => {
+          // 🆕 Đánh dấu logout cho multi-tab sync
+          localStorage.setItem('logout', Date.now().toString());
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('user');
+          sessionStorage.clear();
+          window.location.replace('/login');
+        });
         return;
       }
 
@@ -114,51 +107,10 @@ function App() {
           (error) => console.error('❌ Global WebSocket error:', error)
         );
 
-        // 🔔 Schedule automatic token refresh nếu chưa được schedule
-        console.log('⏰ Scheduling automatic token refresh on app start...');
-        scheduleTokenRefresh(async () => {
-          console.log('🔄 Auto-refresh triggered by token monitor');
-          try {
-            const refreshResponse = await apiClient.post('/auth/refresh');
-            const newToken = refreshResponse.data.accessToken;
-            localStorage.setItem('authToken', newToken);
-            console.log('✅ Token auto-refreshed successfully');
-
-            // Reconnect WebSocket with new token
-            if (webSocketService && webSocketService.reconnect) {
-              webSocketService.reconnect();
-            }
-          } catch (error) {
-            console.error('❌ Auto-refresh failed:', error);
-
-            // Clear all data
-            localStorage.clear();
-            sessionStorage.clear();
-
-            // Disconnect WebSocket
-            if (webSocketService && webSocketService.disconnect) {
-              webSocketService.disconnect();
-            }
-
-            // Force reload để reset app
-            alert('⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
-            window.location.replace('/login');
-          }
-        });
-
-        // 🕒 Start background token refresh every 15 minutes
-        console.log('⏰ Starting background token refresh...');
-        startBackgroundTokenRefresh(async () => {
-          console.log('🔄 Background token refresh...');
-          try {
-            const refreshResponse = await apiClient.post('/auth/refresh');
-            const newToken = refreshResponse.data.accessToken;
-            localStorage.setItem('authToken', newToken);
-            console.log('✅ Background token refresh successful');
-          } catch (error) {
-            console.error('❌ Background token refresh failed:', error);
-          }
-        });
+        // 🆕 Khởi tạo Token Monitor với visibility tracking, auto-refresh, multi-tab sync
+        // Truyền webSocketService để tokenMonitor có thể kiểm tra connection status
+        console.log('⏰ Initializing Token Monitor...');
+        initTokenMonitor(tokenRefreshCallback, webSocketService);
       } else {
         console.log('⏸️ Chưa có authToken, bỏ qua kết nối WebSocket');
       }
@@ -167,15 +119,20 @@ function App() {
     // Kết nối WebSocket ngay khi mount (nếu có token)
     connectWebSocket();
 
-    // Lắng nghe logout event để cleanup WebSocket
+    // Lắng nghe logout event để cleanup WebSocket và Token Monitor
     const handleLogout = () => {
-      console.log('👋 Đăng xuất - ngắt kết nối WebSocket');
+      console.log('👋 Đăng xuất - ngắt kết nối WebSocket và cleanup Token Monitor');
+      // 🆕 Đánh dấu logout để các tab khác biết (multi-tab sync)
+      localStorage.setItem('logout', Date.now().toString());
       webSocketService.disconnect();
+      cleanupTokenMonitor();
     };
 
     // Lắng nghe login event để kết nối WebSocket sau khi đăng nhập
     const handleLogin = () => {
       console.log('🔐 Login event received - connecting WebSocket');
+      // 🆕 Xóa flag logout khi login mới
+      localStorage.removeItem('logout');
       connectWebSocket();
     };
 
@@ -184,8 +141,9 @@ function App() {
 
     // Cleanup khi App unmount
     return () => {
-      console.log('🧹 App unmount - đóng WebSocket');
+      console.log('🧹 App unmount - đóng WebSocket và cleanup Token Monitor');
       webSocketService.disconnect();
+      cleanupTokenMonitor();
       window.removeEventListener('logout', handleLogout);
       window.removeEventListener('login', handleLogin);
     };
