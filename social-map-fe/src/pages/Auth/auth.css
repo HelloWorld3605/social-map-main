@@ -142,11 +142,13 @@
   display: flex;
   align-items: center;
   column-gap: 5px;
+  white-space: nowrap;
 }
 
 .remember-div input[type="checkbox"] {
   width: 16px;
   height: 16px;
+  min-width: 16px;
   cursor: pointer;
 }
 

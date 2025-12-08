@@ -9,6 +9,7 @@ import './auth.css';
 // Import logo
 import SocialMapLogo from '/image/Social Map.svg';
 import GoogleSvg from '../../assets/icons8-google.svg';
+import image from "../../assets/image.png";
 
 // Đây là thành phần trang đăng nhập
 export default function LoginPage() {
@@ -153,7 +154,7 @@ export default function LoginPage() {
         <div className="auth-main">
             {/* Phần bên trái - Logo */}
             <div className="auth-left">
-                <img src={SocialMapLogo} alt="Social Map" />
+                <img src={image} alt="Social Map" />
             </div>
 
             {/* Phần bên phải - Form đăng nhập */}
