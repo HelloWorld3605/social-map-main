@@ -23,6 +23,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmailVerificationToken(String token);
 
+    Optional<User> findByPasswordResetToken(String token);
+
     void deleteByEmailVerificationExpiresAtBefore(LocalDateTime dateTime);
 
     // Soft delete methods cho User

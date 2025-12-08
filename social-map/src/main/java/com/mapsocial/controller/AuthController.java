@@ -193,4 +193,54 @@ public class AuthController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Quên mật khẩu", description = "Gửi email đặt lại mật khẩu cho người dùng")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Email đặt lại mật khẩu đã được gửi"),
+            @ApiResponse(responseCode = "400", description = "Email không tồn tại"),
+            @ApiResponse(responseCode = "500", description = "Lỗi gửi email")
+    })
+    public ResponseEntity<String> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        try {
+            String message = authService.forgotPassword(request.getEmail());
+            return ResponseEntity.ok(message);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/validate-reset-token/{token}")
+    @Operation(summary = "Kiểm tra token đặt lại mật khẩu", description = "Xác thực token đặt lại mật khẩu có hợp lệ không")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Token hợp lệ"),
+            @ApiResponse(responseCode = "400", description = "Token không hợp lệ hoặc đã hết hạn")
+    })
+    public ResponseEntity<String> validateResetToken(@PathVariable String token) {
+        try {
+            boolean isValid = authService.validateResetToken(token);
+            if (isValid) {
+                return ResponseEntity.ok("Token hợp lệ. Bạn có thể đặt lại mật khẩu.");
+            } else {
+                return ResponseEntity.badRequest().body("Token không hợp lệ hoặc đã hết hạn.");
+            }
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Đặt lại mật khẩu", description = "Đặt lại mật khẩu mới cho người dùng")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Đặt lại mật khẩu thành công"),
+            @ApiResponse(responseCode = "400", description = "Token không hợp lệ hoặc mật khẩu không đúng định dạng")
+    })
+    public ResponseEntity<String> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        try {
+            authService.resetPassword(request);
+            return ResponseEntity.ok("Đặt lại mật khẩu thành công. Bạn có thể đăng nhập với mật khẩu mới.");
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
 }

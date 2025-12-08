@@ -291,4 +291,86 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Không thể gửi email xác thực: " + e.getMessage());
         }
     }
+
+    // ----------------- FORGOT PASSWORD -----------------
+    @Override
+    @Transactional
+    public String forgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản với email này"));
+
+        // Kiểm tra user đã bị xóa mềm chưa
+        if (user.getDeletedAt() != null) {
+            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
+        }
+
+        // Tạo token reset password
+        String resetToken = UUID.randomUUID().toString();
+        user.setPasswordResetToken(resetToken);
+        user.setPasswordResetExpiresAt(LocalDateTime.now().plusHours(1)); // Token hết hạn sau 1 giờ
+        userRepository.save(user);
+
+        try {
+            // Gửi email reset password
+            emailService.sendPasswordResetEmail(user.getEmail(), resetToken);
+            return "Email đặt lại mật khẩu đã được gửi đến " + email;
+        } catch (Exception e) {
+            // Rollback token nếu gửi email thất bại
+            user.setPasswordResetToken(null);
+            user.setPasswordResetExpiresAt(null);
+            userRepository.save(user);
+            throw new RuntimeException("Không thể gửi email đặt lại mật khẩu: " + e.getMessage());
+        }
+    }
+
+    // ----------------- VALIDATE RESET TOKEN -----------------
+    @Override
+    public boolean validateResetToken(String token) {
+        User user = userRepository.findByPasswordResetToken(token).orElse(null);
+
+        if (user == null) {
+            return false;
+        }
+
+        // Kiểm tra user đã bị xóa mềm chưa
+        if (user.getDeletedAt() != null) {
+            return false;
+        }
+
+        // Kiểm tra token có hết hạn chưa
+        if (user.getPasswordResetExpiresAt() == null ||
+            user.getPasswordResetExpiresAt().isBefore(LocalDateTime.now())) {
+            return false;
+        }
+
+        return true;
+    }
+
+    // ----------------- RESET PASSWORD -----------------
+    @Override
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        User user = userRepository.findByPasswordResetToken(request.getToken())
+                .orElseThrow(() -> new RuntimeException("Token đặt lại mật khẩu không hợp lệ"));
+
+        // Kiểm tra user đã bị xóa mềm chưa
+        if (user.getDeletedAt() != null) {
+            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
+        }
+
+        // Kiểm tra token có hết hạn chưa
+        if (user.getPasswordResetExpiresAt() == null ||
+            user.getPasswordResetExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Token đặt lại mật khẩu đã hết hạn");
+        }
+
+        // Cập nhật mật khẩu mới
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+
+        // Xóa token sau khi đã sử dụng
+        user.setPasswordResetToken(null);
+        user.setPasswordResetExpiresAt(null);
+
+        userRepository.save(user);
+    }
 }

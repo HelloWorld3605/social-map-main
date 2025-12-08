@@ -29,15 +29,15 @@ const CONFIG = {
     REFRESH_BUFFER: 60 * 1000,           // Refresh 1 phút trước khi hết hạn
     BACKGROUND_REFRESH_INTERVAL: 10 * 60 * 1000,  // 10 phút (giống Facebook)
     VISIBILITY_CHECK_INTERVAL: 30 * 1000,  // Check mỗi 30s khi tab visible
-    MAX_HIDDEN_TIME: 3 * 60 * 1000,       // 🆕 3 phút ở tab khác → reload
+    MAX_HIDDEN_TIME: 3 * 60 * 1000,       // 🆕 3 phút ở tab khác → reload khi quay lại
     TOKEN_CHECK_ON_FOCUS_THRESHOLD: 1 * 60 * 1000, // 🆕 1 phút → kiểm tra token
     STALE_PAGE_THRESHOLD: 60 * 60 * 1000,  // Reload nếu page stale > 1 giờ
     MAX_RETRY_ATTEMPTS: 3,                 // Số lần retry refresh
     RETRY_BASE_DELAY: 500,                 // Base delay cho exponential backoff (ms)
-    FORCE_RELOAD_ON_LONG_HIDDEN: true,     // Force reload khi hidden quá lâu (giống Facebook)
+    FORCE_RELOAD_ON_LONG_HIDDEN: true,     // Force reload khi hidden quá lâu và quay lại tab (giống Facebook)
 
     // 🆕 Idle detection config (giống Facebook) - 3 phút
-    IDLE_TIMEOUT: 3 * 60 * 1000,           // 3 phút không tương tác → reload
+    IDLE_TIMEOUT: 3 * 60 * 1000,           // 3 phút không tương tác → reload khi quay lại tab
     IDLE_CHECK_INTERVAL: 30 * 1000,        // Kiểm tra idle mỗi 30 giây
     IDLE_WARNING_TIME: 2 * 60 * 1000,      // Cảnh báo sau 2 phút idle
 };
@@ -383,24 +383,27 @@ export function logTokenInfo() {
 /**
  * 🆕 Handle page visibility change - kiểm tra và refresh token khi user quay lại tab
  * Giống như cách Facebook xử lý
+ * ⚠️ RELOAD CHỈ XẢY RA KHI USER QUAY LẠI TAB (tab becomes visible), KHÔNG PHẢI KHI TAB BỊ ẨN
  */
 async function handleVisibilityChange() {
     const isVisible = document.visibilityState === 'visible';
 
     if (isVisible) {
+        // ✅ TAB ĐANG ĐƯỢC ACTIVE TRỞ LẠI - Đây là lúc kiểm tra và có thể reload
+
         // 🆕 Sử dụng localStorage để tính thời gian chính xác (tránh bị throttle)
         const storedLastVisible = localStorage.getItem(STORAGE_KEYS.LAST_VISIBLE_TIME);
         const lastVisible = storedLastVisible ? parseInt(storedLastVisible, 10) : lastVisibleTime;
         const hiddenDuration = Date.now() - lastVisible;
 
-        console.log(`[TokenMonitor] Tab became visible after ${Math.round(hiddenDuration / 1000)}s (${Math.round(hiddenDuration / 60000)} minutes)`);
+        console.log(`[TokenMonitor] ✅ Tab became VISIBLE after ${Math.round(hiddenDuration / 1000)}s (${Math.round(hiddenDuration / 60000)} minutes hidden)`);
 
         const token = localStorage.getItem('authToken');
 
-        // 🆕 GIỐNG FACEBOOK: Force reload nếu tab hidden quá lâu (30 phút)
-        // Không cần kiểm tra WebSocket - cứ hidden lâu là reload
+        // 🆕 GIỐNG FACEBOOK: Force reload nếu tab đã hidden quá 3 phút và user QUAY LẠI
+        // Reload xảy ra khi user quay lại tab, KHÔNG phải khi ẩn tab
         if (CONFIG.FORCE_RELOAD_ON_LONG_HIDDEN && hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
-            console.log('[TokenMonitor] 🔄 Tab was hidden too long (>30min), reloading page like Facebook...');
+            console.log(`[TokenMonitor] 🔄 Tab was hidden for ${Math.round(hiddenDuration / 60000)} minutes (>${Math.round(CONFIG.MAX_HIDDEN_TIME / 60000)} min), RELOADING now that user returned...`);
             window.location.reload();
             return;
         }
@@ -408,7 +411,7 @@ async function handleVisibilityChange() {
         // 🆕 Kiểm tra idle time (user không tương tác quá lâu dù ở tab này)
         const idleTime = getIdleTime();
         if (idleTime > CONFIG.IDLE_TIMEOUT) {
-            console.log(`[TokenMonitor] 🔄 User idle for ${Math.round(idleTime / 60000)} minutes, reloading page like Facebook...`);
+            console.log(`[TokenMonitor] 🔄 User was idle for ${Math.round(idleTime / 60000)} minutes, reloading now that tab is active...`);
             window.location.reload();
             return;
         }
@@ -517,21 +520,27 @@ function getIdleTime() {
 
 /**
  * 🆕 Kiểm tra và xử lý idle state
+ * ⚠️ CHỈ RELOAD KHI TAB VISIBLE (user đang ở tab này nhưng không tương tác)
  */
 function checkIdleState() {
+    // ⚠️ Chỉ check và reload khi tab đang visible
+    if (document.visibilityState !== 'visible') {
+        return; // Không làm gì khi tab hidden
+    }
+
     const idleTime = getIdleTime();
     const idleMinutes = Math.round(idleTime / 60000);
 
-    // Nếu idle quá lâu → reload trang (giống Facebook)
+    // Nếu idle quá lâu VÀ tab đang visible → reload trang (giống Facebook)
     if (idleTime > CONFIG.IDLE_TIMEOUT) {
-        console.log(`[TokenMonitor] 🔄 User idle for ${idleMinutes} minutes, reloading page like Facebook...`);
+        console.log(`[TokenMonitor] 🔄 User idle for ${idleMinutes} minutes while on this tab, reloading...`);
         window.location.reload();
         return;
     }
 
     // Optional: Cảnh báo khi gần hết thời gian (có thể bỏ nếu không cần)
     if (idleTime > CONFIG.IDLE_WARNING_TIME && idleTime < CONFIG.IDLE_TIMEOUT) {
-        console.log(`[TokenMonitor] ⚠️ User idle for ${idleMinutes} minutes, will reload in ${Math.round((CONFIG.IDLE_TIMEOUT - idleTime) / 60000)} minutes`);
+        console.log(`[TokenMonitor] ⚠️ User idle for ${idleMinutes} minutes, will reload in ${Math.round((CONFIG.IDLE_TIMEOUT - idleTime) / 60000)} minutes if no activity`);
     }
 }
 
@@ -665,19 +674,20 @@ function startVisibilityCheckTimer() {
 }
 
 /**
- * 🆕 Handle window focus event
+ * 🆕 Handle window focus event - backup cho visibility change
+ * ⚠️ RELOAD CHỈ XẢY RA KHI USER FOCUS LẠI WINDOW, KHÔNG PHẢI KHI BLUR
  */
 async function handleWindowFocus() {
-    console.log('[TokenMonitor] Window focused');
+    console.log('[TokenMonitor] ✅ Window FOCUSED (user returned)');
 
     // 🆕 Sử dụng localStorage để tính thời gian chính xác
     const storedLastVisible = localStorage.getItem(STORAGE_KEYS.LAST_VISIBLE_TIME);
     const lastVisible = storedLastVisible ? parseInt(storedLastVisible, 10) : lastVisibleTime;
     const hiddenDuration = Date.now() - lastVisible;
 
-    // 🆕 Force reload nếu hidden quá lâu
+    // 🆕 Force reload nếu hidden quá 3 phút và user QUAY LẠI
     if (CONFIG.FORCE_RELOAD_ON_LONG_HIDDEN && hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
-        console.log('[TokenMonitor] 🔄 Window focused after long hidden, reloading...');
+        console.log(`[TokenMonitor] 🔄 Window focused after ${Math.round(hiddenDuration / 60000)} minutes hidden, RELOADING...`);
         window.location.reload();
         return;
     }

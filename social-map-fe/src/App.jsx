@@ -6,6 +6,8 @@ import LoginPage from './pages/Auth/login-page';
 import RegisterPage from './pages/Auth/register-page';
 import ValidateTokenPage from './pages/Auth/validate-token-page';
 import CompleteRegistrationPage from './pages/Auth/complete-registration-page';
+import ForgotPasswordPage from './pages/Auth/forgot-password-page';
+import ResetPasswordPage from './pages/Auth/reset-password-page';
 import HomePage from './pages/HomePage/HomePage';
 import ProfilePage from './pages/ProfilePage/ProfilePage';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
@@ -194,6 +196,13 @@ function App() {
 
         {/* Trang hoàn tất đăng ký - KHÔNG có layout */}
         <Route path="/complete-registration" element={<CompleteRegistrationPage />} />
+
+        {/* Trang quên mật khẩu - KHÔNG có layout */}
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+
+        {/* Trang đặt lại mật khẩu - KHÔNG có layout */}
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Trang chính - Map fullscreen với MainLayout */}
         <Route

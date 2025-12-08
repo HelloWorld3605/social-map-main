@@ -21,4 +21,9 @@ public interface AuthService {
 
     String verifyEmail(String token);
     void resendEmailVerification(String email);
+
+    // Forgot Password
+    String forgotPassword(String email);
+    boolean validateResetToken(String token);
+    void resetPassword(ResetPasswordRequest request);
 }

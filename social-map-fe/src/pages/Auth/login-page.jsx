@@ -1,29 +1,33 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaEye, FaEyeSlash } from "react-icons/fa6";
 import { login } from '../../services/authService';
 import { scheduleTokenRefresh, logTokenInfo } from '../../utils/tokenMonitor';
 import apiClient from '../../services/apiClient';
+import './auth.css';
+
+// Import logo
+import SocialMapLogo from '/image/Social Map.svg';
+import GoogleSvg from '../../assets/icons8-google.svg';
 
 // Đây là thành phần trang đăng nhập
 export default function LoginPage() {
     const navigate = useNavigate();
-    // Sử dụng state để lưu trữ email và mật khẩu người dùng nhập vào
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
     // Hàm xử lý khi người dùng nhấn nút đăng nhập
     const handleSubmit = async (e) => {
-        e.preventDefault(); // Ngăn trình duyệt tải lại trang
+        e.preventDefault();
 
-        // Kiểm tra đơn giản
         if (!email || !password) {
             setError('Vui lòng nhập cả email và mật khẩu.');
             return;
         }
 
-        // Xóa lỗi nếu đã điền đủ
         setError('');
         setLoading(true);
 
@@ -32,32 +36,23 @@ export default function LoginPage() {
             console.log('🧪 Chế độ test - Bypass API');
             localStorage.setItem('authToken', 'fake-token-for-testing');
             alert(`Đăng nhập test thành công! Chào mừng ${email}`);
-
-            // Dispatch login event
             console.log('📢 Dispatching login event for test mode...');
             window.dispatchEvent(new Event('login'));
-
             setLoading(false);
             navigate('/home', { replace: true });
             return;
         }
 
         try {
-            // Gọi API đăng nhập
             console.log('Đang thử đăng nhập với:', { email, password });
-
             const response = await login({ email, password });
-
-            // Xử lý phản hồi thành công
             console.log('Đăng nhập thành công - Full response:', response);
             console.log('Response.data:', response.data);
             console.log('Response object keys:', Object.keys(response));
 
-            // API response có thể ở response.data hoặc trực tiếp trong response
             const data = response.data || response;
             console.log('Data object:', data);
 
-            // Lưu token - kiểm tra nhiều format khác nhau
             let token = null;
             if (data.accessToken) {
                 token = data.accessToken;
@@ -76,7 +71,6 @@ export default function LoginPage() {
                 throw new Error('Không nhận được token từ server');
             }
 
-            // Lưu thông tin user vào localStorage
             let user = null;
             if (data.user) {
                 user = data.user;
@@ -89,10 +83,8 @@ export default function LoginPage() {
                 console.log('User info đã lưu:', user);
             } else {
                 console.warn('Không tìm thấy user info trong response:', data);
-                // User info is optional, don't throw error
             }
 
-            // Schedule automatic token refresh
             console.log('⏰ Scheduling automatic token refresh...');
             scheduleTokenRefresh(async () => {
                 console.log('🔄 Auto-refresh triggered by token monitor');
@@ -102,19 +94,15 @@ export default function LoginPage() {
                     localStorage.setItem('authToken', newToken);
                     console.log('✅ Token auto-refreshed successfully');
 
-                    // Reconnect WebSocket with new token
                     const { webSocketService } = await import('../../services/WebSocketChatService');
                     if (webSocketService && webSocketService.reconnect) {
                         webSocketService.reconnect();
                     }
                 } catch (error) {
                     console.error('❌ Auto-refresh failed:', error);
-
-                    // Clear all data
                     localStorage.clear();
                     sessionStorage.clear();
 
-                    // Disconnect WebSocket
                     try {
                         const { webSocketService } = await import('../../services/WebSocketChatService');
                         if (webSocketService && webSocketService.disconnect) {
@@ -124,47 +112,36 @@ export default function LoginPage() {
                         console.warn('WebSocket disconnect error:', wsError);
                     }
 
-                    // Force reload để reset app
                     alert('⚠️ Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
                     window.location.replace('/login');
                 }
             });
 
-            // Log token info for debugging
             logTokenInfo();
 
-            // Hiển thị thông báo thành công
             const userName = user?.displayName || email;
             alert(`Đăng nhập thành công! Chào mừng ${userName}`);
 
-            // Dispatch login event để App.jsx kết nối WebSocket
             console.log('📢 Dispatching login event...');
             window.dispatchEvent(new Event('login'));
 
-            // Chuyển hướng đến trang chính (map)
-            // WebSocket sẽ tự động kết nối trong App.jsx khi nhận được event login
             console.log('Đang chuyển hướng đến /home...');
             navigate('/home', { replace: true });
 
         } catch (error) {
-            // Xử lý lỗi từ API
             console.error('Lỗi đăng nhập:', error);
 
             let errorMessage = 'Đăng nhập thất bại. Vui lòng thử lại.';
 
             if (error.response && error.response.data) {
-                // Backend trả về error message
                 errorMessage = error.response.data.message || error.response.data || errorMessage;
             } else if (error.message) {
                 errorMessage = error.message;
             }
 
-            // Kiểm tra xem có phải lỗi tài khoản bị xóa không
             if (errorMessage.includes('đã bị xóa trong hệ thống') || errorMessage.includes('liên hệ admin')) {
-                // Hiển thị alert cho tài khoản bị xóa
                 alert('⚠️ ' + errorMessage);
             } else {
-                // Hiển thị lỗi bình thường
                 setError(errorMessage);
             }
         } finally {
@@ -173,94 +150,77 @@ export default function LoginPage() {
     };
 
     return (
-        // Container chính, căn giữa mọi thứ trên màn hình
-        <div className="flex items-center justify-center min-h-screen bg-gray-100 font-sans">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-lg">
+        <div className="auth-main">
+            {/* Phần bên trái - Logo */}
+            <div className="auth-left">
+                <img src={SocialMapLogo} alt="Social Map" />
+            </div>
 
-                {/* Tiêu đề của form */}
-                <div className="text-center">
-                    <h1 className="text-3xl font-bold text-gray-800">Đăng Nhập</h1>
-                    <p className="mt-2 text-sm text-gray-600">Chào mừng bạn quay trở lại!</p>
+            {/* Phần bên phải - Form đăng nhập */}
+            <div className="auth-right">
+                <div className="auth-right-container">
+                    <div className="auth-logo">
+                        <img src={SocialMapLogo} alt="Social Map" />
+                    </div>
+
+                    <div className="auth-center">
+                        <h2>Chào mừng trở lại!</h2>
+                        <p>Vui lòng nhập thông tin của bạn</p>
+
+                        <form className="auth-form" onSubmit={handleSubmit}>
+                            <input
+                                type="email"
+                                placeholder="Email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                required
+                            />
+
+                            <div className="pass-input-div">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Mật khẩu"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                                {showPassword ? (
+                                    <FaEyeSlash onClick={() => setShowPassword(!showPassword)} />
+                                ) : (
+                                    <FaEye onClick={() => setShowPassword(!showPassword)} />
+                                )}
+                            </div>
+
+                            {error && <div className="auth-error">{error}</div>}
+
+                            <div className="auth-center-options">
+                                <div className="remember-div">
+                                    <input type="checkbox" id="remember-checkbox" />
+                                    <label htmlFor="remember-checkbox">
+                                        Ghi nhớ 30 ngày
+                                    </label>
+                                </div>
+                                <button type="button" className="forgot-pass-link" onClick={() => navigate('/forgot-password')}>
+                                    Quên mật khẩu?
+                                </button>
+                            </div>
+
+                            <div className="auth-center-buttons">
+                                <button type="submit" disabled={loading}>
+                                    {loading ? 'Đang đăng nhập...' : 'Đăng Nhập'}
+                                </button>
+                                <button type="button" className="google-btn">
+                                    <img src={GoogleSvg} alt="Google" />
+                                    Đăng nhập với Google
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <p className="auth-bottom-p">
+                        Chưa có tài khoản? <button onClick={() => navigate('/register')}>Đăng ký</button>
+                    </p>
                 </div>
-
-                {/* Form đăng nhập */}
-                <form onSubmit={handleSubmit} className="space-y-6">
-
-                    {/* Trường nhập email */}
-                    <div>
-                        <label
-                            htmlFor="email"
-                            className="text-sm font-semibold text-gray-700 block mb-2"
-                        >
-                            Địa chỉ Email
-                        </label>
-                        <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            placeholder="you@example.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full px-4 py-2 text-gray-700 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                        />
-                    </div>
-
-                    {/* Trường nhập mật khẩu */}
-                    <div>
-                        <label
-                            htmlFor="password"
-                            className="text-sm font-semibold text-gray-700 block mb-2"
-                        >
-                            Mật khẩu
-                        </label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="w-full px-4 py-2 text-gray-700 bg-gray-50 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                        />
-                    </div>
-
-                    {/* Hiển thị thông báo lỗi nếu có */}
-                    {error && <p className="text-sm text-red-500 text-center">{error}</p>}
-
-                    {/* Các tùy chọn khác như "Quên mật khẩu" */}
-                    <div className="flex items-center justify-end">
-                        <a href="#" className="text-sm text-blue-600 hover:underline">
-                            Quên mật khẩu?
-                        </a>
-                    </div>
-
-                    {/* Nút Đăng nhập */}
-                    <div>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className={`w-full px-4 py-2 font-bold text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300 ${loading
-                                ? 'bg-gray-400 cursor-not-allowed'
-                                : 'bg-blue-600 hover:bg-blue-700'
-                                }`}
-                        >
-                            {loading ? 'Đang đăng nhập...' : 'Đăng Nhập'}
-                        </button>
-                    </div>
-                </form>
-
-                {/* Đường dẫn đến trang đăng ký */}
-                <p className="text-sm text-center text-gray-600">
-                    Chưa có tài khoản?{' '}
-                    <button
-                        onClick={() => navigate('/register')}
-                        className="font-semibold text-blue-600 hover:underline"
-                    >
-                        Đăng ký ngay
-                    </button>
-                </p>
             </div>
         </div>
     );

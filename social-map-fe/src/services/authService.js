@@ -71,3 +71,19 @@ export const resendEmailVerification = async (email) => {
     params: { email }
   });
 };
+
+// 9. Yêu cầu đặt lại mật khẩu (gửi email reset password)
+export const forgotPassword = async (email) => {
+  return await api.post('/auth/forgot-password', { email });
+};
+
+// 10. Xác thực token reset password
+export const validateResetToken = async (token) => {
+  return await api.get(`/auth/validate-reset-token/${token}`);
+};
+
+// 11. Đặt lại mật khẩu mới
+export const resetPassword = async (data) => {
+  // data = { token, newPassword }
+  return await api.post('/auth/reset-password', data);
+};
