@@ -8,13 +8,16 @@
  * ✨ Mutex để tránh race condition khi refresh token
  * ✨ Exponential backoff retry khi refresh fail
  * ✨ Multi-tab sync với storage listener
+ * ✨ Idle/Activity tracking - reload khi user không tương tác quá lâu
  */
 
 let refreshTimer = null;
 let backgroundRefreshTimer = null;
 let visibilityCheckTimer = null;
+let idleCheckTimer = null;  // 🆕 Timer kiểm tra idle
 let lastVisibleTime = Date.now();
 let lastTokenCheck = Date.now();
+let lastActivityTime = Date.now();  // 🆕 Thời điểm hoạt động cuối cùng
 let refreshCallback = null;
 
 // 🆕 Mutex để tránh race condition
@@ -24,14 +27,32 @@ let refreshPromise = null;
 // Config
 const CONFIG = {
     REFRESH_BUFFER: 60 * 1000,           // Refresh 1 phút trước khi hết hạn
-    BACKGROUND_REFRESH_INTERVAL: 10 * 60 * 1000,  // 🆕 10 phút (giống Facebook)
+    BACKGROUND_REFRESH_INTERVAL: 10 * 60 * 1000,  // 10 phút (giống Facebook)
     VISIBILITY_CHECK_INTERVAL: 30 * 1000,  // Check mỗi 30s khi tab visible
     MAX_HIDDEN_TIME: 30 * 60 * 1000,      // Reload nếu tab hidden quá 30 phút
-    TOKEN_CHECK_ON_FOCUS_THRESHOLD: 5 * 60 * 1000, // Kiểm tra token nếu hidden > 5 phút
+    TOKEN_CHECK_ON_FOCUS_THRESHOLD: 2 * 60 * 1000, // Kiểm tra token nếu hidden > 2 phút
     STALE_PAGE_THRESHOLD: 60 * 60 * 1000,  // Reload nếu page stale > 1 giờ
-    MAX_RETRY_ATTEMPTS: 3,                 // 🆕 Số lần retry refresh
-    RETRY_BASE_DELAY: 500,                 // 🆕 Base delay cho exponential backoff (ms)
+    MAX_RETRY_ATTEMPTS: 3,                 // Số lần retry refresh
+    RETRY_BASE_DELAY: 500,                 // Base delay cho exponential backoff (ms)
+    FORCE_RELOAD_ON_LONG_HIDDEN: true,     // Force reload khi hidden quá lâu (giống Facebook)
+
+    // 🆕 Idle detection config (giống Facebook)
+    IDLE_TIMEOUT: 30 * 60 * 1000,          // 30 phút không tương tác → reload
+    IDLE_CHECK_INTERVAL: 60 * 1000,        // Kiểm tra idle mỗi 1 phút
+    IDLE_WARNING_TIME: 25 * 60 * 1000,     // Cảnh báo sau 25 phút idle (optional)
 };
+
+// Key để lưu timestamp vào localStorage (tránh bị throttle)
+const STORAGE_KEYS = {
+    LAST_VISIBLE_TIME: 'tokenMonitor_lastVisibleTime',
+    LAST_ACTIVITY_TIME: 'tokenMonitor_lastActivityTime',
+};
+
+// 🆕 Activity events để track
+const ACTIVITY_EVENTS = [
+    'mousedown', 'mousemove', 'keydown', 'keypress',
+    'scroll', 'touchstart', 'click', 'wheel'
+];
 
 // 🆕 WebSocket service reference (sẽ được inject từ App.jsx)
 let webSocketServiceRef = null;
@@ -367,28 +388,46 @@ async function handleVisibilityChange() {
     const isVisible = document.visibilityState === 'visible';
 
     if (isVisible) {
-        const hiddenDuration = Date.now() - lastVisibleTime;
-        console.log(`[TokenMonitor] Tab became visible after ${Math.round(hiddenDuration / 1000)}s`);
+        // 🆕 Sử dụng localStorage để tính thời gian chính xác (tránh bị throttle)
+        const storedLastVisible = localStorage.getItem(STORAGE_KEYS.LAST_VISIBLE_TIME);
+        const lastVisible = storedLastVisible ? parseInt(storedLastVisible, 10) : lastVisibleTime;
+        const hiddenDuration = Date.now() - lastVisible;
+
+        console.log(`[TokenMonitor] Tab became visible after ${Math.round(hiddenDuration / 1000)}s (${Math.round(hiddenDuration / 60000)} minutes)`);
 
         const token = localStorage.getItem('authToken');
 
-        // 🆕 Giống Facebook Messenger: chỉ reload khi THỰC SỰ cần thiết
-        // Tab hidden quá lâu VÀ (WebSocket mất kết nối HOẶC token hết hạn)
-        if (hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
-            const wsDisconnected = webSocketServiceRef && !webSocketServiceRef.isConnected?.();
-            const tokenExpired = !token || isTokenExpired(token);
-
-            if (wsDisconnected || tokenExpired) {
-                console.log('[TokenMonitor] Tab was hidden too long and connection/token invalid, reloading page...');
-                window.location.reload();
-                return;
-            }
-            console.log('[TokenMonitor] Tab was hidden long but WebSocket still connected, continuing...');
+        // 🆕 GIỐNG FACEBOOK: Force reload nếu tab hidden quá lâu (30 phút)
+        // Không cần kiểm tra WebSocket - cứ hidden lâu là reload
+        if (CONFIG.FORCE_RELOAD_ON_LONG_HIDDEN && hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
+            console.log('[TokenMonitor] 🔄 Tab was hidden too long (>30min), reloading page like Facebook...');
+            window.location.reload();
+            return;
         }
 
-        // Kiểm tra token khi focus lại sau một thời gian
+        // 🆕 Kiểm tra idle time (user không tương tác quá lâu dù ở tab này)
+        const idleTime = getIdleTime();
+        if (idleTime > CONFIG.IDLE_TIMEOUT) {
+            console.log(`[TokenMonitor] 🔄 User idle for ${Math.round(idleTime / 60000)} minutes, reloading page like Facebook...`);
+            window.location.reload();
+            return;
+        }
+
+        // 🆕 Nếu token hết hạn, thử refresh với retry
+        if (token && isTokenExpired(token)) {
+            console.log('[TokenMonitor] Token expired while hidden, attempting refresh...');
+            const success = await retryRefresh();
+            if (!success) {
+                console.log('[TokenMonitor] ❌ Cannot refresh expired token, redirecting to login...');
+                handleRefreshFailure();
+                return;
+            }
+            console.log('[TokenMonitor] ✅ Token refreshed successfully after returning to tab');
+        }
+
+        // Kiểm tra token khi focus lại sau một thời gian (2 phút)
         if (hiddenDuration > CONFIG.TOKEN_CHECK_ON_FOCUS_THRESHOLD) {
-            console.log('[TokenMonitor] Checking token after long hidden period...');
+            console.log('[TokenMonitor] Checking/refreshing token after hidden period...');
             await checkAndRefreshTokenOnFocus();
         }
 
@@ -396,9 +435,25 @@ async function handleVisibilityChange() {
         if (token && !isTokenExpired(token)) {
             scheduleTokenRefresh();
         }
+
+        // 🆕 Reconnect WebSocket nếu bị disconnect trong khi hidden
+        if (webSocketServiceRef && !webSocketServiceRef.isConnected?.()) {
+            console.log('[TokenMonitor] 🔌 WebSocket disconnected while hidden, reconnecting...');
+            try {
+                await webSocketServiceRef.reconnect?.();
+            } catch (err) {
+                console.warn('[TokenMonitor] WebSocket reconnect failed:', err);
+            }
+        }
+
+        // 🆕 Reset activity time khi user quay lại tab (vì họ đang active)
+        updateActivityTime();
     } else {
-        lastVisibleTime = Date.now();
-        console.log('[TokenMonitor] Tab became hidden');
+        // Tab became hidden - lưu timestamp vào localStorage
+        const now = Date.now();
+        lastVisibleTime = now;
+        localStorage.setItem(STORAGE_KEYS.LAST_VISIBLE_TIME, now.toString());
+        console.log('[TokenMonitor] Tab became hidden, saved timestamp');
     }
 }
 
@@ -438,6 +493,96 @@ async function checkAndRefreshTokenOnFocus() {
 function isPageStale() {
     const timeSinceLastCheck = Date.now() - lastTokenCheck;
     return timeSinceLastCheck > CONFIG.STALE_PAGE_THRESHOLD;
+}
+
+/**
+ * 🆕 Cập nhật thời gian hoạt động khi user tương tác
+ */
+function updateActivityTime() {
+    const now = Date.now();
+    lastActivityTime = now;
+    // Lưu vào localStorage để track chính xác (tránh bị throttle)
+    localStorage.setItem(STORAGE_KEYS.LAST_ACTIVITY_TIME, now.toString());
+}
+
+/**
+ * 🆕 Lấy thời gian idle (không tương tác)
+ */
+function getIdleTime() {
+    // Ưu tiên đọc từ localStorage (chính xác hơn khi timer bị throttle)
+    const storedActivityTime = localStorage.getItem(STORAGE_KEYS.LAST_ACTIVITY_TIME);
+    const lastActivity = storedActivityTime ? parseInt(storedActivityTime, 10) : lastActivityTime;
+    return Date.now() - lastActivity;
+}
+
+/**
+ * 🆕 Kiểm tra và xử lý idle state
+ */
+function checkIdleState() {
+    const idleTime = getIdleTime();
+    const idleMinutes = Math.round(idleTime / 60000);
+
+    // Nếu idle quá lâu → reload trang (giống Facebook)
+    if (idleTime > CONFIG.IDLE_TIMEOUT) {
+        console.log(`[TokenMonitor] 🔄 User idle for ${idleMinutes} minutes, reloading page like Facebook...`);
+        window.location.reload();
+        return;
+    }
+
+    // Optional: Cảnh báo khi gần hết thời gian (có thể bỏ nếu không cần)
+    if (idleTime > CONFIG.IDLE_WARNING_TIME && idleTime < CONFIG.IDLE_TIMEOUT) {
+        console.log(`[TokenMonitor] ⚠️ User idle for ${idleMinutes} minutes, will reload in ${Math.round((CONFIG.IDLE_TIMEOUT - idleTime) / 60000)} minutes`);
+    }
+}
+
+/**
+ * 🆕 Bắt đầu tracking activity
+ */
+export function startActivityTracking() {
+    // Cập nhật activity time khi có bất kỳ tương tác nào
+    ACTIVITY_EVENTS.forEach(eventType => {
+        document.addEventListener(eventType, updateActivityTime, { passive: true, capture: true });
+    });
+
+    // Khởi tạo activity time
+    updateActivityTime();
+
+    // Bắt đầu timer kiểm tra idle
+    startIdleCheckTimer();
+
+    console.log('[TokenMonitor] Activity tracking started');
+}
+
+/**
+ * 🆕 Dừng tracking activity
+ */
+export function stopActivityTracking() {
+    ACTIVITY_EVENTS.forEach(eventType => {
+        document.removeEventListener(eventType, updateActivityTime, { capture: true });
+    });
+
+    if (idleCheckTimer) {
+        clearInterval(idleCheckTimer);
+        idleCheckTimer = null;
+    }
+
+    console.log('[TokenMonitor] Activity tracking stopped');
+}
+
+/**
+ * 🆕 Bắt đầu timer kiểm tra idle
+ */
+function startIdleCheckTimer() {
+    if (idleCheckTimer) {
+        clearInterval(idleCheckTimer);
+    }
+
+    idleCheckTimer = setInterval(() => {
+        // Chỉ check idle khi tab visible
+        if (document.visibilityState === 'visible') {
+            checkIdleState();
+        }
+    }, CONFIG.IDLE_CHECK_INTERVAL);
 }
 
 /**
@@ -524,7 +669,18 @@ function startVisibilityCheckTimer() {
  */
 async function handleWindowFocus() {
     console.log('[TokenMonitor] Window focused');
-    const hiddenDuration = Date.now() - lastVisibleTime;
+
+    // 🆕 Sử dụng localStorage để tính thời gian chính xác
+    const storedLastVisible = localStorage.getItem(STORAGE_KEYS.LAST_VISIBLE_TIME);
+    const lastVisible = storedLastVisible ? parseInt(storedLastVisible, 10) : lastVisibleTime;
+    const hiddenDuration = Date.now() - lastVisible;
+
+    // 🆕 Force reload nếu hidden quá lâu
+    if (CONFIG.FORCE_RELOAD_ON_LONG_HIDDEN && hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
+        console.log('[TokenMonitor] 🔄 Window focused after long hidden, reloading...');
+        window.location.reload();
+        return;
+    }
 
     if (hiddenDuration > CONFIG.TOKEN_CHECK_ON_FOCUS_THRESHOLD) {
         await checkAndRefreshTokenOnFocus();
@@ -535,8 +691,11 @@ async function handleWindowFocus() {
  * 🆕 Handle window blur event
  */
 function handleWindowBlur() {
-    lastVisibleTime = Date.now();
-    console.log('[TokenMonitor] Window blurred');
+    const now = Date.now();
+    lastVisibleTime = now;
+    // 🆕 Lưu vào localStorage để tránh bị throttle
+    localStorage.setItem(STORAGE_KEYS.LAST_VISIBLE_TIME, now.toString());
+    console.log('[TokenMonitor] Window blurred, saved timestamp');
 }
 
 /**
@@ -658,8 +817,12 @@ export function initTokenMonitor(callback, wsService = null) {
         webSocketServiceRef = wsService;
     }
 
-    lastTokenCheck = Date.now();
-    lastVisibleTime = Date.now();
+    const now = Date.now();
+    lastTokenCheck = now;
+    lastVisibleTime = now;
+
+    // 🆕 Lưu timestamp vào localStorage để track chính xác
+    localStorage.setItem(STORAGE_KEYS.LAST_VISIBLE_TIME, now.toString());
 
     // Reset mutex
     isRefreshing = false;
@@ -677,7 +840,10 @@ export function initTokenMonitor(callback, wsService = null) {
     // 🆕 Start multi-tab sync
     startMultiTabSync();
 
-    console.log('[TokenMonitor] Token monitor initialized with all features');
+    // 🆕 Start activity/idle tracking (giống Facebook)
+    startActivityTracking();
+
+    console.log('[TokenMonitor] Token monitor initialized with all features (including idle detection)');
 }
 
 /**
@@ -687,12 +853,17 @@ export function cleanupTokenMonitor() {
     stopTokenRefresh();
     stopVisibilityMonitoring();
     stopMultiTabSync();
+    stopActivityTracking();  // 🆕 Stop activity tracking
 
     // Reset state
     refreshCallback = null;
     webSocketServiceRef = null;
     isRefreshing = false;
     refreshPromise = null;
+
+    // 🆕 Xóa localStorage keys
+    localStorage.removeItem(STORAGE_KEYS.LAST_VISIBLE_TIME);
+    localStorage.removeItem(STORAGE_KEYS.LAST_ACTIVITY_TIME);
 
     console.log('[TokenMonitor] Token monitor cleaned up');
 }
