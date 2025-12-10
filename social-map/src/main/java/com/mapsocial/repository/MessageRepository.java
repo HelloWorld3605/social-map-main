@@ -47,4 +47,13 @@ public interface MessageRepository extends MongoRepository<Message, String> {
 
     //  Tìm message cuối cùng của conversation
     Optional<Message> findTop1ByConversationIdAndDeletedFalseOrderByCreatedAtDesc(String conversationId);
+
+    // Find messages after clearedAt time (for users who cleared chat history)
+    @Query("{'conversationId': ?0, 'createdAt': {$gt: ?1}, 'deleted': false}")
+    Page<Message> findByConversationIdAndCreatedAtAfterAndDeletedFalseOrderByCreatedAtDesc(
+            String conversationId, LocalDateTime clearedAt, Pageable pageable);
+
+    // Count messages after clearedAt for unread count
+    @Query(value = "{ 'conversationId': ?0, 'senderId': { $ne: ?2 }, 'createdAt': { $gt: ?1 }, 'deleted': false }", count = true)
+    long countMessagesAfterTime(String conversationId, LocalDateTime afterTime, String excludeSenderId);
 }

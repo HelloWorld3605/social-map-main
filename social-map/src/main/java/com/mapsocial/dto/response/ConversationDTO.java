@@ -27,6 +27,9 @@ public class ConversationDTO {
     // Unread count (calculated)
     private int unreadCount;
 
+    // Muted status for current user
+    private boolean isMuted;
+
     // Members info
     private List<ConversationMemberDTO> members;
 

@@ -13,7 +13,7 @@ class WebSocketChatService {
 
      // 🆕 Thêm các biến cho auto-reconnect và heartbeat
     reconnectAttempts = 0;
-    maxReconnectAttempts = 5;
+    // 🆕 Facebook-style: Không giới hạn số lần retry (retry vô hạn)
     reconnectTimer = null;
     heartbeatTimer = null;
     lastHeartbeat = Date.now();
@@ -181,19 +181,20 @@ class WebSocketChatService {
         this.stompClient.activate();
     }
 
-    // 🆕 Custom reconnect với exponential backoff
+    // 🆕 Custom reconnect với exponential backoff - RETRY VÔ HẠN (giống Facebook Messenger)
     attemptReconnect() {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error(`[WebSocket] Max reconnect attempts (${this.maxReconnectAttempts}) reached`);
-            // Có thể emit event để app xử lý (ví dụ reload page)
-            window.dispatchEvent(new CustomEvent('websocket-max-reconnect-reached'));
-            return;
+        // 🆕 Facebook-style: KHÔNG giới hạn số lần retry
+        // Chỉ log warning mỗi 10 lần retry
+        if (this.reconnectAttempts > 0 && this.reconnectAttempts % 10 === 0) {
+            console.warn(`[WebSocket] Still trying to reconnect... (attempt ${this.reconnectAttempts})`);
         }
 
         this.reconnectAttempts++;
-        const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000); // Exponential backoff, max 30s
 
-        console.log(`[WebSocket] Attempting reconnect ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay}ms`);
+        // Exponential backoff với max delay 60s (tăng từ 30s để tránh spam)
+        const delay = Math.min(1000 * Math.pow(1.5, Math.min(this.reconnectAttempts, 10)), 60000);
+
+        console.log(`[WebSocket] Attempting reconnect #${this.reconnectAttempts} in ${Math.round(delay / 1000)}s`);
 
         this.reconnectTimer = setTimeout(() => {
             if (!this.isConnected() && !this.connecting) {
@@ -216,6 +217,8 @@ class WebSocketChatService {
      */
     reconnect() {
         console.log('[WebSocket] Reconnecting with fresh token...');
+        // 🆕 Reset reconnect attempts khi manual reconnect
+        this.reconnectAttempts = 0;
         const { onConnected, onError } = this.reconnectCallbacks;
         this.connect(onConnected, onError);
     }

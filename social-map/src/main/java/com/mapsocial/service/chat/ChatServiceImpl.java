@@ -225,6 +225,18 @@ public class ChatServiceImpl implements ChatService {
                     Conversation conv = conversationRepository.findById(member.getConversationId())
                             .orElse(null);
                     if (conv == null) return null;
+
+                    // If user cleared chat, check if there are new messages after clearedAt
+                    if (member.getClearedAt() != null) {
+                        // Check if last message is after clearedAt
+                        if (conv.getLastMessageAt() == null ||
+                            conv.getLastMessageAt().isBefore(member.getClearedAt()) ||
+                            conv.getLastMessageAt().isEqual(member.getClearedAt())) {
+                            // No new messages after clear - hide this conversation
+                            return null;
+                        }
+                    }
+
                     return mapToConversationDTO(conv, userId);
                 })
                 .filter(Objects::nonNull)
@@ -363,12 +375,20 @@ public class ChatServiceImpl implements ChatService {
 
     @Override
     public Page<MessageDTO> getMessages(String conversationId, String userId, Pageable pageable) {
-        if (!isMemberOfConversation(conversationId, userId)) {
-            throw new ChatException("Người dùng không thuộc cuộc trò chuyện này");
-        }
+        ConversationMember member = conversationMemberRepository
+                .findByConversationIdAndUserId(conversationId, userId)
+                .orElseThrow(() -> new ChatException("Người dùng không thuộc cuộc trò chuyện này"));
 
-        Page<Message> messages = messageRepository.findByConversationIdAndDeletedFalseOrderByCreatedAtDesc(
-                conversationId, pageable);
+        Page<Message> messages;
+
+        // If user has cleared chat, only show messages after clearedAt
+        if (member.getClearedAt() != null) {
+            messages = messageRepository.findByConversationIdAndCreatedAtAfterAndDeletedFalseOrderByCreatedAtDesc(
+                    conversationId, member.getClearedAt(), pageable);
+        } else {
+            messages = messageRepository.findByConversationIdAndDeletedFalseOrderByCreatedAtDesc(
+                    conversationId, pageable);
+        }
 
         List<MessageDTO> messageDTOs = messages.stream()
                 .map(this::mapToMessageDTO)
@@ -527,7 +547,70 @@ public class ChatServiceImpl implements ChatService {
         LocalDateTime lastReadAt = member.getLastReadAt() != null ?
                 member.getLastReadAt() : member.getJoinedAt();
 
+        // If user cleared chat, use clearedAt as the minimum time boundary
+        if (member.getClearedAt() != null && member.getClearedAt().isAfter(lastReadAt)) {
+            lastReadAt = member.getClearedAt();
+        }
+
         return (int) messageRepository.countUnreadMessages(conversationId, lastReadAt, userId);
+    }
+
+    @Override
+    @Transactional
+    public void markAsUnread(String conversationId, String userId) {
+        ConversationMember member = conversationMemberRepository
+                .findByConversationIdAndUserId(conversationId, userId)
+                .orElseThrow(() -> new ChatException(USER_NOT_IN_CONVERSATION));
+
+        // Find the last message in conversation
+        Optional<Message> lastMessageOpt = messageRepository.findTop1ByConversationIdAndDeletedFalseOrderByCreatedAtDesc(conversationId);
+
+        if (lastMessageOpt.isPresent()) {
+            Message lastMessage = lastMessageOpt.get();
+            // Set lastReadAt to 1 second before the last message
+            member.setLastReadAt(lastMessage.getCreatedAt().minusSeconds(1));
+        } else {
+            // No messages, set to joinedAt minus 1 second
+            member.setLastReadAt(member.getJoinedAt().minusSeconds(1));
+        }
+
+        conversationMemberRepository.save(member);
+    }
+
+    @Override
+    @Transactional
+    public void muteConversation(String conversationId, String userId, boolean mute) {
+        ConversationMember member = conversationMemberRepository
+                .findByConversationIdAndUserId(conversationId, userId)
+                .orElseThrow(() -> new ChatException(USER_NOT_IN_CONVERSATION));
+
+        member.setMuted(mute);
+        member.setMutedAt(mute ? LocalDateTime.now() : null);
+        conversationMemberRepository.save(member);
+    }
+
+    @Override
+    public boolean isConversationMuted(String conversationId, String userId) {
+        ConversationMember member = conversationMemberRepository
+                .findByConversationIdAndUserId(conversationId, userId)
+                .orElse(null);
+
+        return member != null && member.isMuted();
+    }
+
+    @Override
+    @Transactional
+    public void deleteConversation(String conversationId, String userId) {
+        ConversationMember member = conversationMemberRepository
+                .findByConversationIdAndUserId(conversationId, userId)
+                .orElseThrow(() -> new ChatException(USER_NOT_IN_CONVERSATION));
+
+        // Clear chat history for this user only (like Facebook)
+        // User stays in conversation but won't see messages before this time
+        member.setClearedAt(LocalDateTime.now());
+        // Also reset unread count by setting lastReadAt to now
+        member.setLastReadAt(LocalDateTime.now());
+        conversationMemberRepository.save(member);
     }
 
     @Override
@@ -677,6 +760,7 @@ public class ChatServiceImpl implements ChatService {
 
         int unreadCount = getUnreadCount(conversation.getId(), currentUserId);
         List<String> typingUserIds = getTypingUsers(conversation.getId());
+        boolean isMuted = isConversationMuted(conversation.getId(), currentUserId);
 
         return ConversationDTO.builder()
                 .id(conversation.getId())
@@ -688,6 +772,7 @@ public class ChatServiceImpl implements ChatService {
                 .lastMessageAt(conversation.getLastMessageAt())
                 .lastMessageSeenByUserIds(lastMessageSeenByUserIds)
                 .unreadCount(unreadCount)
+                .isMuted(isMuted)
                 .members(memberDTOs)
                 .typingUserIds(typingUserIds)
                 .createdAt(conversation.getCreatedAt())

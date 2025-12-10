@@ -312,6 +312,43 @@ public class ChatController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/api/conversations/{conversationId}/mark-unread")
+    public ResponseEntity<Void> markAsUnread(
+            @PathVariable String conversationId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        String userId = userPrincipal.getUser().getId().toString();
+        chatService.markAsUnread(conversationId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/api/conversations/{conversationId}/mute")
+    public ResponseEntity<Void> muteConversation(
+            @PathVariable String conversationId,
+            @RequestParam boolean mute,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        String userId = userPrincipal.getUser().getId().toString();
+        chatService.muteConversation(conversationId, userId, mute);
+        return ResponseEntity.ok().build();
+    }
+
+    @DeleteMapping("/api/conversations/{conversationId}")
+    public ResponseEntity<Void> deleteConversation(
+            @PathVariable String conversationId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        String userId = userPrincipal.getUser().getId().toString();
+        chatService.deleteConversation(conversationId, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/api/conversations/{conversationId}/leave")
+    public ResponseEntity<Void> leaveConversation(
+            @PathVariable String conversationId,
+            @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        String userId = userPrincipal.getUser().getId().toString();
+        chatService.leaveConversation(conversationId, userId);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/api/users/search")
     public ResponseEntity<List<UserSearchDTO>> searchUsers(
             @RequestParam String query,

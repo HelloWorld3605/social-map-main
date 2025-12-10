@@ -7,22 +7,104 @@ import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
 import { userService } from '../../services/userService';
 import useRealtimeStatus from '../../hooks/useRealtimeStatus';
+import { getLocationDisplayText } from '../../utils/locationMessageUtils';
 
 export default function SideChat() {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeFriend, setActiveFriend] = useState(null);
-    const [openChatWindows, setOpenChatWindows] = useState(new Map());
-    const [activeChatWindow, setActiveChatWindow] = useState(null); // Track active window (Facebook-style)
+
+    // Get current user ID from token for localStorage key
+    const getStorageKey = (key) => {
+        try {
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                const userId = payload.userId || payload.id || payload.sub;
+                return `${key}_${userId}`;
+            }
+        } catch (e) {
+            console.error('Failed to get user ID from token:', e);
+        }
+        return null;
+    };
+
+    // Initialize openChatWindows from localStorage
+    const [openChatWindows, setOpenChatWindows] = useState(() => {
+        try {
+            const storageKey = getStorageKey('openChatWindows');
+            if (storageKey) {
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    return new Map(parsed);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to parse saved chat windows:', e);
+        }
+        return new Map();
+    });
+
+    // Initialize activeChatWindow from localStorage
+    const [activeChatWindow, setActiveChatWindow] = useState(() => {
+        try {
+            const storageKey = getStorageKey('activeChatWindow');
+            if (storageKey) {
+                return localStorage.getItem(storageKey) || null;
+            }
+        } catch {
+            // ignore - localStorage might not be available
+        }
+        return null;
+    });
+
     const [conversations, setConversations] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [currentUserId, setCurrentUserId] = useState(null);
     const [userStatuses, setUserStatuses] = useState(new Map()); // Map userId -> {isOnline, lastSeen}
+    const [openMenuId, setOpenMenuId] = useState(null); // Track which conversation menu is open
+    const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 }); // Position for fixed menu
     const wsConnectedRef = useRef(false);
     const conversationIdsRef = useRef(new Set()); // Track conversation IDs to detect new conversations
     const activeChatWindowRef = useRef(null); // Track active window with ref for immediate access
     const conversationsRef = useRef([]); // Track latest conversations for callbacks
+    const menuRef = useRef(null); // Ref for menu popup to detect outside clicks
+
+    // Save openChatWindows to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            const storageKey = getStorageKey('openChatWindows');
+            if (storageKey) {
+                const serialized = JSON.stringify(Array.from(openChatWindows.entries()));
+                localStorage.setItem(storageKey, serialized);
+            }
+        } catch (e) {
+            console.error('Failed to save chat windows:', e);
+        }
+    }, [openChatWindows]);
+
+    // Save activeChatWindow to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            const storageKey = getStorageKey('activeChatWindow');
+            if (storageKey) {
+                if (activeChatWindow) {
+                    localStorage.setItem(storageKey, activeChatWindow);
+                } else {
+                    localStorage.removeItem(storageKey);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to save active chat window:', e);
+        }
+    }, [activeChatWindow]);
+
+    // Sync activeChatWindowRef with activeChatWindow state
+    useEffect(() => {
+        activeChatWindowRef.current = activeChatWindow;
+    }, [activeChatWindow]);
 
     // Load conversations from backend
     const loadConversations = useCallback(async () => {
@@ -34,13 +116,30 @@ export default function SideChat() {
                 if (conv.lastMessageContent?.startsWith('LOCATION:')) {
                     return {
                         ...conv,
-                        lastMessageContent: 'Vị trí'
+                        lastMessageContent: getLocationDisplayText(conv.lastMessageContent)
                     };
                 }
                 return conv;
             }).map(conv => ({ ...conv, typingUsers: [] })); // Add typingUsers array
             setConversations(processedData);
             conversationsRef.current = processedData; // Keep ref in sync
+
+            // Sync restored chat windows with loaded conversations
+            // Update chat windows with fresh conversation data
+            setOpenChatWindows(prev => {
+                if (prev.size === 0) return prev;
+
+                const newMap = new Map();
+                prev.forEach((chatData, convId) => {
+                    const freshConv = processedData.find(c => c.id === convId);
+                    if (freshConv) {
+                        // Update with fresh data but keep minimized state
+                        newMap.set(convId, { ...freshConv, minimized: chatData.minimized });
+                    }
+                    // If conversation not found (deleted/cleared), don't restore it
+                });
+                return newMap;
+            });
         } catch (error) {
             console.error('Failed to load conversations:', error);
         } finally {
@@ -89,7 +188,7 @@ export default function SideChat() {
                     // Update conversation with new last message and unread count
                     let lastMessageContent = updateDTO.lastMessageContent;
                     if (updateDTO.lastMessageContent?.startsWith('LOCATION:')) {
-                        lastMessageContent = 'Vị trí';
+                        lastMessageContent = getLocationDisplayText(updateDTO.lastMessageContent);
                     }
 
                     setConversations(prev => prev.map(conv => {
@@ -117,38 +216,64 @@ export default function SideChat() {
         console.log('🔍 WebSocket.stompClient:', webSocketService.stompClient);
         console.log('🔍 WebSocket.connected:', webSocketService.stompClient?.connected);
 
-        let retryTimeout = null;
+        let retryInterval = null;
+        let retryCount = 0;
+        const maxRetries = 10; // Retry tối đa 10 lần
+        const retryDelay = 500; // 500ms giữa mỗi lần retry
+        let isSubscribed = false; // Track xem đã subscribe thành công chưa
 
+        const trySubscribe = () => {
+            if (isSubscribed) return; // Đã subscribe rồi, không cần retry nữa
+
+            if (webSocketService.stompClient?.connected) {
+                console.log(`✅ WebSocket connected (attempt ${retryCount}), initializing subscriptions`);
+                initializeWebSocketSubscriptions();
+                isSubscribed = true;
+                if (retryInterval) {
+                    clearInterval(retryInterval);
+                    retryInterval = null;
+                }
+            } else {
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                    console.warn(`⚠️ WebSocket vẫn chưa connected sau ${maxRetries} lần retry. Chờ event...`);
+                    if (retryInterval) {
+                        clearInterval(retryInterval);
+                        retryInterval = null;
+                    }
+                } else {
+                    console.log(`🔄 Retry ${retryCount}/${maxRetries}: Checking WebSocket connection...`);
+                }
+            }
+        };
+
+        // Check ngay lập tức
         if (webSocketService.stompClient?.connected) {
             console.log('✅ WebSocket already connected, initializing subscriptions');
             initializeWebSocketSubscriptions();
+            isSubscribed = true;
         } else {
             console.log('⏸️ Đang chờ WebSocket từ App.jsx...');
-
-            // 🔄 Retry sau 500ms (cho phép App.jsx kịp connect)
-            retryTimeout = setTimeout(() => {
-                console.log('🔄 Retry: Checking WebSocket connection again...');
-                console.log('🔍 WebSocket.connected:', webSocketService.stompClient?.connected);
-
-                if (webSocketService.stompClient?.connected) {
-                    console.log('✅ WebSocket connected on retry, initializing subscriptions');
-                    initializeWebSocketSubscriptions();
-                } else {
-                    console.warn('⚠️ WebSocket vẫn chưa connected sau retry. Chờ event...');
-                }
-            }, 500);
+            // 🔄 Retry mỗi 500ms, tối đa 10 lần (5 giây)
+            retryInterval = setInterval(trySubscribe, retryDelay);
         }
 
         // Lắng nghe event websocket-connected từ App.jsx
         const handleWebSocketConnected = () => {
+            if (isSubscribed) return; // Đã subscribe rồi
             console.log('🎉 SideChat received websocket-connected event');
             initializeWebSocketSubscriptions();
+            isSubscribed = true;
+            if (retryInterval) {
+                clearInterval(retryInterval);
+                retryInterval = null;
+            }
         };
 
         window.addEventListener('websocket-connected', handleWebSocketConnected);
 
         return () => {
-            if (retryTimeout) clearTimeout(retryTimeout);
+            if (retryInterval) clearInterval(retryInterval);
             window.removeEventListener('websocket-connected', handleWebSocketConnected);
             console.log('🔌 SideChat unmounting, giữ WebSocket connection');
         };
@@ -159,6 +284,37 @@ export default function SideChat() {
         console.log('🔄 Loading conversations on mount');
         loadConversations();
     }, [loadConversations]);
+
+    // 🆕 Lắng nghe soft-sync event từ TokenMonitor (thay vì reload page)
+    useEffect(() => {
+        const handleSoftSync = async (event) => {
+            console.log('🔄 [SideChat] Soft sync triggered:', event.detail);
+
+            // 1. Reload conversations để lấy data mới nhất
+            await loadConversations();
+
+            // 2. Sync messages cho các chat windows đang mở
+            openChatWindows.forEach((_, convId) => {
+                window.dispatchEvent(new CustomEvent('sync-chat-messages', {
+                    detail: { conversationId: convId }
+                }));
+            });
+
+            // 3. Reconnect WebSocket nếu cần
+            if (!webSocketService.stompClient?.connected) {
+                console.log('🔌 [SideChat] WebSocket disconnected, reconnecting...');
+                webSocketService.reconnect();
+            }
+
+            console.log('✅ [SideChat] Soft sync completed');
+        };
+
+        window.addEventListener('soft-sync-required', handleSoftSync);
+
+        return () => {
+            window.removeEventListener('soft-sync-required', handleSoftSync);
+        };
+    }, [loadConversations, openChatWindows]);
 
     // ✅ Facebook-style: Click outside to deactivate active chat window
     useEffect(() => {
@@ -253,10 +409,8 @@ export default function SideChat() {
 
                 // Process location messages
                 let lastMessageContent = message.content;
-                if (message.content && message.content.startsWith('LOCATION:')) {
-                    lastMessageContent = 'Vị trí';
-                } else if (message.isLocation) {
-                    lastMessageContent = 'Vị trí';
+                if ((message.content && message.content.startsWith('LOCATION:')) || message.isLocation) {
+                    lastMessageContent = getLocationDisplayText(message.content);
                 }
 
                 // Check if message is from someone else
@@ -593,7 +747,6 @@ export default function SideChat() {
 
         setUserStatuses(prev => {
             const newMap = new Map(prev);
-            const currentStatus = newMap.get(userId) || { isOnline: false, lastSeen: 'unknown' };
 
             // Always update to ensure all users get real-time updates
             if (status === 'online') {
@@ -720,14 +873,14 @@ export default function SideChat() {
         // Check if content is string before using startsWith
         if (typeof message.content === 'string') {
             if (message.content.startsWith('LOCATION:')) {
-                lastMessageContent = '📍 Vị trí';
+                lastMessageContent = '📍 ' + getLocationDisplayText(message.content);
             } else if (message.content.startsWith('SHOP:')) {
                 lastMessageContent = '🏪 Cửa hàng';
             }
         } else if (typeof message.content === 'object') {
             // Content đã được parse thành object
             if (message.isLocation) {
-                lastMessageContent = '📍 Vị trí';
+                lastMessageContent = '📍 Địa điểm: ' + (message.content?.name || 'Vị trí');
             } else {
                 lastMessageContent = '[Tin nhắn đa phương tiện]';
             }
@@ -744,6 +897,130 @@ export default function SideChat() {
             }
             return conv;
         }));
+    }, []);
+
+    // Toggle conversation menu
+    const handleMenuToggle = useCallback((e, conversationId) => {
+        e.stopPropagation(); // Prevent opening chat window
+
+        if (openMenuId === conversationId) {
+            setOpenMenuId(null);
+            return;
+        }
+
+        // Calculate position for fixed menu (show right below the conversation item)
+        const friendItem = e.currentTarget.closest('.friend-item');
+        const rect = friendItem.getBoundingClientRect();
+        const menuWidth = 250; // min-width of menu
+
+        // Position menu aligned with conversation, but ensure it stays on screen
+        let left = rect.left;
+
+        // If menu would go off the right edge, align to right edge instead
+        if (left + menuWidth > window.innerWidth - 10) {
+            left = rect.right - menuWidth;
+        }
+
+        // Ensure minimum left position
+        if (left < 10) {
+            left = 10;
+        }
+
+        const position = {
+            top: rect.bottom,
+            left: left
+        };
+
+        setMenuPosition(position);
+        setOpenMenuId(conversationId);
+    }, [openMenuId]);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            // Ignore clicks on menu button
+            if (e.target.closest('.conv-menu-btn')) {
+                return;
+            }
+            if (openMenuId && menuRef.current && !menuRef.current.contains(e.target)) {
+                setOpenMenuId(null);
+            }
+        };
+
+        if (openMenuId) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [openMenuId]);
+
+    // Handle mark as unread
+    const handleMarkAsUnread = useCallback(async (e, conversationId) => {
+        e.stopPropagation();
+        try {
+            await ChatService.markAsUnread(conversationId);
+            setConversations(prev => prev.map(conv =>
+                conv.id === conversationId ? { ...conv, unreadCount: Math.max(conv.unreadCount, 1) } : conv
+            ));
+            setOpenMenuId(null);
+        } catch (error) {
+            console.error('Failed to mark as unread:', error);
+        }
+    }, []);
+
+    // Handle mute notifications
+    const handleMuteNotification = useCallback(async (e, conversationId) => {
+        e.stopPropagation();
+        try {
+            const conv = conversations.find(c => c.id === conversationId);
+            const isMuted = conv?.isMuted;
+            await ChatService.toggleMuteConversation(conversationId, !isMuted);
+            setConversations(prev => prev.map(c =>
+                c.id === conversationId ? { ...c, isMuted: !isMuted } : c
+            ));
+            setOpenMenuId(null);
+        } catch (error) {
+            console.error('Failed to toggle mute:', error);
+        }
+    }, [conversations]);
+
+    // Handle delete conversation
+    const handleDeleteConversation = useCallback(async (e, conversationId) => {
+        e.stopPropagation();
+        if (!window.confirm('Bạn có chắc chắn muốn xóa đoạn chat này?')) return;
+
+        try {
+            await ChatService.deleteConversation(conversationId);
+            setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+            // Close chat window if open
+            setOpenChatWindows(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(conversationId);
+                return newMap;
+            });
+            setOpenMenuId(null);
+        } catch (error) {
+            console.error('Failed to delete conversation:', error);
+        }
+    }, []);
+
+    // Handle leave group
+    const handleLeaveGroup = useCallback(async (e, conversationId) => {
+        e.stopPropagation();
+        if (!window.confirm('Bạn có chắc chắn muốn rời khỏi nhóm này?')) return;
+
+        try {
+            await ChatService.leaveGroup(conversationId);
+            setConversations(prev => prev.filter(conv => conv.id !== conversationId));
+            // Close chat window if open
+            setOpenChatWindows(prev => {
+                const newMap = new Map(prev);
+                newMap.delete(conversationId);
+                return newMap;
+            });
+            setOpenMenuId(null);
+        } catch (error) {
+            console.error('Failed to leave group:', error);
+        }
     }, []);
 
     useEffect(() => {
@@ -991,7 +1268,17 @@ export default function SideChat() {
                                         {display.isOnline && <div className="friend-online-dot"></div>}
                                     </div>
                                     <div className="friend-info">
-                                        <div className="friend-name">{display.name}</div>
+                                        <div className="friend-name">
+                                            {display.name}
+                                            {conv.isMuted && (
+                                                <img
+                                                    src="/icons/notifications-off-outline.svg"
+                                                    alt="Đã tắt thông báo"
+                                                    className="muted-icon"
+                                                    title="Đã tắt thông báo"
+                                                />
+                                            )}
+                                        </div>
                                         <div className="friend-status">
                                             <span className="last-message">{getLastMessageDisplay(conv)}</span>
                                             {/* Only show timestamp if NOT typing and has last message */}
@@ -1020,6 +1307,17 @@ export default function SideChat() {
                                             )}
                                         </div>
                                     </div>
+
+                                    {/* Ellipsis Menu Button - Shows on hover */}
+                                    <button
+                                        className="conv-menu-btn"
+                                        onClick={(e) => handleMenuToggle(e, conv.id)}
+                                        title="Tùy chọn"
+                                    >
+                                        <img src="/icons/ellipsis-horizontal-outline.svg" alt="Menu" />
+                                    </button>
+
+
                                     {hasUnread && (
                                         <div className={`unread-count ${conv.unreadCount > 99 ? 'large' : ''}`}>
                                             {conv.unreadCount > 99 ? '99+' : conv.unreadCount}
@@ -1064,6 +1362,53 @@ export default function SideChat() {
                     );
                 })}
             </div>
+
+            {/* Conversation Menu Popup - Rendered outside side-chat for proper positioning */}
+            {openMenuId && (() => {
+                const menuConv = conversations.find(c => c.id === openMenuId);
+                const isGroup = menuConv?.isGroup || menuConv?.members?.length > 2;
+                return (
+                    <div
+                        className="conv-menu-popup"
+                        ref={menuRef}
+                        style={{
+                            top: `${menuPosition.top}px`,
+                            left: `${menuPosition.left}px`
+                        }}
+                    >
+                        <button
+                            className="conv-menu-item"
+                            onClick={(e) => handleMarkAsUnread(e, openMenuId)}
+                        >
+                            <span className="conv-menu-icon">📩</span>
+                            Đánh dấu là chưa đọc
+                        </button>
+                        <button
+                            className="conv-menu-item"
+                            onClick={(e) => handleMuteNotification(e, openMenuId)}
+                        >
+                            <span className="conv-menu-icon">{menuConv?.isMuted ? '🔔' : '🔕'}</span>
+                            {menuConv?.isMuted ? 'Bật thông báo' : 'Tắt thông báo'}
+                        </button>
+                        <button
+                            className="conv-menu-item conv-menu-item-danger"
+                            onClick={(e) => handleDeleteConversation(e, openMenuId)}
+                        >
+                            <span className="conv-menu-icon">🗑️</span>
+                            Xóa đoạn chat
+                        </button>
+                        {isGroup && (
+                            <button
+                                className="conv-menu-item conv-menu-item-danger"
+                                onClick={(e) => handleLeaveGroup(e, openMenuId)}
+                            >
+                                <span className="conv-menu-icon">🚪</span>
+                                Rời nhóm
+                            </button>
+                        )}
+                    </div>
+                );
+            })()}
         </>
     );
 }

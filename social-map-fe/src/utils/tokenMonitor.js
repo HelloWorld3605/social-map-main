@@ -4,11 +4,11 @@
  * Token Monitor - Kiểm tra và refresh token trước khi hết hạn
  * Tự động reconnect WebSocket khi token được refresh
  * ✨ Hỗ trợ Page Visibility API để detect khi user quay lại tab
- * ✨ Auto-refresh và reload page khi cần thiết (giống Facebook)
+ợi * ✨ SOFT SYNC thay vì reload page (giống Facebook Messenger)
  * ✨ Mutex để tránh race condition khi refresh token
  * ✨ Exponential backoff retry khi refresh fail
  * ✨ Multi-tab sync với storage listener
- * ✨ Idle/Activity tracking - reload khi user không tương tác quá lâu
+ * ✨ Idle/Activity tracking - soft sync khi user không tương tác quá lâu
  */
 
 let refreshTimer = null;
@@ -19,6 +19,7 @@ let lastVisibleTime = Date.now();
 let lastTokenCheck = Date.now();
 let lastActivityTime = Date.now();  // 🆕 Thời điểm hoạt động cuối cùng
 let refreshCallback = null;
+let needsSoftSync = false;  // 🆕 Flag đánh dấu cần soft sync khi user tương tác (KHÔNG reload)
 
 // 🆕 Mutex để tránh race condition
 let isRefreshing = false;
@@ -29,15 +30,15 @@ const CONFIG = {
     REFRESH_BUFFER: 60 * 1000,           // Refresh 1 phút trước khi hết hạn
     BACKGROUND_REFRESH_INTERVAL: 10 * 60 * 1000,  // 10 phút (giống Facebook)
     VISIBILITY_CHECK_INTERVAL: 30 * 1000,  // Check mỗi 30s khi tab visible
-    MAX_HIDDEN_TIME: 3 * 60 * 1000,       // 🆕 3 phút ở tab khác → reload khi quay lại
+    MAX_HIDDEN_TIME: 3 * 60 * 1000,       // 🆕 3 phút ở tab khác → soft sync khi quay lại
     TOKEN_CHECK_ON_FOCUS_THRESHOLD: 1 * 60 * 1000, // 🆕 1 phút → kiểm tra token
-    STALE_PAGE_THRESHOLD: 60 * 60 * 1000,  // Reload nếu page stale > 1 giờ
+    STALE_PAGE_THRESHOLD: 60 * 60 * 1000,  // Soft sync nếu page stale > 1 giờ
     MAX_RETRY_ATTEMPTS: 3,                 // Số lần retry refresh
     RETRY_BASE_DELAY: 500,                 // Base delay cho exponential backoff (ms)
-    FORCE_RELOAD_ON_LONG_HIDDEN: true,     // Force reload khi hidden quá lâu và quay lại tab (giống Facebook)
+    FORCE_RELOAD_ON_LONG_HIDDEN: false,    // 🆕 KHÔNG reload - dùng soft sync thay thế
 
     // 🆕 Idle detection config (giống Facebook) - 3 phút
-    IDLE_TIMEOUT: 3 * 60 * 1000,           // 3 phút không tương tác → reload khi quay lại tab
+    IDLE_TIMEOUT: 3 * 60 * 1000,           // 3 phút không tương tác → soft sync khi quay lại
     IDLE_CHECK_INTERVAL: 30 * 1000,        // Kiểm tra idle mỗi 30 giây
     IDLE_WARNING_TIME: 2 * 60 * 1000,      // Cảnh báo sau 2 phút idle
 };
@@ -389,7 +390,7 @@ async function handleVisibilityChange() {
     const isVisible = document.visibilityState === 'visible';
 
     if (isVisible) {
-        // ✅ TAB ĐANG ĐƯỢC ACTIVE TRỞ LẠI - Đây là lúc kiểm tra và có thể reload
+        // ✅ TAB ĐANG ĐƯỢC ACTIVE TRỞ LẠI - Đây là lúc kiểm tra và SOFT SYNC
 
         // 🆕 Sử dụng localStorage để tính thời gian chính xác (tránh bị throttle)
         const storedLastVisible = localStorage.getItem(STORAGE_KEYS.LAST_VISIBLE_TIME);
@@ -400,20 +401,27 @@ async function handleVisibilityChange() {
 
         const token = localStorage.getItem('authToken');
 
-        // 🆕 GIỐNG FACEBOOK: Force reload nếu tab đã hidden quá 3 phút và user QUAY LẠI
-        // Reload xảy ra khi user quay lại tab, KHÔNG phải khi ẩn tab
-        if (CONFIG.FORCE_RELOAD_ON_LONG_HIDDEN && hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
-            console.log(`[TokenMonitor] 🔄 Tab was hidden for ${Math.round(hiddenDuration / 60000)} minutes (>${Math.round(CONFIG.MAX_HIDDEN_TIME / 60000)} min), RELOADING now that user returned...`);
-            window.location.reload();
-            return;
+        // 🆕 Nếu tab đã hidden quá 3 phút → SOFT SYNC ngay lập tức (không cần đợi user tương tác)
+        // KHÔNG reload page, chỉ sync data
+        if (hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
+            console.log(`[TokenMonitor] 🔄 Tab was hidden for ${Math.round(hiddenDuration / 60000)} minutes, triggering SOFT SYNC...`);
+
+            // Dispatch soft-sync event ngay lập tức
+            window.dispatchEvent(new CustomEvent('soft-sync-required', {
+                detail: {
+                    reason: 'tab-hidden-long',
+                    hiddenDuration: hiddenDuration,
+                    timestamp: Date.now()
+                }
+            }));
         }
 
         // 🆕 Kiểm tra idle time (user không tương tác quá lâu dù ở tab này)
+        // Đánh dấu flag để soft sync khi user tương tác
         const idleTime = getIdleTime();
         if (idleTime > CONFIG.IDLE_TIMEOUT) {
-            console.log(`[TokenMonitor] 🔄 User was idle for ${Math.round(idleTime / 60000)} minutes, reloading now that tab is active...`);
-            window.location.reload();
-            return;
+            console.log(`[TokenMonitor] ⏳ User was idle for ${Math.round(idleTime / 60000)} minutes, will SOFT SYNC on next interaction...`);
+            needsSoftSync = true;
         }
 
         // 🆕 Nếu token hết hạn, thử refresh với retry
@@ -500,8 +508,30 @@ function isPageStale() {
 
 /**
  * 🆕 Cập nhật thời gian hoạt động khi user tương tác
+ * ⚠️ Nếu đã đánh dấu needsSoftSync, sẽ trigger soft sync (KHÔNG reload page)
  */
 function updateActivityTime() {
+    // 🆕 Kiểm tra nếu cần soft sync khi user tương tác trở lại sau idle
+    if (needsSoftSync) {
+        console.log('[TokenMonitor] 🔄 User interacted after idle timeout, triggering SOFT SYNC (no reload)...');
+        needsSoftSync = false; // Reset flag
+
+        // 🆕 Dispatch event để các component biết cần sync lại data
+        // Thay vì reload page, chỉ sync data qua API
+        window.dispatchEvent(new CustomEvent('soft-sync-required', {
+            detail: {
+                reason: 'idle-timeout',
+                timestamp: Date.now()
+            }
+        }));
+
+        // 🆕 Reconnect WebSocket nếu cần
+        if (webSocketServiceRef && !webSocketServiceRef.isConnected?.()) {
+            console.log('[TokenMonitor] 🔌 Reconnecting WebSocket after soft sync...');
+            webSocketServiceRef.reconnect?.();
+        }
+    }
+
     const now = Date.now();
     lastActivityTime = now;
     // Lưu vào localStorage để track chính xác (tránh bị throttle)
@@ -520,10 +550,10 @@ function getIdleTime() {
 
 /**
  * 🆕 Kiểm tra và xử lý idle state
- * ⚠️ CHỈ RELOAD KHI TAB VISIBLE (user đang ở tab này nhưng không tương tác)
+ * ⚠️ KHÔNG TỰ ĐỘNG RELOAD - chỉ đánh dấu flag để SOFT SYNC khi user tương tác trở lại
  */
 function checkIdleState() {
-    // ⚠️ Chỉ check và reload khi tab đang visible
+    // ⚠️ Chỉ check khi tab đang visible
     if (document.visibilityState !== 'visible') {
         return; // Không làm gì khi tab hidden
     }
@@ -531,16 +561,18 @@ function checkIdleState() {
     const idleTime = getIdleTime();
     const idleMinutes = Math.round(idleTime / 60000);
 
-    // Nếu idle quá lâu VÀ tab đang visible → reload trang (giống Facebook)
+    // Nếu idle quá lâu VÀ tab đang visible → đánh dấu cần SOFT SYNC khi user tương tác
     if (idleTime > CONFIG.IDLE_TIMEOUT) {
-        console.log(`[TokenMonitor] 🔄 User idle for ${idleMinutes} minutes while on this tab, reloading...`);
-        window.location.reload();
+        if (!needsSoftSync) {
+            console.log(`[TokenMonitor] ⏳ User idle for ${idleMinutes} minutes, will SOFT SYNC on next interaction (no reload)`);
+            needsSoftSync = true;
+        }
         return;
     }
 
-    // Optional: Cảnh báo khi gần hết thời gian (có thể bỏ nếu không cần)
+    // Optional: Cảnh báo khi gần hết thời gian
     if (idleTime > CONFIG.IDLE_WARNING_TIME && idleTime < CONFIG.IDLE_TIMEOUT) {
-        console.log(`[TokenMonitor] ⚠️ User idle for ${idleMinutes} minutes, will reload in ${Math.round((CONFIG.IDLE_TIMEOUT - idleTime) / 60000)} minutes if no activity`);
+        console.log(`[TokenMonitor] ⚠️ User idle for ${idleMinutes} minutes, will mark for soft sync in ${Math.round((CONFIG.IDLE_TIMEOUT - idleTime) / 60000)} minutes if no activity`);
     }
 }
 
@@ -675,7 +707,7 @@ function startVisibilityCheckTimer() {
 
 /**
  * 🆕 Handle window focus event - backup cho visibility change
- * ⚠️ RELOAD CHỈ XẢY RA KHI USER FOCUS LẠI WINDOW, KHÔNG PHẢI KHI BLUR
+ * ⚠️ SOFT SYNC thay vì reload page
  */
 async function handleWindowFocus() {
     console.log('[TokenMonitor] ✅ Window FOCUSED (user returned)');
@@ -685,11 +717,17 @@ async function handleWindowFocus() {
     const lastVisible = storedLastVisible ? parseInt(storedLastVisible, 10) : lastVisibleTime;
     const hiddenDuration = Date.now() - lastVisible;
 
-    // 🆕 Force reload nếu hidden quá 3 phút và user QUAY LẠI
-    if (CONFIG.FORCE_RELOAD_ON_LONG_HIDDEN && hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
-        console.log(`[TokenMonitor] 🔄 Window focused after ${Math.round(hiddenDuration / 60000)} minutes hidden, RELOADING...`);
-        window.location.reload();
-        return;
+    // 🆕 Trigger SOFT SYNC nếu hidden quá 3 phút (không reload)
+    if (hiddenDuration > CONFIG.MAX_HIDDEN_TIME) {
+        console.log(`[TokenMonitor] 🔄 Window focused after ${Math.round(hiddenDuration / 60000)} minutes hidden, triggering SOFT SYNC...`);
+
+        window.dispatchEvent(new CustomEvent('soft-sync-required', {
+            detail: {
+                reason: 'window-focus-long-hidden',
+                hiddenDuration: hiddenDuration,
+                timestamp: Date.now()
+            }
+        }));
     }
 
     if (hiddenDuration > CONFIG.TOKEN_CHECK_ON_FOCUS_THRESHOLD) {

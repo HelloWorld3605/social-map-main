@@ -38,7 +38,14 @@ public class ConversationMember {
     private boolean typing = false;
     private LocalDateTime typingStartedAt;
 
-    // Soft delete
+    // Mute notifications
+    private boolean muted = false;
+    private LocalDateTime mutedAt;
+
+    // Clear chat history - user won't see messages before this time
+    private LocalDateTime clearedAt;
+
+    // Soft delete - user left the conversation
     private boolean deleted = false;
     private LocalDateTime deletedAt;
 }

@@ -164,6 +164,35 @@ export const ChatService = {
      */
     leaveConversation: (conversationId) =>
         api.post(`/conversations/${conversationId}/leave`),
+
+    /**
+     * Rời nhóm (alias cho leaveConversation)
+     */
+    leaveGroup: (conversationId) =>
+        api.post(`/conversations/${conversationId}/leave`),
+
+    /**
+     * Đánh dấu conversation là chưa đọc
+     * POST /api/conversations/{conversationId}/mark-unread
+     */
+    markAsUnread: (conversationId) =>
+        api.post(`/conversations/${conversationId}/mark-unread`),
+
+    /**
+     * Bật/tắt thông báo conversation
+     * POST /api/conversations/{conversationId}/mute
+     */
+    toggleMuteConversation: (conversationId, mute) =>
+        api.post(`/conversations/${conversationId}/mute`, null, {
+            params: { mute }
+        }),
+
+    /**
+     * Xóa conversation
+     * DELETE /api/conversations/{conversationId}
+     */
+    deleteConversation: (conversationId) =>
+        api.delete(`/conversations/${conversationId}`),
 };
 
 // =================================================================

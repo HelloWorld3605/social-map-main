@@ -97,3 +97,18 @@ export function processLocationMessages(messages) {
     return messages.map(msg => processLocationMessage(msg));
 }
 
+/**
+ * Get a display text for location message (for showing in conversation list)
+ * @param {string} content - Message content with LOCATION: prefix
+ * @returns {string} Display text for location message
+ */
+export function getLocationDisplayText(content) {
+    if (!content) return 'Vị trí';
+
+    const locationData = parseLocationMessage(content);
+    if (locationData && locationData.name) {
+        return `Địa điểm: ${locationData.name}`;
+    }
+    return 'Vị trí';
+}
+

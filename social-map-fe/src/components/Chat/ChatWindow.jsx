@@ -362,6 +362,53 @@ export default function ChatWindow({
         }
     }, [conversation?.id, loadRecentMessages]);
 
+    // 🆕 Lắng nghe sync-chat-messages event từ SideChat (soft sync)
+    useEffect(() => {
+        const handleSyncMessages = async (event) => {
+            const { conversationId } = event.detail;
+
+            // Chỉ sync nếu đây là conversation đang mở
+            if (conversationId === conversation?.id) {
+                console.log('🔄 [ChatWindow] Soft sync triggered for conversation:', conversationId);
+
+                // Fetch 5 tin nhắn mới nhất để đồng bộ
+                try {
+                    const response = await ChatService.getMessages(conversation.id, {
+                        page: 0,
+                        size: 5
+                    });
+
+                    const newMessages = processLocationMessages(response.content).reverse();
+
+                    // Merge với messages hiện tại, tránh duplicate
+                    setMessages(prev => {
+                        const existingIds = new Set(prev.map(m => m.id));
+                        const uniqueNewMessages = newMessages.filter(m => !existingIds.has(m.id));
+
+                        if (uniqueNewMessages.length > 0) {
+                            console.log(`✅ [ChatWindow] Soft sync: Added ${uniqueNewMessages.length} new messages`);
+                            return [...prev, ...uniqueNewMessages];
+                        }
+                        return prev;
+                    });
+
+                    // Scroll to bottom nếu có tin nhắn mới
+                    if (newMessages.length > 0) {
+                        scrollToBottom();
+                    }
+                } catch (error) {
+                    console.error('[ChatWindow] Soft sync failed:', error);
+                }
+            }
+        };
+
+        window.addEventListener('sync-chat-messages', handleSyncMessages);
+
+        return () => {
+            window.removeEventListener('sync-chat-messages', handleSyncMessages);
+        };
+    }, [conversation?.id, scrollToBottom]);
+
     // ✅ Facebook-style: Mark as read whenever window becomes active and messages are loaded
     // Track last mark as read time to avoid spamming
     const lastMarkAsReadTimeRef = useRef(0);
@@ -700,98 +747,157 @@ export default function ChatWindow({
     useEffect(() => {
         if (!conversation?.id) return;
 
-        // ✅ Unsubscribe old callbacks first to prevent duplicates
-        const oldCallbacks = subscriptionCallbacksRef.current;
-        if (oldCallbacks.messageCallback) {
-            console.log('🧹 Unsubscribing old callbacks before re-subscribing');
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, oldCallbacks.messageCallback);
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, oldCallbacks.typingCallback);
-            webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, oldCallbacks.updateCallback);
-            if (oldCallbacks.messageStatusCallback) {
-                webSocketService.unsubscribe('/user/queue/message-status', oldCallbacks.messageStatusCallback);
+        // 🆕 Track subscription state
+        let isSubscribed = false;
+        let retryInterval = null;
+        let retryCount = 0;
+        const maxRetries = 10;
+        const retryDelay = 500;
+
+        // 🆕 Hàm thực hiện subscription
+        const performSubscriptions = () => {
+            if (isSubscribed) return;
+
+            // ✅ Unsubscribe old callbacks first to prevent duplicates
+            const oldCallbacks = subscriptionCallbacksRef.current;
+            if (oldCallbacks.messageCallback) {
+                console.log('🧹 Unsubscribing old callbacks before re-subscribing');
+                webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, oldCallbacks.messageCallback);
+                webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/typing`, oldCallbacks.typingCallback);
+                webSocketService.unsubscribe(`/topic/conversation/${conversation.id}/update`, oldCallbacks.updateCallback);
+                if (oldCallbacks.messageStatusCallback) {
+                    webSocketService.unsubscribe('/user/queue/message-status', oldCallbacks.messageStatusCallback);
+                }
+                if (oldCallbacks.readReceiptCallback) {
+                    webSocketService.unsubscribe('/user/queue/read-receipt', oldCallbacks.readReceiptCallback);
+                }
             }
-            if (oldCallbacks.readReceiptCallback) {
-                webSocketService.unsubscribe('/user/queue/read-receipt', oldCallbacks.readReceiptCallback);
+
+            // ✅ Create stable wrapper functions that call the refs
+            const messageCallback = (msg) => {
+                console.log('📨 ChatWindow messageCallback wrapper called for message:', msg.id);
+                messageCallbackRef.current?.(msg);
+            };
+            const typingCallback = (dto) => typingCallbackRef.current?.(dto);
+            const updateCallback = (msg) => updateCallbackRef.current?.(msg);
+            const messageStatusCallback = (statusUpdate) => messageStatusCallbackRef.current?.(statusUpdate);
+            const readReceiptCallback = (receipt) => readReceiptCallbackRef.current?.(receipt);
+
+            // ✅ Store callbacks in ref for cleanup
+            subscriptionCallbacksRef.current = {
+                messageCallback,
+                typingCallback,
+                updateCallback,
+                messageStatusCallback,
+                readReceiptCallback
+            };
+
+            console.log('🔔 ChatWindow subscribing to conversation:', conversation.id);
+            webSocketService.subscribeToConversation(
+                conversation.id,
+                messageCallback,
+                typingCallback,
+                updateCallback
+            );
+
+            console.log('📬 ========== SUBSCRIBING TO MESSAGE STATUS ==========');
+            console.log('📬 WebSocket connected:', webSocketService.stompClient?.connected);
+            console.log('📬 Current userId:', currentUserId);
+            webSocketService.subscribeToMessageStatus(messageStatusCallback);
+            console.log('📬 Subscription to /user/queue/message-status completed');
+
+            console.log('👁️ ========== SUBSCRIBING TO READ RECEIPTS ==========');
+            console.log('👁️ WebSocket connected:', webSocketService.stompClient?.connected);
+            console.log('👁️ Current userId:', currentUserId);
+            webSocketService.subscribeToReadReceipts(readReceiptCallback);
+            console.log('👁️ Subscription to /user/queue/read-receipt completed');
+
+            isSubscribed = true;
+
+            // Fetch current typing users
+            const fetchTypingUsers = async () => {
+                try {
+                    const typingUserIds = await ChatService.getTypingUsers(conversation.id);
+                    console.log('📋 Fetched current typing users:', typingUserIds);
+
+                    if (typingUserIds && typingUserIds.length > 0) {
+                        const typingUsersData = typingUserIds
+                            .filter(userId => userId !== currentUserId)
+                            .map(userId => {
+                                const user = conversation.isGroup
+                                    ? conversation.members?.find(m => m.userId === userId)
+                                    : conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
+                                return {
+                                    userId: userId,
+                                    avatar: user?.avatarUrl || '/channels/myprofile.jpg',
+                                    name: user?.fullName || 'User'
+                                };
+                            });
+
+                        if (typingUsersData.length > 0) {
+                            console.log('✍️ Setting initial typing users:', typingUsersData);
+                            setTypingUsers(typingUsersData);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch typing users:', error);
+                }
+            };
+
+            fetchTypingUsers();
+        };
+
+        // 🆕 Hàm retry subscription
+        const trySubscribe = () => {
+            if (isSubscribed) return;
+
+            if (webSocketService.stompClient?.connected) {
+                console.log(`✅ ChatWindow: WebSocket connected (attempt ${retryCount}), performing subscriptions`);
+                performSubscriptions();
+                if (retryInterval) {
+                    clearInterval(retryInterval);
+                    retryInterval = null;
+                }
+            } else {
+                retryCount++;
+                if (retryCount >= maxRetries) {
+                    console.warn(`⚠️ ChatWindow: WebSocket vẫn chưa connected sau ${maxRetries} lần retry. Chờ event...`);
+                    if (retryInterval) {
+                        clearInterval(retryInterval);
+                        retryInterval = null;
+                    }
+                } else {
+                    console.log(`🔄 ChatWindow retry ${retryCount}/${maxRetries}: Checking WebSocket...`);
+                }
             }
+        };
+
+        // Check ngay lập tức
+        if (webSocketService.stompClient?.connected) {
+            console.log('✅ ChatWindow: WebSocket already connected, performing subscriptions');
+            performSubscriptions();
+        } else {
+            console.log('⏸️ ChatWindow: Đang chờ WebSocket connected...');
+            retryInterval = setInterval(trySubscribe, retryDelay);
         }
 
-        // ✅ Create stable wrapper functions that call the refs
-        // These functions are recreated on each effect run, but they call the latest refs
-        const messageCallback = (msg) => {
-            console.log('📨 ChatWindow messageCallback wrapper called for message:', msg.id);
-            messageCallbackRef.current?.(msg);
-        };
-        const typingCallback = (dto) => typingCallbackRef.current?.(dto);
-        const updateCallback = (msg) => updateCallbackRef.current?.(msg);
-        const messageStatusCallback = (statusUpdate) => messageStatusCallbackRef.current?.(statusUpdate);
-        const readReceiptCallback = (receipt) => readReceiptCallbackRef.current?.(receipt);
-
-        // ✅ Store callbacks in ref for cleanup
-        subscriptionCallbacksRef.current = {
-            messageCallback,
-            typingCallback,
-            updateCallback,
-            messageStatusCallback,
-            readReceiptCallback
-        };
-
-        console.log('🔔 ChatWindow subscribing to conversation:', conversation.id);
-        webSocketService.subscribeToConversation(
-            conversation.id,
-            messageCallback,
-            typingCallback,
-            updateCallback
-        );
-
-        // ✅ Subscribe to message status updates (Messenger-style)
-        // These are global subscriptions (per user), so they should only be subscribed once
-        // But we'll let WebSocketChatService handle duplicate prevention
-        console.log('📬 ========== SUBSCRIBING TO MESSAGE STATUS ==========');
-        console.log('📬 WebSocket connected:', webSocketService.stompClient?.connected);
-        console.log('📬 Current userId:', currentUserId);
-        webSocketService.subscribeToMessageStatus(messageStatusCallback);
-        console.log('📬 Subscription to /user/queue/message-status completed');
-
-        // ✅ Subscribe to read receipts (Messenger-style)
-        console.log('👁️ ========== SUBSCRIBING TO READ RECEIPTS ==========');
-        console.log('👁️ WebSocket connected:', webSocketService.stompClient?.connected);
-        console.log('👁️ Current userId:', currentUserId);
-        webSocketService.subscribeToReadReceipts(readReceiptCallback);
-        console.log('👁️ Subscription to /user/queue/read-receipt completed');
-
-        // Fetch current typing users
-        const fetchTypingUsers = async () => {
-            try {
-                const typingUserIds = await ChatService.getTypingUsers(conversation.id);
-                console.log('📋 Fetched current typing users:', typingUserIds);
-
-                if (typingUserIds && typingUserIds.length > 0) {
-                    const typingUsersData = typingUserIds
-                        .filter(userId => userId !== currentUserId)
-                        .map(userId => {
-                            const user = conversation.isGroup
-                                ? conversation.members?.find(m => m.userId === userId)
-                                : conversation.otherUser || conversation.members?.find(m => m.userId !== currentUserId);
-                            return {
-                                userId: userId,
-                                avatar: user?.avatarUrl || '/channels/myprofile.jpg',
-                                name: user?.fullName || 'User'
-                            };
-                        });
-
-                    if (typingUsersData.length > 0) {
-                        console.log('✍️ Setting initial typing users:', typingUsersData);
-                        setTypingUsers(typingUsersData);
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch typing users:', error);
+        // 🆕 Lắng nghe event websocket-connected
+        const handleWebSocketConnected = () => {
+            if (isSubscribed) return;
+            console.log('🎉 ChatWindow received websocket-connected event');
+            performSubscriptions();
+            if (retryInterval) {
+                clearInterval(retryInterval);
+                retryInterval = null;
             }
         };
 
-        fetchTypingUsers();
+        window.addEventListener('websocket-connected', handleWebSocketConnected);
 
         return () => {
+            if (retryInterval) clearInterval(retryInterval);
+            window.removeEventListener('websocket-connected', handleWebSocketConnected);
+
             if (isTypingRef.current) {
                 console.log('🧹 ChatWindow cleanup: sending typing stopped');
                 webSocketService.sendTypingStatus({
@@ -802,7 +908,6 @@ export default function ChatWindow({
             }
 
             console.log('🧹 ChatWindow cleanup: unsubscribing for', conversation.id);
-            // ✅ Use stored callbacks from ref for proper cleanup
             const callbacks = subscriptionCallbacksRef.current;
             if (callbacks.messageCallback) {
                 webSocketService.unsubscribe(`/topic/conversation/${conversation.id}`, callbacks.messageCallback);
@@ -820,10 +925,8 @@ export default function ChatWindow({
                 webSocketService.unsubscribe('/user/queue/read-receipt', callbacks.readReceiptCallback);
             }
 
-            // Clear typing users on unmount
             setTypingUsers([]);
 
-            // ✅ Reset callbacks ref
             subscriptionCallbacksRef.current = {
                 messageCallback: null,
                 typingCallback: null,
@@ -832,7 +935,7 @@ export default function ChatWindow({
                 readReceiptCallback: null
             };
         };
-    }, [conversation?.id, currentUserId]); // Only re-subscribe when conversation or user changes
+    }, [conversation?.id, currentUserId]);
 
     // Handle page reload/close - cleanup typing indicator
     useEffect(() => {

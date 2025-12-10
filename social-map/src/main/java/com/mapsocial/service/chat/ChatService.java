@@ -35,7 +35,15 @@ public interface ChatService {
 
     //Read status
     void markMessagesAsRead(String conversationId, String userId);
+    void markAsUnread(String conversationId, String userId);
     int getUnreadCount(String conversationId, String userId);
+
+    // Mute notifications
+    void muteConversation(String conversationId, String userId, boolean mute);
+    boolean isConversationMuted(String conversationId, String userId);
+
+    // Delete conversation (soft delete for user)
+    void deleteConversation(String conversationId, String userId);
 
     // Typing indicator
     void setTypingStatus(String conversationId, String userId, boolean isTyping);
