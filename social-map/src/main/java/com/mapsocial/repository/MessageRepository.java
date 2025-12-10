@@ -49,7 +49,8 @@ public interface MessageRepository extends MongoRepository<Message, String> {
     Optional<Message> findTop1ByConversationIdAndDeletedFalseOrderByCreatedAtDesc(String conversationId);
 
     // Find messages after clearedAt time (for users who cleared chat history)
-    @Query("{'conversationId': ?0, 'createdAt': {$gt: ?1}, 'deleted': false}")
+    // 🔧 Fixed: Added sort to ensure DESC order by createdAt
+    @Query(value = "{'conversationId': ?0, 'createdAt': {$gt: ?1}, 'deleted': false}", sort = "{'createdAt': -1}")
     Page<Message> findByConversationIdAndCreatedAtAfterAndDeletedFalseOrderByCreatedAtDesc(
             String conversationId, LocalDateTime clearedAt, Pageable pageable);
 
