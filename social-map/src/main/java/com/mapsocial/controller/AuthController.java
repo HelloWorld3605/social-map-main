@@ -86,24 +86,20 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "Email hoặc mật khẩu không đúng")
     })
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request, HttpServletResponse response) {
-        try {
-            LoginResponse loginResponse = authService.login(request);
+        LoginResponse loginResponse = authService.login(request);
 
-            // Lưu refresh token vào HttpOnly cookie
-            Cookie refreshTokenCookie = new Cookie("refreshToken", loginResponse.getRefreshToken());
-            refreshTokenCookie.setHttpOnly(true);
-            refreshTokenCookie.setSecure(false); // Set true khi dùng HTTPS
-            refreshTokenCookie.setPath("/");
-            refreshTokenCookie.setMaxAge(30 * 24 * 60 * 60); // 30 ngày
-            response.addCookie(refreshTokenCookie);
+        // Lưu refresh token vào HttpOnly cookie
+        Cookie refreshTokenCookie = new Cookie("refreshToken", loginResponse.getRefreshToken());
+        refreshTokenCookie.setHttpOnly(true);
+        refreshTokenCookie.setSecure(false); // Set true khi dùng HTTPS
+        refreshTokenCookie.setPath("/");
+        refreshTokenCookie.setMaxAge(30 * 24 * 60 * 60); // 30 ngày
+        response.addCookie(refreshTokenCookie);
 
-            // Không trả refresh token trong response body để bảo mật
-            loginResponse.setRefreshToken(null);
+        // Không trả refresh token trong response body để bảo mật
+        loginResponse.setRefreshToken(null);
 
-            return ResponseEntity.ok(loginResponse);
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+        return ResponseEntity.ok(loginResponse);
     }
 
     @PostMapping("/refresh")

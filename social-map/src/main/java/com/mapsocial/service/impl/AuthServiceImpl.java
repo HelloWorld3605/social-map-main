@@ -7,6 +7,7 @@ import com.mapsocial.entity.PendingRegistration;
 import com.mapsocial.entity.RefreshToken;
 import com.mapsocial.entity.User;
 import com.mapsocial.enums.UserRole;
+import com.mapsocial.exception.AuthenticationException;
 import com.mapsocial.mapper.UserMapper;
 import com.mapsocial.repository.PendingRegistrationRepository;
 import com.mapsocial.repository.UserRepository;
@@ -135,15 +136,15 @@ public class AuthServiceImpl implements AuthService {
 
         // Nếu user đã bị xóa, trả về thông báo cụ thể
         if (userCheck != null && userCheck.getDeletedAt() != null) {
-            throw new RuntimeException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
+            throw new AuthenticationException("Tài khoản của bạn đã bị xóa trong hệ thống. Vui lòng liên hệ admin để được hỗ trợ.");
         }
 
         // Sử dụng findActiveByEmail để chỉ lấy user chưa bị xóa
         User user = userRepository.findActiveByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Email hoặc mật khẩu không đúng"));
+                .orElseThrow(() -> new AuthenticationException("Email hoặc mật khẩu không đúng"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw new RuntimeException("Email hoặc mật khẩu không đúng");
+            throw new AuthenticationException("Email hoặc mật khẩu không đúng");
         }
 
         // Tạo access token (ngắn hạn - 1 giờ)
