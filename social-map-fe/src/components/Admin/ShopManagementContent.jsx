@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { deleteShop } from '../../services/shopService';
+import {
+    FiSearch, FiEdit2, FiTrash2, FiEye, FiPlus, FiX,
+    FiAlertTriangle, FiMapPin, FiPhone, FiCheckCircle,
+    FiXCircle, FiClock, FiStar, FiShoppingBag, FiInbox, FiSave
+} from 'react-icons/fi';
 import './ShopManagement.css';
 
 export default function ShopManagementContent({ shops: initialShops, loading: initialLoading, onRefresh }) {
@@ -100,7 +105,7 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
         <div className="shop-management-content">
             {error && (
                 <div className="error-banner">
-                    <span>⚠️</span>
+                    <span><FiAlertTriangle size={18} /></span>
                     <span>{error}</span>
                     <button onClick={onRefresh}>Thử lại</button>
                 </div>
@@ -109,7 +114,7 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
             {/* Search & Filter Bar */}
             <div className="shop-filters">
                 <div className="search-box">
-                    <span className="shop-search-icon">🔍</span>
+                    <span className="shop-search-icon"><FiSearch size={18} /></span>
                     <input
                         type="text"
                         placeholder="Tìm kiếm theo tên hoặc địa chỉ..."
@@ -121,7 +126,7 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                             className="clear-search"
                             onClick={() => setSearchTerm('')}
                         >
-                            ✕
+                            <FiX size={14} />
                         </button>
                     )}
                 </div>
@@ -144,7 +149,7 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                 </div>
 
                 <button className="btn-add-shop" onClick={() => handleEdit(null)}>
-                    ➕ Thêm Shop
+                    <FiPlus size={16} /> Thêm Shop
                 </button>
             </div>
 
@@ -168,8 +173,8 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                             <tr>
                                 <td colSpan="8" className="no-data">
                                     {searchTerm || statusFilter !== 'ALL'
-                                        ? '🔍 Không tìm thấy cửa hàng nào'
-                                        : '📭 Chưa có cửa hàng nào'}
+                                        ? <><FiSearch size={16} /> Không tìm thấy cửa hàng nào</>
+                                        : <><FiInbox size={16} /> Chưa có cửa hàng nào</>}
                                 </td>
                             </tr>
                         ) : (
@@ -186,31 +191,31 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                                                 onError={(e) => e.target.src = '/icons/location.svg'}
                                             />
                                         ) : (
-                                            <div className="no-image">🏪</div>
+                                            <div className="no-image"><FiShoppingBag size={24} /></div>
                                         )}
                                     </td>
                                     <td className="shop-name">
                                         <strong>{shop.name}</strong>
                                     </td>
                                     <td className="shop-address">
-                                        📍 {shop.address || 'N/A'}
+                                        <FiMapPin size={14} /> {shop.address || 'N/A'}
                                     </td>
                                     <td className="shop-phone">
                                         {shop.phoneNumber ? (
                                             <a href={`tel:${shop.phoneNumber}`}>
-                                                📞 {shop.phoneNumber}
+                                                <FiPhone size={14} /> {shop.phoneNumber}
                                             </a>
                                         ) : 'N/A'}
                                     </td>
                                     <td className="shop-status">
                                         <span className={`status-badge status-${shop.status.toLowerCase()}`}>
-                                            {shop.status === 'OPEN' && '✅ Đang mở'}
-                                            {shop.status === 'CLOSED' && '⛔ Đã đóng'}
-                                            {shop.status === 'PENDING' && '⏳ Chờ duyệt'}
+                                            {shop.status === 'OPEN' && <><FiCheckCircle size={14} /> Đang mở</>}
+                                            {shop.status === 'CLOSED' && <><FiXCircle size={14} /> Đã đóng</>}
+                                            {shop.status === 'PENDING' && <><FiClock size={14} /> Chờ duyệt</>}
                                         </span>
                                     </td>
                                     <td className="shop-rating">
-                                        ⭐ {shop.rating || 0} ({shop.reviewCount || 0})
+                                        <FiStar size={14} /> {shop.rating || 0} ({shop.reviewCount || 0})
                                     </td>
                                     <td className="shop-actions">
                                         <button
@@ -218,21 +223,21 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                                             onClick={() => handleEdit(shop)}
                                             title="Chỉnh sửa"
                                         >
-                                            ✏️
+                                            <FiEdit2 size={16} />
                                         </button>
                                         <button
                                             className="btn-delete"
                                             onClick={() => handleDelete(shop.id, shop.name)}
                                             title="Xóa"
                                         >
-                                            🗑️
+                                            <FiTrash2 size={16} />
                                         </button>
                                         <button
                                             className="btn-view"
                                             onClick={() => window.open(`/shop/${shop.id}`, '_blank')}
                                             title="Xem chi tiết"
                                         >
-                                            👁️
+                                            <FiEye size={16} />
                                         </button>
                                     </td>
                                 </tr>
@@ -332,8 +337,8 @@ function ShopEditModal({ shop, onClose, onSave }) {
         <div className="modal-overlay" onClick={onClose}>
             <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                 <div className="modal-header">
-                    <h2>{shop ? '✏️ Chỉnh Sửa Cửa Hàng' : '➕ Thêm Cửa Hàng Mới'}</h2>
-                    <button className="modal-close" onClick={onClose}>✕</button>
+                    <h2>{shop ? <><FiEdit2 size={18} /> Chỉnh Sửa Cửa Hàng</> : <><FiPlus size={18} /> Thêm Cửa Hàng Mới</>}</h2>
+                    <button className="modal-close" onClick={onClose}><FiX size={18} /></button>
                 </div>
 
                 <form onSubmit={handleSubmit}>
@@ -392,7 +397,7 @@ function ShopEditModal({ shop, onClose, onSave }) {
                             Hủy
                         </button>
                         <button type="submit" className="btn-save">
-                            💾 Lưu
+                            <FiSave size={16} /> Lưu
                         </button>
                     </div>
                 </form>

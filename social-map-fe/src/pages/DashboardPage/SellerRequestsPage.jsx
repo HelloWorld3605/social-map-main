@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getSellerRequests, approveSellerRequest, rejectSellerRequest } from '../../services/sellerRequestService';
 import { getDashboardStats } from '../../services/adminService';
 import AdminSidebar from '../../components/Admin/AdminSidebar';
+import { FiInbox, FiCheck, FiX } from 'react-icons/fi';
 import './SellerRequestsPage.css';
 
 export default function SellerRequestsPage() {
@@ -148,9 +149,7 @@ export default function SellerRequestsPage() {
 
             {(!requests || requests.length === 0) ? (
                 <div className="empty-state">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                    </svg>
+                    <FiInbox size={48} />
                     <p>Không có yêu cầu nào</p>
                 </div>
             ) : (
@@ -200,18 +199,14 @@ export default function SellerRequestsPage() {
                                         className="btn-approve"
                                         onClick={() => handleApprove(request.id)}
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                        </svg>
+                                        <FiCheck size={16} />
                                         Chấp nhận
                                     </button>
                                     <button
                                         className="btn-reject"
                                         onClick={() => openRejectModal(request)}
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                        </svg>
+                                        <FiX size={16} />
                                         Từ chối
                                     </button>
                                 </div>
@@ -227,7 +222,7 @@ export default function SellerRequestsPage() {
                     <div className="modal-content" onClick={(e) => e.stopPropagation()}>
                         <div className="modal-header">
                             <h2>Từ chối yêu cầu</h2>
-                            <button onClick={() => setShowRejectModal(false)}>×</button>
+                            <button onClick={() => setShowRejectModal(false)}><FiX size={18} /></button>
                         </div>
                         <div className="modal-body">
                             <label>Lý do từ chối:</label>

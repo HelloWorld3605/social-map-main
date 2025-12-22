@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAllShops } from '../../services/shopService';
 import AdminSidebar from '../../components/Admin/AdminSidebar';
 import ShopManagementContent from '../../components/Admin/ShopManagementContent';
+import { FiShoppingBag, FiCheckCircle, FiXCircle, FiClock } from 'react-icons/fi';
 import './DashboardPage.css';
 
 export default function ShopManagementDashboard() {
@@ -44,14 +45,14 @@ export default function ShopManagementDashboard() {
             <AdminSidebar />
             <div className="dashboard-container">
                 <div className="dashboard-header">
-                    <h1>🏪 Quản Lý Cửa Hàng</h1>
+                    <h1><FiShoppingBag style={{ marginRight: '8px' }} /> Quản Lý Cửa Hàng</h1>
                     <p className="dashboard-subtitle">Quản lý tất cả cửa hàng trong hệ thống</p>
                 </div>
 
                 {/* Shop Stats */}
                 <div className="stats-grid">
                     <div className="stat-card primary">
-                        <div className="stat-icon">🏪</div>
+                        <div className="stat-icon"><FiShoppingBag size={24} /></div>
                         <div className="stat-content">
                             <h3>Tổng cửa hàng</h3>
                             <p className="stat-number">{stats.totalShops}</p>
@@ -59,7 +60,7 @@ export default function ShopManagementDashboard() {
                     </div>
 
                     <div className="stat-card success">
-                        <div className="stat-icon">✅</div>
+                        <div className="stat-icon"><FiCheckCircle size={24} /></div>
                         <div className="stat-content">
                             <h3>Đang mở</h3>
                             <p className="stat-number">{stats.openShops}</p>
@@ -67,7 +68,7 @@ export default function ShopManagementDashboard() {
                     </div>
 
                     <div className="stat-card danger">
-                        <div className="stat-icon">⛔</div>
+                        <div className="stat-icon"><FiXCircle size={24} /></div>
                         <div className="stat-content">
                             <h3>Đã đóng</h3>
                             <p className="stat-number">{stats.closedShops}</p>
@@ -75,7 +76,7 @@ export default function ShopManagementDashboard() {
                     </div>
 
                     <div className="stat-card warning">
-                        <div className="stat-icon">⏳</div>
+                        <div className="stat-icon"><FiClock size={24} /></div>
                         <div className="stat-content">
                             <h3>Chờ duyệt</h3>
                             <p className="stat-number">{stats.pendingShops}</p>

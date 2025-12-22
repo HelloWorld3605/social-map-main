@@ -133,10 +133,6 @@ class ShopMarkersManager {
             el.classList.remove('active');
         });
 
-        // Add click handler to set active state
-        el.addEventListener('click', () => {
-            this.setActiveMarker(shop.id);
-        });
 
         // DISABLED: Let LocationSharing handle drag & drop functionality
         // this.setupShopDragAndDrop(el, shop, marker);
