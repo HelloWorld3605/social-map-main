@@ -63,9 +63,6 @@ export default function ForgotPasswordPage() {
 
                 <div className="auth-right">
                     <div className="auth-right-container">
-                        <div className="auth-logo">
-                            <img src={SocialMapLogo} alt="Social Map" />
-                        </div>
 
                         <div className="auth-center auth-success-container">
                             <svg className="auth-success-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,9 +103,6 @@ export default function ForgotPasswordPage() {
 
             <div className="auth-right">
                 <div className="auth-right-container">
-                    <div className="auth-logo">
-                        <img src={SocialMapLogo} alt="Social Map" />
-                    </div>
 
                     <div className="auth-center">
                         <h2>Quên mật khẩu?</h2>

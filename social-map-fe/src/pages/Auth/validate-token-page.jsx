@@ -55,9 +55,6 @@ export default function ValidateTokenPage() {
 
             <div className="auth-right">
                 <div className="auth-right-container">
-                    <div className="auth-logo">
-                        <img src={SocialMapLogo} alt="Social Map" />
-                    </div>
 
                     <div className="auth-center">
                         {status === 'validating' && (

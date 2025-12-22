@@ -92,9 +92,6 @@ export default function CompleteRegistrationPage() {
 
             <div className="auth-right">
                 <div className="auth-right-container">
-                    <div className="auth-logo">
-                        <img src={SocialMapLogo} alt="Social Map" />
-                    </div>
 
                     <div className="auth-center">
                         <h2>Hoàn tất đăng ký</h2>

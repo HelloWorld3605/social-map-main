@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import './Header.css';
 import SearchBar from './SearchBar';
 import ProfileMenu from './ProfileMenu';
@@ -15,7 +16,9 @@ export default function Header() {
                         <span className="hamburger-inner"></span>
                     </span>
                 </button>
-                <img className="socialmap-logo" src="/image/Social Map.svg" alt="Logo" />
+                <Link to="/home" className="logo-link">
+                    <img className="socialmap-logo" src="/image/Social Map.svg" alt="Logo" />
+                </Link>
             </div>
 
             <div className="middle-section">

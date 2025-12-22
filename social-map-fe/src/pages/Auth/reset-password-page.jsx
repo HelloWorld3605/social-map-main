@@ -118,9 +118,6 @@ export default function ResetPasswordPage() {
 
                 <div className="auth-right">
                     <div className="auth-right-container">
-                        <div className="auth-logo">
-                            <img src={SocialMapLogo} alt="Social Map" />
-                        </div>
 
                         <div className="auth-center">
                             <div className="auth-loading-container">
@@ -145,9 +142,6 @@ export default function ResetPasswordPage() {
 
                 <div className="auth-right">
                     <div className="auth-right-container">
-                        <div className="auth-logo">
-                            <img src={SocialMapLogo} alt="Social Map" />
-                        </div>
 
                         <div className="auth-center auth-success-container">
                             <svg className="auth-error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -182,9 +176,6 @@ export default function ResetPasswordPage() {
 
                 <div className="auth-right">
                     <div className="auth-right-container">
-                        <div className="auth-logo">
-                            <img src={SocialMapLogo} alt="Social Map" />
-                        </div>
 
                         <div className="auth-center auth-success-container">
                             <svg className="auth-success-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -218,9 +209,6 @@ export default function ResetPasswordPage() {
 
             <div className="auth-right">
                 <div className="auth-right-container">
-                    <div className="auth-logo">
-                        <img src={SocialMapLogo} alt="Social Map" />
-                    </div>
 
                     <div className="auth-center">
                         <h2>Đặt lại mật khẩu</h2>

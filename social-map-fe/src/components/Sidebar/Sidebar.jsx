@@ -156,7 +156,6 @@ export default function Sidebar() {
     return (
         <nav className="side-menu">
             <ul>
-                <li><a href="/home">Trang chủ</a></li>
                 <li><a href="#">Bạn bè</a></li>
                 <li><a href="#">Ghi chú</a></li>
 

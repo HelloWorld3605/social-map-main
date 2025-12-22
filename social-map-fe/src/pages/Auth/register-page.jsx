@@ -66,9 +66,6 @@ export default function RegisterPage() {
 
                 <div className="auth-right">
                     <div className="auth-right-container">
-                        <div className="auth-logo">
-                            <img src={SocialMapLogo} alt="Social Map" />
-                        </div>
 
                         <div className="auth-center auth-success-container">
                             <svg className="auth-success-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -109,9 +106,6 @@ export default function RegisterPage() {
 
             <div className="auth-right">
                 <div className="auth-right-container">
-                    <div className="auth-logo">
-                        <img src={SocialMapLogo} alt="Social Map" />
-                    </div>
 
                     <div className="auth-center">
                         <h2>Tạo tài khoản</h2>
