@@ -10,6 +10,7 @@ import com.mapsocial.mapper.MarkerMapper;
 import com.mapsocial.mapper.ShopMapper;
 import com.mapsocial.repository.*;
 import com.mapsocial.service.ShopService;
+import com.mapsocial.service.ShopStatusService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class ShopServiceImpl implements ShopService {
     private final ShopRepository shopRepository;
     private final TagRepository tagRepository;
     private final UserShopRepository userShopRepository;
+    private final ShopStatusService shopStatusService;
 
     @Override
     @Transactional
@@ -56,6 +58,10 @@ public class ShopServiceImpl implements ShopService {
                 .build();
 
         userShopRepository.save(userShop);
+
+        // Khởi tạo cache trạng thái cho shop mới
+        shopStatusService.cacheShopStatus(savedShop.getId(),
+                shopStatusService.calculateShopStatus(savedShop));
 
         return ShopMapper.toShopResponse(savedShop);
     }
@@ -97,6 +103,11 @@ public class ShopServiceImpl implements ShopService {
 
         Shop updatedShop = shopRepository.save(shop);
 
+        // Invalidate và recalculate cache trạng thái (vì giờ mở/đóng có thể thay đổi)
+        shopStatusService.invalidateShopStatus(shopId);
+        shopStatusService.cacheShopStatus(updatedShop.getId(),
+                shopStatusService.calculateShopStatus(updatedShop));
+
         return ShopMapper.toShopResponse(updatedShop);
     }
 
@@ -112,6 +123,7 @@ public class ShopServiceImpl implements ShopService {
 
         // Admins and super-admins can delete any shop
         if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.SUPER_ADMIN) {
+            shopStatusService.invalidateShopStatus(shopId);
             shopRepository.delete(shop);
             return;
         }
@@ -124,6 +136,7 @@ public class ShopServiceImpl implements ShopService {
             throw new SecurityException("Chỉ chủ shop (OWNER) mới được xóa shop");
         }
 
+        shopStatusService.invalidateShopStatus(shopId);
         shopRepository.delete(shop);
     }
 
@@ -132,14 +145,16 @@ public class ShopServiceImpl implements ShopService {
     public ShopResponse getShopById(UUID shopId) {
         Shop shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new EntityNotFoundException("Shop not found"));
-        return ShopMapper.toShopResponse(shop);
+        // Lấy trạng thái được tính toán từ Redis
+        return ShopMapper.toShopResponse(shop, shopStatusService.getShopStatus(shopId));
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ShopResponse> getAllShops() {
-        return shopRepository.findAll().stream()
-                .map(ShopMapper::toShopResponse)
+        List<Shop> shops = shopRepository.findAll();
+        return shops.stream()
+                .map(shop -> ShopMapper.toShopResponse(shop, shopStatusService.getShopStatus(shop.getId())))
                 .toList();
     }
 
@@ -151,7 +166,7 @@ public class ShopServiceImpl implements ShopService {
         }
         return shopRepository.searchShopsFTS(query, lng, lat)
                 .stream()
-                .map(ShopMapper::toShopResponse)
+                .map(shop -> ShopMapper.toShopResponse(shop, shopStatusService.getShopStatus(shop.getId())))
                 .toList();
     }
 
@@ -163,7 +178,7 @@ public class ShopServiceImpl implements ShopService {
         }
         return shopRepository.searchShopsAdvanced(query, lng, lat)
                 .stream()
-                .map(ShopMapper::toShopResponse)
+                .map(shop -> ShopMapper.toShopResponse(shop, shopStatusService.getShopStatus(shop.getId())))
                 .toList();
     }
 }

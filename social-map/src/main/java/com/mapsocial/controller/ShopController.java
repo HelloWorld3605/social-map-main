@@ -5,8 +5,10 @@ import com.mapsocial.dto.request.shop.CreateShopRequest;
 import com.mapsocial.dto.request.shop.UpdateShopRequest;
 import com.mapsocial.dto.response.ShopClusterResponse;
 import com.mapsocial.dto.response.shop.ShopResponse;
+import com.mapsocial.enums.ShopStatus;
 import com.mapsocial.service.ShopMapService;
 import com.mapsocial.service.ShopService;
+import com.mapsocial.service.ShopStatusService;
 import com.mapsocial.service.impl.CustomUserDetailsService.UserPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -29,6 +31,7 @@ public class ShopController {
 
     private final ShopService shopService;
     private final ShopMapService shopMapService;
+    private final ShopStatusService shopStatusService;
 
     // ==================== MAP VIEW APIs ====================
 
@@ -192,5 +195,36 @@ public class ShopController {
         }
         List<ShopResponse> results = shopService.searchShopsAdvanced(query, lng, lat);
         return ResponseEntity.ok(results);
+    }
+
+    // ==================== SHOP STATUS APIs ====================
+
+    @GetMapping("/{shopId}/status")
+    @Operation(summary = "Lấy trạng thái hiện tại của shop",
+            description = "Trả về trạng thái được tính toán dựa trên giờ mở/đóng cửa từ Redis cache")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Thành công"),
+            @ApiResponse(responseCode = "404", description = "Không tìm thấy shop")
+    })
+    public ResponseEntity<ShopStatus> getShopStatus(@PathVariable UUID shopId) {
+        ShopStatus status = shopStatusService.getShopStatus(shopId);
+        return ResponseEntity.ok(status);
+    }
+
+    @PutMapping("/{shopId}/status")
+    @Operation(summary = "Cập nhật trạng thái shop thủ công",
+            description = "Cho phép owner/manager cập nhật trạng thái chi tiết (BUSY, FULL, QUIET) khi shop đang mở")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Cập nhật thành công"),
+            @ApiResponse(responseCode = "400", description = "Trạng thái không hợp lệ"),
+            @ApiResponse(responseCode = "403", description = "Không có quyền cập nhật")
+    })
+    public ResponseEntity<Void> updateShopStatus(
+            @AuthenticationPrincipal UserPrincipal userPrincipal,
+            @PathVariable UUID shopId,
+            @RequestParam ShopStatus status) {
+        // TODO: Thêm validation quyền owner/manager
+        shopStatusService.updateShopStatus(shopId, status);
+        return ResponseEntity.ok().build();
     }
 }

@@ -5,6 +5,7 @@ import com.mapsocial.dto.response.ShopClusterResponse;
 import com.mapsocial.entity.Shop;
 import com.mapsocial.repository.ShopRepository;
 import com.mapsocial.service.ShopMapService;
+import com.mapsocial.service.ShopStatusService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -18,6 +19,7 @@ import java.util.stream.Collectors;
 public class ShopMapServiceImpl implements ShopMapService {
 
     private final ShopRepository shopRepository;
+    private final ShopStatusService shopStatusService;
 
     // Ngưỡng quyết định clustering
     private static final int CLUSTER_THRESHOLD = 100; // Nếu > 100 shops thì cluster
@@ -224,6 +226,9 @@ public class ShopMapServiceImpl implements ShopMapService {
             imageUrl = shop.getImageShopUrl().get(0);
         }
 
+        // Lấy trạng thái từ Redis (đã được tính toán dựa trên giờ mở/đóng cửa)
+        String status = shopStatusService.getShopStatus(shop.getId()).toString();
+
         return ShopClusterResponse.builder()
                 .type("shop")
                 .id(shop.getId().toString())
@@ -233,7 +238,7 @@ public class ShopMapServiceImpl implements ShopMapService {
                 .address(shop.getAddress())
                 .imageUrl(imageUrl)
                 .rating(shop.getRating())
-                .status(shop.getStatus() != null ? shop.getStatus().toString() : null)
+                .status(status)
                 .build();
     }
 }
