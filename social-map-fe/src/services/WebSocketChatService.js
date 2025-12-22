@@ -359,9 +359,10 @@ class WebSocketChatService {
         const msgPath = `/topic/conversation/${conversationId}`;
         if (onMessage) {
             // 🆕 Wrap onMessage callback để phát âm thanh khi nhận tin nhắn mới
+            // ✅ Truyền conversationId để kiểm tra mute status
             const wrappedOnMessage = (message) => {
                 // Phát âm thanh thông báo nếu tin nhắn không phải từ user hiện tại
-                this.handleNewMessage(message);
+                this.handleNewMessage(message, { conversationId });
                 onMessage(message);
             };
             this.subscribe(msgPath, wrappedOnMessage);
@@ -382,6 +383,13 @@ class WebSocketChatService {
             // Kiểm tra xem tin nhắn có phải từ user hiện tại không
             if (message.senderId === currentUserId) {
                 console.log('[WebSocket] Message from current user, skipping notification sound');
+                return;
+            }
+
+            // 🔇 Kiểm tra mute status từ localStorage hoặc global state
+            const { conversationId } = options;
+            if (conversationId && this.isConversationMuted(conversationId)) {
+                console.log(`🔇 [WebSocket] Conversation ${conversationId} is MUTED - skipping notification sound`);
                 return;
             }
 
@@ -562,6 +570,52 @@ class WebSocketChatService {
     // 🆕 Kiểm tra có đang kết nối không
     isConnecting() {
         return this.connecting;
+    }
+
+    // 🔇 Kiểm tra conversation có bị mute không
+    isConversationMuted(conversationId) {
+        try {
+            // Lấy muted conversations từ localStorage
+            const token = localStorage.getItem('authToken');
+            if (!token) return false;
+
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userId = payload.userId || payload.sub;
+            const storageKey = `mutedConversations_${userId}`;
+
+            const mutedConvs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            return mutedConvs.includes(conversationId);
+        } catch (error) {
+            console.error('[WebSocket] Error checking mute status:', error);
+            return false;
+        }
+    }
+
+    // 🔇 Cập nhật mute status trong localStorage
+    setConversationMuted(conversationId, isMuted) {
+        try {
+            const token = localStorage.getItem('authToken');
+            if (!token) return;
+
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const userId = payload.userId || payload.sub;
+            const storageKey = `mutedConversations_${userId}`;
+
+            let mutedConvs = JSON.parse(localStorage.getItem(storageKey) || '[]');
+
+            if (isMuted) {
+                if (!mutedConvs.includes(conversationId)) {
+                    mutedConvs.push(conversationId);
+                }
+            } else {
+                mutedConvs = mutedConvs.filter(id => id !== conversationId);
+            }
+
+            localStorage.setItem(storageKey, JSON.stringify(mutedConvs));
+            console.log(`🔇 [WebSocket] Conversation ${conversationId} mute status updated:`, isMuted);
+        } catch (error) {
+            console.error('[WebSocket] Error setting mute status:', error);
+        }
     }
 }
 

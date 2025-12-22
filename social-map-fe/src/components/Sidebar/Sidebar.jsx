@@ -1,4 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import {
+    FaUserFriends,
+    FaStickyNote,
+    FaStore,
+    FaCheckCircle,
+    FaPlusCircle,
+    FaSpinner,
+    FaHourglassHalf,
+    FaTimesCircle,
+    FaTimes,
+    FaIdCard,
+    FaCalendarAlt,
+    FaInfoCircle,
+    FaChevronDown,
+    FaChevronRight,
+    FaHistory
+} from 'react-icons/fa';
 import { createSellerRequest, getMySellerRequests } from '../../services/sellerRequestService';
 import CreateShopModal from '../Shop/CreateShopModal';
 import './Sidebar.css';
@@ -156,8 +173,18 @@ export default function Sidebar() {
     return (
         <nav className="side-menu">
             <ul>
-                <li><a href="#">Bạn bè</a></li>
-                <li><a href="#">Ghi chú</a></li>
+                <li>
+                    <a href="#">
+                        <FaUserFriends className="menu-icon" />
+                        <span>Bạn bè</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <FaStickyNote className="menu-icon" />
+                        <span>Ghi chú</span>
+                    </a>
+                </li>
 
                 {/* Hiển thị cho USER và SELLER */}
                 {(() => {
@@ -176,8 +203,8 @@ export default function Sidebar() {
                                     }}
                                     className="seller-request-link"
                                 >
-                                    <span className="menu-icon">🏪</span>
-                                    Yêu cầu trở thành người bán hàng
+                                    <FaStore className="menu-icon" />
+                                    <span>Yêu cầu trở thành người bán hàng</span>
                                 </a>
                             </li>
                         );
@@ -196,8 +223,8 @@ export default function Sidebar() {
                                         }}
                                         className="seller-request-link"
                                     >
-                                        <span className="menu-icon">✅</span>
-                                        Thông tin người bán hàng
+                                        <FaCheckCircle className="menu-icon text-success" />
+                                        <span>Thông tin người bán hàng</span>
                                     </a>
                                 </li>
                                 <li>
@@ -210,8 +237,8 @@ export default function Sidebar() {
                                         }}
                                         className="seller-request-link create-shop-link"
                                     >
-                                        <span className="menu-icon">🏪➕</span>
-                                        Tạo cửa hàng mới
+                                        <FaPlusCircle className="menu-icon text-primary" />
+                                        <span>Tạo cửa hàng mới</span>
                                     </a>
                                 </li>
                             </>
@@ -239,7 +266,7 @@ export default function Sidebar() {
                                 className="modal-close-btn"
                                 onClick={() => setShowSellerRequestModal(false)}
                             >
-                                ×
+                                <FaTimes />
                             </button>
                         </div>
 
@@ -248,7 +275,7 @@ export default function Sidebar() {
                             /* 1. Loading state */
                             <div className="seller-info-display">
                                 <div className="loading-container">
-                                    <div className="loading-spinner"></div>
+                                    <FaSpinner className="loading-spinner-icon" />
                                     <p>Đang tải thông tin...</p>
                                 </div>
                             </div>
@@ -257,7 +284,7 @@ export default function Sidebar() {
                             <div className="seller-info-display">
                                 <div className={`status-banner status-${latestRequest.status.toLowerCase()}`}>
                                     <span className="status-icon">
-                                        {latestRequest.status === 'PENDING' ? '⏳' : '❌'}
+                                        {latestRequest.status === 'PENDING' ? <FaHourglassHalf /> : <FaTimesCircle />}
                                     </span>
                                     <div>
                                         <h3>
@@ -313,7 +340,19 @@ export default function Sidebar() {
                                             className="view-history-btn"
                                             onClick={() => setShowAllRequests(!showAllRequests)}
                                         >
-                                            {showAllRequests ? '▼ Ẩn lịch sử yêu cầu' : '▶ Xem tất cả lịch sử yêu cầu'} ({sellerRequests.length} yêu cầu)
+                                            <FaHistory className="history-icon" />
+                                            {showAllRequests ? (
+                                                <>
+                                                    <FaChevronDown className="chevron-icon" />
+                                                    <span>Ẩn lịch sử yêu cầu</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FaChevronRight className="chevron-icon" />
+                                                    <span>Xem tất cả lịch sử yêu cầu</span>
+                                                </>
+                                            )}
+                                            <span className="request-count">({sellerRequests.length} yêu cầu)</span>
                                         </button>
 
                                         {showAllRequests && (
@@ -329,10 +368,12 @@ export default function Sidebar() {
                                                         </div>
                                                         <div className="request-item-body">
                                                             <div className="request-field">
+                                                                <FaIdCard className="field-icon" />
                                                                 <span className="field-label">CCCD:</span>
                                                                 <span className="field-value">{request.citizenId}</span>
                                                             </div>
                                                             <div className="request-field">
+                                                                <FaCalendarAlt className="field-icon" />
                                                                 <span className="field-label">Ngày tạo:</span>
                                                                 <span className="field-value">
                                                                     {new Date(request.createdAt).toLocaleString('vi-VN')}
@@ -340,6 +381,7 @@ export default function Sidebar() {
                                                             </div>
                                                             {request.reviewedAt && (
                                                                 <div className="request-field">
+                                                                    <FaCalendarAlt className="field-icon" />
                                                                     <span className="field-label">Ngày xét duyệt:</span>
                                                                     <span className="field-value">
                                                                         {new Date(request.reviewedAt).toLocaleString('vi-VN')}
@@ -348,6 +390,7 @@ export default function Sidebar() {
                                                             )}
                                                             {request.rejectReason && (
                                                                 <div className="request-field">
+                                                                    <FaInfoCircle className="field-icon" />
                                                                     <span className="field-label">Lý do từ chối:</span>
                                                                     <span className="field-value reject-reason">{request.rejectReason}</span>
                                                                 </div>
@@ -374,7 +417,7 @@ export default function Sidebar() {
                             /* 3. Đã là SELLER hoặc có request APPROVED - Hiển thị thông tin người bán */
                             <div className="seller-info-display">
                                 <div className="success-banner">
-                                    <span className="success-icon">✅</span>
+                                    <span className="success-icon"><FaCheckCircle /></span>
                                     <div>
                                         <h3>
                                             {latestRequest?.reviewedAt
@@ -436,7 +479,19 @@ export default function Sidebar() {
                                             className="view-history-btn"
                                             onClick={() => setShowAllRequests(!showAllRequests)}
                                         >
-                                            {showAllRequests ? '▼ Ẩn lịch sử yêu cầu' : '▶ Xem tất cả lịch sử yêu cầu'} ({sellerRequests.length} yêu cầu)
+                                            <FaHistory className="history-icon" />
+                                            {showAllRequests ? (
+                                                <>
+                                                    <FaChevronDown className="chevron-icon" />
+                                                    <span>Ẩn lịch sử yêu cầu</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FaChevronRight className="chevron-icon" />
+                                                    <span>Xem tất cả lịch sử yêu cầu</span>
+                                                </>
+                                            )}
+                                            <span className="request-count">({sellerRequests.length} yêu cầu)</span>
                                         </button>
 
                                         {showAllRequests && (
@@ -452,10 +507,12 @@ export default function Sidebar() {
                                                         </div>
                                                         <div className="request-item-body">
                                                             <div className="request-field">
+                                                                <FaIdCard className="field-icon" />
                                                                 <span className="field-label">CCCD:</span>
                                                                 <span className="field-value">{request.citizenId}</span>
                                                             </div>
                                                             <div className="request-field">
+                                                                <FaCalendarAlt className="field-icon" />
                                                                 <span className="field-label">Ngày tạo:</span>
                                                                 <span className="field-value">
                                                                     {new Date(request.createdAt).toLocaleString('vi-VN')}
@@ -463,6 +520,7 @@ export default function Sidebar() {
                                                             </div>
                                                             {request.reviewedAt && (
                                                                 <div className="request-field">
+                                                                    <FaCalendarAlt className="field-icon" />
                                                                     <span className="field-label">Ngày xét duyệt:</span>
                                                                     <span className="field-value">
                                                                         {new Date(request.reviewedAt).toLocaleString('vi-VN')}
@@ -471,6 +529,7 @@ export default function Sidebar() {
                                                             )}
                                                             {request.rejectReason && (
                                                                 <div className="request-field">
+                                                                    <FaInfoCircle className="field-icon" />
                                                                     <span className="field-label">Lý do từ chối:</span>
                                                                     <span className="field-value reject-reason">{request.rejectReason}</span>
                                                                 </div>

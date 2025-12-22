@@ -1,4 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+    FaTimes,
+    FaBellSlash,
+    FaBell,
+    FaEllipsisH,
+    FaEnvelopeOpen,
+    FaTrash,
+    FaSignOutAlt
+} from 'react-icons/fa';
 import './Chat.css';
 import './ChatWindows.css';
 import './LocationMessage.css';
@@ -123,6 +132,11 @@ export default function SideChat() {
             }).map(conv => ({ ...conv, typingUsers: [] })); // Add typingUsers array
             setConversations(processedData);
             conversationsRef.current = processedData; // Keep ref in sync
+
+            // 🔇 Sync muted conversations với WebSocketService (từ backend response)
+            processedData.forEach(conv => {
+                webSocketService.setConversationMuted(conv.id, conv.isMuted || false);
+            });
 
             // Sync restored chat windows with loaded conversations
             // Update chat windows with fresh conversation data
@@ -417,10 +431,20 @@ export default function SideChat() {
                 const isFromOthers = message.senderId !== currentUserId;
 
                 // 🆕 Facebook-style: Auto-open ChatWindow if message is from others and window not opened yet
+                // ✅ NHƯNG: Không mở nếu conversation đã được MUTE
                 if (isFromOthers) {
                     setOpenChatWindows(prev => {
                         // Only open if not already opened
                         if (!prev.has(conv.id)) {
+                            // 🔇 Kiểm tra trạng thái mute từ conversations state (real-time)
+                            const currentConv = conversationsRef.current.find(c => c.id === conv.id);
+                            const isMuted = currentConv?.isMuted || conv.isMuted;
+
+                            if (isMuted) {
+                                console.log(`🔇 Conversation ${conv.id} is MUTED - skipping auto-open ChatWindow`);
+                                return prev; // Không mở ChatWindow nếu đã mute
+                            }
+
                             console.log(`💬 Auto-opening ChatWindow for conv ${conv.id} (new message from others)`);
 
                             // Set this conversation as active immediately
@@ -442,6 +466,12 @@ export default function SideChat() {
                                 console.log('🔄 Fetching conversation data from API for auto-open');
                                 ChatService.getConversation(conv.id)
                                     .then(fetchedConv => {
+                                        // 🔇 Double-check mute status after fetch
+                                        if (fetchedConv.isMuted) {
+                                            console.log(`🔇 Fetched conversation ${conv.id} is MUTED - not opening`);
+                                            return;
+                                        }
+
                                         console.log('✅ Fetched conversation data:', fetchedConv);
 
                                         // Add to conversations list if not exists
@@ -973,11 +1003,33 @@ export default function SideChat() {
         try {
             const conv = conversations.find(c => c.id === conversationId);
             const isMuted = conv?.isMuted;
-            await ChatService.toggleMuteConversation(conversationId, !isMuted);
+            const newMuteStatus = !isMuted;
+
+            // Gọi API để lưu vào backend
+            await ChatService.toggleMuteConversation(conversationId, newMuteStatus);
+
+            // Cập nhật state local
             setConversations(prev => prev.map(c =>
-                c.id === conversationId ? { ...c, isMuted: !isMuted } : c
+                c.id === conversationId ? { ...c, isMuted: newMuteStatus } : c
             ));
+
+            // 🔇 Sync với WebSocketService để không phát âm thanh
+            webSocketService.setConversationMuted(conversationId, newMuteStatus);
+
+            // 🔇 Cập nhật openChatWindows nếu conversation đang mở
+            setOpenChatWindows(prev => {
+                if (prev.has(conversationId)) {
+                    const newMap = new Map(prev);
+                    const chatData = newMap.get(conversationId);
+                    newMap.set(conversationId, { ...chatData, isMuted: newMuteStatus });
+                    return newMap;
+                }
+                return prev;
+            });
+
             setOpenMenuId(null);
+
+            console.log(`🔇 Conversation ${conversationId} mute status: ${newMuteStatus}`);
         } catch (error) {
             console.error('Failed to toggle mute:', error);
         }
@@ -1217,7 +1269,9 @@ export default function SideChat() {
             <div className={`side-chat ${isChatOpen ? 'is-active' : ''}`} id="sideChat">
                 <div className="chat-header">
                     <h3>Đoạn chat</h3>
-                    <button className="chat-close-btn" id="chatCloseBtn" onClick={handleCloseChatPopup}>×</button>
+                    <button className="chat-close-btn" id="chatCloseBtn" onClick={handleCloseChatPopup}>
+                        <FaTimes />
+                    </button>
                 </div>
 
                 {/* Search Box */}
@@ -1234,7 +1288,7 @@ export default function SideChat() {
                             className="chat-search-clear"
                             onClick={() => setSearchQuery('')}
                         >
-                            ×
+                            <FaTimes />
                         </button>
                     )}
                 </div>
@@ -1271,9 +1325,7 @@ export default function SideChat() {
                                         <div className="friend-name">
                                             {display.name}
                                             {conv.isMuted && (
-                                                <img
-                                                    src="/icons/notifications-off-outline.svg"
-                                                    alt="Đã tắt thông báo"
+                                                <FaBellSlash
                                                     className="muted-icon"
                                                     title="Đã tắt thông báo"
                                                 />
@@ -1314,7 +1366,7 @@ export default function SideChat() {
                                         onClick={(e) => handleMenuToggle(e, conv.id)}
                                         title="Tùy chọn"
                                     >
-                                        <img src="/icons/ellipsis-horizontal-outline.svg" alt="Menu" />
+                                        <FaEllipsisH />
                                     </button>
 
 
@@ -1380,21 +1432,21 @@ export default function SideChat() {
                             className="conv-menu-item"
                             onClick={(e) => handleMarkAsUnread(e, openMenuId)}
                         >
-                            <span className="conv-menu-icon">📩</span>
+                            <span className="conv-menu-icon"><FaEnvelopeOpen /></span>
                             Đánh dấu là chưa đọc
                         </button>
                         <button
                             className="conv-menu-item"
                             onClick={(e) => handleMuteNotification(e, openMenuId)}
                         >
-                            <span className="conv-menu-icon">{menuConv?.isMuted ? '🔔' : '🔕'}</span>
+                            <span className="conv-menu-icon">{menuConv?.isMuted ? <FaBell /> : <FaBellSlash />}</span>
                             {menuConv?.isMuted ? 'Bật thông báo' : 'Tắt thông báo'}
                         </button>
                         <button
                             className="conv-menu-item conv-menu-item-danger"
                             onClick={(e) => handleDeleteConversation(e, openMenuId)}
                         >
-                            <span className="conv-menu-icon">🗑️</span>
+                            <span className="conv-menu-icon"><FaTrash /></span>
                             Xóa đoạn chat
                         </button>
                         {isGroup && (
@@ -1402,7 +1454,7 @@ export default function SideChat() {
                                 className="conv-menu-item conv-menu-item-danger"
                                 onClick={(e) => handleLeaveGroup(e, openMenuId)}
                             >
-                                <span className="conv-menu-icon">🚪</span>
+                                <span className="conv-menu-icon"><FaSignOutAlt /></span>
                                 Rời nhóm
                             </button>
                         )}

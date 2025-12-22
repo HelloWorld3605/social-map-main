@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaBellSlash } from 'react-icons/fa'; // 🔇 Import icon
 import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
 import { userService } from '../../services/userService';
@@ -1203,7 +1204,22 @@ export default function ChatWindow({
                     )}
                 </div>
                 <div className="chat-window-info">
-                    <div className="chat-window-name">{displayInfo.name}</div>
+                    <div className="chat-window-name">
+                        {displayInfo.name}
+                        {/* 🔇 Hiển thị icon mute nếu conversation đã được mute */}
+                        {conversation?.isMuted && (
+                            <FaBellSlash
+                                className="chat-window-muted-icon"
+                                title="Đã tắt thông báo"
+                                style={{
+                                    marginLeft: '6px',
+                                    fontSize: '12px',
+                                    color: '#65676b',
+                                    verticalAlign: 'middle'
+                                }}
+                            />
+                        )}
+                    </div>
                     <div className="chat-window-status">{displayInfo.status}</div>
                 </div>
                 <div className="chat-window-controls">
