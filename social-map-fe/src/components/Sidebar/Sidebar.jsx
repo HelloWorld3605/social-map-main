@@ -13,7 +13,7 @@ import {
     FaCalendarAlt,
     FaInfoCircle,
     FaChevronDown,
-    FaChevronRight,
+    FaChevronUp,
     FaHistory,
     FaNewspaper,
     FaUsers,
@@ -22,7 +22,7 @@ import {
     FaRobot,
     FaBullhorn
 } from 'react-icons/fa';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { createSellerRequest, getMySellerRequests } from '../../services/sellerRequestService';
 import CreateShopModal from '../Shop/CreateShopModal';
 import './Sidebar.css';
@@ -42,6 +42,7 @@ export default function Sidebar() {
     const [loadingRequests, setLoadingRequests] = useState(false);
     const [showAllRequests, setShowAllRequests] = useState(false);
     const [showAllMenuItems, setShowAllMenuItems] = useState(false);
+    const [showAllSellerItems, setShowAllSellerItems] = useState(false);
     const navigate = useNavigate();
 
     // Load user info
@@ -184,94 +185,95 @@ export default function Sidebar() {
             <ul>
                 {/* User Profile Menu Item */}
                 {user && (
-                    <li
-                        onClick={() => navigate('/profile')}
-                        className="user-profile-menu-item"
-                        style={{ cursor: 'pointer' }}
-                    >
-                        <div className="user-avatar-small">
-                            <img
-                                src={user.avatarUrl || '/default-avatar.png'}
-                                alt="Avatar"
-                                onError={(e) => {
-                                    e.target.src = '/default-avatar.png';
-                                }}
-                            />
-                        </div>
-                        <div className="user-info-compact">
-                            <div className="user-name-compact">{user.displayName || 'Người dùng'}</div>
-                            <div className="user-role-compact">
-                                {user.role === 'SELLER' ? 'Người bán hàng' :
-                                 user.role === 'ADMIN' ? 'Quản trị viên' : 'Người dùng'}
+                    <li>
+                        <Link
+                            to="/profile"
+                            className="user-profile-menu-item"
+                        >
+                            <div className="user-avatar-small">
+                                <img
+                                    src={user.avatarUrl || '/default-avatar.png'}
+                                    alt="Avatar"
+                                    onError={(e) => {
+                                        e.target.src = '/default-avatar.png';
+                                    }}
+                                />
                             </div>
-                        </div>
+                            <div className="user-info-compact">
+                                <div className="user-name-compact">{user.displayName || 'Người dùng'}</div>
+                                <div className="user-role-compact">
+                                    {user.role === 'SELLER' ? 'Người bán hàng' :
+                                     user.role === 'ADMIN' ? 'Quản trị viên' : 'Người dùng'}
+                                </div>
+                            </div>
+                        </Link>
                     </li>
                 )}
 
                 {/* 7 mục đầu tiên - luôn hiển thị */}
                 <li>
-                    <a href="#">
+                    <Link to="#">
                         <FaUserFriends className="menu-icon" />
                         <span>Bạn bè</span>
-                    </a>
+                    </Link>
                 </li>
                 <li>
-                    <a href="#">
+                    <Link to="#">
                         <FaStickyNote className="menu-icon" />
                         <span>Ghi chú</span>
-                    </a>
+                    </Link>
                 </li>
                 <li>
-                    <a href="#">
+                    <Link to="#">
                         <FaNewspaper className="menu-icon" />
                         <span>Bài viết</span>
-                    </a>
+                    </Link>
                 </li>
                 <li>
-                    <a href="#">
+                    <Link to="#">
                         <FaHistory className="menu-icon" />
                         <span>Kỷ niệm</span>
-                    </a>
+                    </Link>
                 </li>
                 <li>
-                    <a href="#">
+                    <Link to="#">
                         <FaUsers className="menu-icon" />
                         <span>Nhóm</span>
-                    </a>
+                    </Link>
                 </li>
                 <li>
-                    <a href="#">
+                    <Link to="#">
                         <FaGamepad className="menu-icon" />
                         <span>Chơi game</span>
-                    </a>
+                    </Link>
                 </li>
                 <li>
-                    <a href="#">
+                    <Link to="#">
                         <FaBirthdayCake className="menu-icon" />
                         <span>Sinh nhật</span>
-                    </a>
+                    </Link>
                 </li>
 
                 {/* Các mục còn lại - chỉ hiển thị khi showAllMenuItems = true */}
                 {showAllMenuItems && (
                     <>
                         <li>
-                            <a href="#">
+                            <Link to="#">
                                 <FaCalendarAlt className="menu-icon" />
                                 <span>Sự kiện</span>
-                            </a>
+                            </Link>
                         </li>
                         <li>
-                            <a href="#">
+                            <Link to="#">
                                 <FaRobot className="menu-icon" />
                                 <span>Chat với AI</span>
-                            </a>
+                            </Link>
                         </li>
                         <li>
-                            <a href="#">
+                            <Link to="#">
                                 <FaBullhorn className="menu-icon" />
                                 <span>Quảng Cáo</span>
-                            </a>
+                            </Link>
                         </li>
                     </>
                 )}
@@ -284,12 +286,12 @@ export default function Sidebar() {
                     >
                         {showAllMenuItems ? (
                             <>
-                                <FaChevronDown className="toggle-icon" />
+                                <FaChevronUp className="toggle-icon" />
                                 <span>Ẩn bớt</span>
                             </>
                         ) : (
                             <>
-                                <FaChevronRight className="toggle-icon" />
+                                <FaChevronDown className="toggle-icon" />
                                 <span>Xem thêm</span>
                             </>
                         )}
@@ -301,7 +303,6 @@ export default function Sidebar() {
             {(user?.role === 'USER' || user?.role === 'SELLER') && (
                 <div className="seller-management-section">
                     <div className="seller-section-header">
-                        <FaStore className="section-icon" />
                         <span>Quản lý thông tin seller</span>
                     </div>
                     <ul className="seller-menu-list">
@@ -313,8 +314,8 @@ export default function Sidebar() {
                             if (user?.role === 'USER') {
                                 return (
                                     <li>
-                                        <a
-                                            href="#"
+                                        <Link
+                                            to="#"
                                             onClick={(e) => {
                                                 e.preventDefault();
                                                 setShowSellerRequestModal(true);
@@ -323,59 +324,93 @@ export default function Sidebar() {
                                         >
                                             <FaStore className="menu-icon" />
                                             <span>Yêu cầu trở thành người bán hàng</span>
-                                        </a>
+                                        </Link>
                                     </li>
                                 );
                             }
 
                             // Hiển thị cho SELLER - Xem thông tin người bán
                             if (user?.role === 'SELLER') {
+                                const sellerItems = [
+                                    {
+                                        icon: <FaCheckCircle className="menu-icon text-success" />,
+                                        text: 'Thông tin người bán hàng',
+                                        onClick: () => setShowSellerRequestModal(true)
+                                    },
+                                    {
+                                        icon: <FaPlusCircle className="menu-icon text-primary" />,
+                                        text: 'Tạo cửa hàng mới',
+                                        onClick: () => setShowCreateShopModal(true)
+                                    },
+                                    {
+                                        icon: <FaStore className="menu-icon text-success" />,
+                                        text: 'Quản lý các cửa hàng của bạn',
+                                        to: '/shop-management'
+                                    },
+                                    {
+                                        icon: <FaStore className="menu-icon" />,
+                                        text: 'Cửa hàng 1',
+                                        onClick: () => {}
+                                    },
+                                    {
+                                        icon: <FaStore className="menu-icon" />,
+                                        text: 'Cửa hàng 2',
+                                        onClick: () => {}
+                                    },
+                                    {
+                                        icon: <FaStore className="menu-icon" />,
+                                        text: 'Cửa hàng 3',
+                                        onClick: () => {}
+                                    }
+                                ];
+
                                 return (
                                     <>
-                                        <li>
-                                            <a
-                                                href="#"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    setShowSellerRequestModal(true);
-                                                }}
-                                                className="seller-request-link"
-                                            >
-                                                <FaCheckCircle className="menu-icon text-success" />
-                                                <span>Thông tin người bán hàng</span>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a
-                                                href="#"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    console.log('🏪 Opening CreateShopModal from Sidebar');
-                                                    setShowCreateShopModal(true);
-                                                }}
-                                                className="seller-request-link create-shop-link"
-                                            >
-                                                <FaPlusCircle className="menu-icon text-primary" />
-                                                <span>Tạo cửa hàng mới</span>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a
-                                                href="#"
-                                                onClick={(e) => {
-                                                    e.preventDefault();
-                                                    // TODO: Navigate to shop management page or open modal
-                                                    console.log('🏪 Opening Shop Management');
-                                                    // For now, we'll navigate to a shop management route
-                                                    // You can create a new component/page for this
-                                                    navigate('/shop-management');
-                                                }}
-                                                className="seller-request-link shop-management-link"
-                                            >
-                                                <FaStore className="menu-icon text-success" />
-                                                <span>Quản lý các cửa hàng của bạn</span>
-                                            </a>
-                                        </li>
+                                        {sellerItems.slice(0, showAllSellerItems ? sellerItems.length : 5).map((item, index) => (
+                                            <li key={index}>
+                                                {item.to ? (
+                                                    <Link
+                                                        to={item.to}
+                                                        className="seller-request-link"
+                                                    >
+                                                        {item.icon}
+                                                        <span>{item.text}</span>
+                                                    </Link>
+                                                ) : (
+                                                    <Link
+                                                        to="#"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            item.onClick();
+                                                        }}
+                                                        className="seller-request-link"
+                                                    >
+                                                        {item.icon}
+                                                        <span>{item.text}</span>
+                                                    </Link>
+                                                )}
+                                            </li>
+                                        ))}
+                                        {sellerItems.length > 5 && (
+                                            <li className="menu-toggle-container">
+                                                <button
+                                                    className="menu-toggle-btn"
+                                                    onClick={() => setShowAllSellerItems(!showAllSellerItems)}
+                                                >
+                                                    {showAllSellerItems ? (
+                                                        <>
+                                                            <FaChevronUp className="toggle-icon" />
+                                                            <span>Ẩn bớt</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <FaChevronDown className="toggle-icon" />
+                                                            <span>Xem thêm</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            </li>
+                                        )}
                                     </>
                                 );
                             }
@@ -469,7 +504,7 @@ export default function Sidebar() {
                                 </div>
 
                                 {/* All Requests History */}
-                                {sellerRequests.length > 1 && (
+                                {sellerRequests.length > 5 && (
                                     <div className="all-requests-section">
                                         <button
                                             type="button"
@@ -480,64 +515,62 @@ export default function Sidebar() {
                                             {showAllRequests ? (
                                                 <>
                                                     <FaChevronDown className="chevron-icon" />
-                                                    <span>Ẩn lịch sử yêu cầu</span>
+                                                    <span>Ẩn bớt yêu cầu</span>
                                                 </>
                                             ) : (
                                                 <>
                                                     <FaChevronRight className="chevron-icon" />
-                                                    <span>Xem tất cả lịch sử yêu cầu</span>
+                                                    <span>Xem thêm yêu cầu</span>
                                                 </>
                                             )}
                                             <span className="request-count">({sellerRequests.length} yêu cầu)</span>
                                         </button>
-
-                                        {showAllRequests && (
-                                            <div className="requests-history">
-                                                {sellerRequests.map((request, index) => (
-                                                    <div key={request.id} className={`request-item ${index === 0 ? 'latest' : ''}`}>
-                                                        <div className="request-item-header">
-                                                            <span className="request-number">#{sellerRequests.length - index}</span>
-                                                            <span className={`status-badge status-${request.status.toLowerCase()}`}>
-                                                                {request.status === 'PENDING' ? 'Đang chờ' :
-                                                                    request.status === 'APPROVED' ? 'Đã duyệt' : 'Đã từ chối'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="request-item-body">
-                                                            <div className="request-field">
-                                                                <FaIdCard className="field-icon" />
-                                                                <span className="field-label">CCCD:</span>
-                                                                <span className="field-value">{request.citizenId}</span>
-                                                            </div>
-                                                            <div className="request-field">
-                                                                <FaCalendarAlt className="field-icon" />
-                                                                <span className="field-label">Ngày tạo:</span>
-                                                                <span className="field-value">
-                                                                    {new Date(request.createdAt).toLocaleString('vi-VN')}
-                                                                </span>
-                                                            </div>
-                                                            {request.reviewedAt && (
-                                                                <div className="request-field">
-                                                                    <FaCalendarAlt className="field-icon" />
-                                                                    <span className="field-label">Ngày xét duyệt:</span>
-                                                                    <span className="field-value">
-                                                                        {new Date(request.reviewedAt).toLocaleString('vi-VN')}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                            {request.rejectReason && (
-                                                                <div className="request-field">
-                                                                    <FaInfoCircle className="field-icon" />
-                                                                    <span className="field-label">Lý do từ chối:</span>
-                                                                    <span className="field-value reject-reason">{request.rejectReason}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
                                     </div>
                                 )}
+
+                                <div className="requests-history">
+                                    {sellerRequests.slice(0, showAllRequests ? sellerRequests.length : 5).map((request, index) => (
+                                        <div key={request.id} className={`request-item ${index === 0 ? 'latest' : ''}`}>
+                                            <div className="request-item-header">
+                                                <span className="request-number">#{sellerRequests.length - index}</span>
+                                                <span className={`status-badge status-${request.status.toLowerCase()}`}>
+                                                    {request.status === 'PENDING' ? 'Đang chờ' :
+                                                        request.status === 'APPROVED' ? 'Đã duyệt' : 'Đã từ chối'}
+                                                </span>
+                                            </div>
+                                            <div className="request-item-body">
+                                                <div className="request-field">
+                                                    <FaIdCard className="field-icon" />
+                                                    <span className="field-label">CCCD:</span>
+                                                    <span className="field-value">{request.citizenId}</span>
+                                                </div>
+                                                <div className="request-field">
+                                                    <FaCalendarAlt className="field-icon" />
+                                                    <span className="field-label">Ngày tạo:</span>
+                                                    <span className="field-value">
+                                                        {new Date(request.createdAt).toLocaleString('vi-VN')}
+                                                    </span>
+                                                </div>
+                                                {request.reviewedAt && (
+                                                    <div className="request-field">
+                                                        <FaCalendarAlt className="field-icon" />
+                                                        <span className="field-label">Ngày xét duyệt:</span>
+                                                        <span className="field-value">
+                                                            {new Date(request.reviewedAt).toLocaleString('vi-VN')}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {request.rejectReason && (
+                                                    <div className="request-field">
+                                                        <FaInfoCircle className="field-icon" />
+                                                        <span className="field-label">Lý do từ chối:</span>
+                                                        <span className="field-value reject-reason">{request.rejectReason}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
 
                                 <div className="modal-footer">
                                     <button
@@ -608,7 +641,7 @@ export default function Sidebar() {
                                 )}
 
                                 {/* All Requests History */}
-                                {sellerRequests.length > 1 && (
+                                {sellerRequests.length > 5 && (
                                     <div className="all-requests-section">
                                         <button
                                             type="button"
@@ -619,64 +652,62 @@ export default function Sidebar() {
                                             {showAllRequests ? (
                                                 <>
                                                     <FaChevronDown className="chevron-icon" />
-                                                    <span>Ẩn lịch sử yêu cầu</span>
+                                                    <span>Ẩn bớt yêu cầu</span>
                                                 </>
                                             ) : (
                                                 <>
                                                     <FaChevronRight className="chevron-icon" />
-                                                    <span>Xem tất cả lịch sử yêu cầu</span>
+                                                    <span>Xem thêm yêu cầu</span>
                                                 </>
                                             )}
                                             <span className="request-count">({sellerRequests.length} yêu cầu)</span>
                                         </button>
-
-                                        {showAllRequests && (
-                                            <div className="requests-history">
-                                                {sellerRequests.map((request, index) => (
-                                                    <div key={request.id} className={`request-item ${index === 0 ? 'latest' : ''}`}>
-                                                        <div className="request-item-header">
-                                                            <span className="request-number">#{sellerRequests.length - index}</span>
-                                                            <span className={`status-badge status-${request.status.toLowerCase()}`}>
-                                                                {request.status === 'PENDING' ? 'Đang chờ' :
-                                                                    request.status === 'APPROVED' ? 'Đã duyệt' : 'Đã từ chối'}
-                                                            </span>
-                                                        </div>
-                                                        <div className="request-item-body">
-                                                            <div className="request-field">
-                                                                <FaIdCard className="field-icon" />
-                                                                <span className="field-label">CCCD:</span>
-                                                                <span className="field-value">{request.citizenId}</span>
-                                                            </div>
-                                                            <div className="request-field">
-                                                                <FaCalendarAlt className="field-icon" />
-                                                                <span className="field-label">Ngày tạo:</span>
-                                                                <span className="field-value">
-                                                                    {new Date(request.createdAt).toLocaleString('vi-VN')}
-                                                                </span>
-                                                            </div>
-                                                            {request.reviewedAt && (
-                                                                <div className="request-field">
-                                                                    <FaCalendarAlt className="field-icon" />
-                                                                    <span className="field-label">Ngày xét duyệt:</span>
-                                                                    <span className="field-value">
-                                                                        {new Date(request.reviewedAt).toLocaleString('vi-VN')}
-                                                                    </span>
-                                                                </div>
-                                                            )}
-                                                            {request.rejectReason && (
-                                                                <div className="request-field">
-                                                                    <FaInfoCircle className="field-icon" />
-                                                                    <span className="field-label">Lý do từ chối:</span>
-                                                                    <span className="field-value reject-reason">{request.rejectReason}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        )}
                                     </div>
                                 )}
+
+                                <div className="requests-history">
+                                    {sellerRequests.slice(0, showAllRequests ? sellerRequests.length : 5).map((request, index) => (
+                                        <div key={request.id} className={`request-item ${index === 0 ? 'latest' : ''}`}>
+                                            <div className="request-item-header">
+                                                <span className="request-number">#{sellerRequests.length - index}</span>
+                                                <span className={`status-badge status-${request.status.toLowerCase()}`}>
+                                                    {request.status === 'PENDING' ? 'Đang chờ' :
+                                                        request.status === 'APPROVED' ? 'Đã duyệt' : 'Đã từ chối'}
+                                                </span>
+                                            </div>
+                                            <div className="request-item-body">
+                                                <div className="request-field">
+                                                    <FaIdCard className="field-icon" />
+                                                    <span className="field-label">CCCD:</span>
+                                                    <span className="field-value">{request.citizenId}</span>
+                                                </div>
+                                                <div className="request-field">
+                                                    <FaCalendarAlt className="field-icon" />
+                                                    <span className="field-label">Ngày tạo:</span>
+                                                    <span className="field-value">
+                                                        {new Date(request.createdAt).toLocaleString('vi-VN')}
+                                                    </span>
+                                                </div>
+                                                {request.reviewedAt && (
+                                                    <div className="request-field">
+                                                        <FaCalendarAlt className="field-icon" />
+                                                        <span className="field-label">Ngày xét duyệt:</span>
+                                                        <span className="field-value">
+                                                            {new Date(request.reviewedAt).toLocaleString('vi-VN')}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {request.rejectReason && (
+                                                    <div className="request-field">
+                                                        <FaInfoCircle className="field-icon" />
+                                                        <span className="field-label">Lý do từ chối:</span>
+                                                        <span className="field-value reject-reason">{request.rejectReason}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
 
                                 <div className="modal-footer">
                                     <button

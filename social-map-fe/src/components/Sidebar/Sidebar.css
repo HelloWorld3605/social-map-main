@@ -934,35 +934,42 @@ body.dark-mode .socialmap-logo {
 
 .menu-toggle-btn {
     width: 100%;
-    padding: 8px 12px;
-    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    border: 1px solid #cbd5e1;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: #475569;
-    cursor: pointer;
-    transition: all 0.2s;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
-    gap: 8px;
-    justify-content: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    justify-content: flex-start;
 }
 
 .menu-toggle-btn:hover {
-    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-    border-color: #94a3b8;
-    color: #334155;
+    color: #EC5E95;
+    background: rgba(236, 94, 149, 0.08);
 }
 
-.menu-toggle-btn:active {
-    transform: scale(0.98);
+.menu-toggle-btn:hover .toggle-icon {
+    color: #EC5E95;
 }
 
 .toggle-icon {
-    font-size: 0.75rem;
-    color: #667eea;
-    transition: transform 0.2s ease;
+    font-size: 25px;
+    color: #666;
+    min-width: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease;
+    border-radius: 15px;
+    background: rgba(39, 18, 18, 0.1);
+    padding: 5px;
 }
 
 /* Seller Management Section */
@@ -1095,4 +1102,3 @@ body.dark-mode .socialmap-logo {
 .side-menu::-webkit-scrollbar-button {
     display: none;
 }
-
