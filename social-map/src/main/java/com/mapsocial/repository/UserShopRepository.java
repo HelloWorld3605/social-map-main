@@ -18,6 +18,8 @@ public interface UserShopRepository extends JpaRepository<UserShop, UUID> {
 
     Optional<UserShop> findByUserIdAndShopId(UUID userId, UUID shopId);
 
+    Optional<UserShop> findByShopIdAndManagerRole(UUID shopId, ShopRole managerRole);
+
     @Query("SELECT COUNT(us) FROM UserShop us WHERE us.user.id = :userId AND us.managerRole = 'OWNER'")
     Long countShopsByUserId(@Param("userId") UUID userId);
 

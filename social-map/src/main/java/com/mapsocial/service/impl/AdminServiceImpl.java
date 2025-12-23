@@ -4,6 +4,7 @@ import com.mapsocial.dto.request.admin.UpdateUserRequest;
 import com.mapsocial.dto.response.admin.DashboardStatsResponse;
 import com.mapsocial.dto.response.admin.UserManagementResponse;
 import com.mapsocial.entity.User;
+import com.mapsocial.enums.ShopRole;
 import com.mapsocial.repository.FriendshipRepository;
 import com.mapsocial.repository.SellerRequestRepository;
 import com.mapsocial.repository.ShopRepository;
@@ -232,6 +233,16 @@ public class AdminServiceImpl implements AdminService {
     }
 
     private com.mapsocial.dto.response.shop.ShopResponse toShopResponse(com.mapsocial.entity.Shop shop) {
+        // Tìm owner của shop
+        String ownerId = null;
+        String ownerName = null;
+        var ownerUserShopOpt = userShopRepository.findByShopIdAndManagerRole(shop.getId(), ShopRole.OWNER);
+        if (ownerUserShopOpt.isPresent()) {
+            var ownerUserShop = ownerUserShopOpt.get();
+            ownerId = ownerUserShop.getUser().getId().toString();
+            ownerName = ownerUserShop.getUser().getDisplayName();
+        }
+
         return com.mapsocial.dto.response.shop.ShopResponse.builder()
                 .id(shop.getId())
                 .name(shop.getName())
@@ -252,6 +263,8 @@ public class AdminServiceImpl implements AdminService {
                                 .map(com.mapsocial.entity.Tag::getName)
                                 .toList()
                         : new java.util.ArrayList<>())
+                .ownerId(ownerId)
+                .ownerName(ownerName)
                 .build();
     }
 

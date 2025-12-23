@@ -27,4 +27,6 @@ public class ShopResponse {
     private List<String> imageShopUrl; // danh sách URL ảnh của shop
     private List<String> tags; // tên tag
     private LocalDateTime deletedAt; // thời điểm xóa mềm (null = chưa xóa)
+    private String ownerId; // ID của chủ sở hữu
+    private String ownerName; // Tên của chủ sở hữu
 }
