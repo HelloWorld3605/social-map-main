@@ -1,35 +1,49 @@
 import React, { useState, useEffect } from 'react';
-import { deleteShop } from '../../services/shopService';
+import { deleteShopAdmin, restoreShopAdmin, deleteMultipleShopsAdmin } from '../../services/adminService';
 import {
     FiSearch, FiEdit2, FiTrash2, FiEye, FiPlus, FiX,
     FiAlertTriangle, FiMapPin, FiPhone, FiCheckCircle,
-    FiXCircle, FiClock, FiStar, FiShoppingBag, FiInbox, FiSave
+    FiXCircle, FiClock, FiStar, FiShoppingBag, FiInbox, FiSave,
+    FiRefreshCw, FiChevronLeft, FiChevronRight
 } from 'react-icons/fi';
 import './ShopManagement.css';
 
-export default function ShopManagementContent({ shops: initialShops, loading: initialLoading, onRefresh }) {
+export default function ShopManagementContent({
+    shops: initialShops,
+    loading: initialLoading,
+    onRefresh,
+    currentPage,
+    setCurrentPage,
+    totalPages,
+    pageSize,
+    setPageSize,
+    searchTerm,
+    setSearchTerm,
+    includeDeleted,
+    setIncludeDeleted
+}) {
     const [shops, setShops] = useState(initialShops || []);
-    const [filteredShops, setFilteredShops] = useState(initialShops || []);
     const [loading, setLoading] = useState(initialLoading || false);
     const [error, setError] = useState(null);
 
-    // Pagination
-    const [currentPage, setCurrentPage] = useState(1);
-    const [shopsPerPage] = useState(10);
-
-    // Search & Filter
-    const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('ALL');
+    // Selection for bulk delete
+    const [selectedShops, setSelectedShops] = useState([]);
+    const [selectAll, setSelectAll] = useState(false);
 
     // Modal states
     const [showEditModal, setShowEditModal] = useState(false);
     const [selectedShop, setSelectedShop] = useState(null);
 
+    // Local search (for immediate filtering before API call)
+    const [localSearch, setLocalSearch] = useState(searchTerm || '');
+
     // Update when props change
     useEffect(() => {
         if (initialShops) {
             setShops(initialShops);
-            setFilteredShops(initialShops);
+            // Reset selection when shops change
+            setSelectedShops([]);
+            setSelectAll(false);
         }
     }, [initialShops]);
 
@@ -37,30 +51,58 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
         setLoading(initialLoading);
     }, [initialLoading]);
 
-    useEffect(() => {
-        filterShops();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchTerm, statusFilter, shops]);
+    // Handle search submit
+    const handleSearch = (e) => {
+        e.preventDefault();
+        setSearchTerm(localSearch);
+        setCurrentPage(0);
+    };
 
+    // Handle select all checkbox
+    const handleSelectAll = (e) => {
+        setSelectAll(e.target.checked);
+        if (e.target.checked) {
+            // Select all shops that are not deleted
+            setSelectedShops(shops.filter(s => !s.deletedAt).map(s => s.id));
+        } else {
+            setSelectedShops([]);
+        }
+    };
 
-    const filterShops = () => {
-        let filtered = shops;
+    // Handle individual shop selection
+    const handleSelectShop = (shopId, isDeleted) => {
+        if (isDeleted) return; // Don't allow selecting deleted shops
 
-        // Search by name or address
-        if (searchTerm) {
-            filtered = filtered.filter(shop =>
-                shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                shop.address.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+        setSelectedShops(prev => {
+            if (prev.includes(shopId)) {
+                return prev.filter(id => id !== shopId);
+            } else {
+                return [...prev, shopId];
+            }
+        });
+    };
+
+    // Handle bulk delete
+    const handleBulkDelete = async () => {
+        if (selectedShops.length === 0) {
+            alert('Vui lòng chọn ít nhất một cửa hàng để xóa');
+            return;
         }
 
-        // Filter by status
-        if (statusFilter !== 'ALL') {
-            filtered = filtered.filter(shop => shop.status === statusFilter);
+        if (!window.confirm(`Bạn có chắc muốn xóa ${selectedShops.length} cửa hàng đã chọn?`)) {
+            return;
         }
 
-        setFilteredShops(filtered);
-        setCurrentPage(1); // Reset to first page when filtering
+        try {
+            await deleteMultipleShopsAdmin(selectedShops);
+            alert(`Đã xóa ${selectedShops.length} cửa hàng thành công!`);
+            setSelectedShops([]);
+            setSelectAll(false);
+            if (onRefresh) onRefresh();
+        } catch (err) {
+            console.error('Failed to delete shops:', err);
+            alert('Không thể xóa cửa hàng. Vui lòng thử lại.');
+        }
     };
 
     const handleDelete = async (shopId, shopName) => {
@@ -69,8 +111,7 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
         }
 
         try {
-            await deleteShop(shopId);
-            setShops(shops.filter(s => s.id !== shopId));
+            await deleteShopAdmin(shopId);
             if (onRefresh) onRefresh();
             alert('Xóa cửa hàng thành công!');
         } catch (err) {
@@ -79,18 +120,25 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
         }
     };
 
+    const handleRestore = async (shopId, shopName) => {
+        if (!window.confirm(`Bạn có chắc muốn khôi phục cửa hàng "${shopName}"?`)) {
+            return;
+        }
+
+        try {
+            await restoreShopAdmin(shopId);
+            if (onRefresh) onRefresh();
+            alert('Khôi phục cửa hàng thành công!');
+        } catch (err) {
+            console.error('Failed to restore shop:', err);
+            alert('Không thể khôi phục cửa hàng. Vui lòng thử lại.');
+        }
+    };
+
     const handleEdit = (shop) => {
         setSelectedShop(shop);
         setShowEditModal(true);
     };
-
-    // Pagination logic
-    const indexOfLastShop = currentPage * shopsPerPage;
-    const indexOfFirstShop = indexOfLastShop - shopsPerPage;
-    const currentShops = filteredShops.slice(indexOfFirstShop, indexOfLastShop);
-    const totalPages = Math.ceil(filteredShops.length / shopsPerPage);
-
-    const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
     if (loading) {
         return (
@@ -113,40 +161,65 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
 
             {/* Search & Filter Bar */}
             <div className="shop-filters">
-                <div className="search-box">
+                <form onSubmit={handleSearch} className="search-box">
                     <span className="shop-search-icon"><FiSearch size={18} /></span>
                     <input
                         type="text"
                         placeholder="Tìm kiếm theo tên hoặc địa chỉ..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        value={localSearch}
+                        onChange={(e) => setLocalSearch(e.target.value)}
                     />
-                    {searchTerm && (
+                    {localSearch && (
                         <button
+                            type="button"
                             className="clear-search"
-                            onClick={() => setSearchTerm('')}
+                            onClick={() => {
+                                setLocalSearch('');
+                                setSearchTerm('');
+                            }}
                         >
                             <FiX size={14} />
                         </button>
                     )}
-                </div>
+                    <button type="submit" className="search-btn">Tìm</button>
+                </form>
 
-                <div className="filter-group">
-                    <label>Trạng thái:</label>
+                <div className="filter-options">
+                    <label className="checkbox-label">
+                        <input
+                            type="checkbox"
+                            checked={includeDeleted}
+                            onChange={(e) => {
+                                setIncludeDeleted(e.target.checked);
+                                setCurrentPage(0);
+                            }}
+                        />
+                        Hiển thị shop đã xóa
+                    </label>
+
                     <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
+                        value={pageSize}
+                        onChange={(e) => {
+                            setPageSize(Number(e.target.value));
+                            setCurrentPage(0);
+                        }}
+                        className="page-size-select"
                     >
-                        <option value="ALL">Tất cả</option>
-                        <option value="OPEN">Đang mở</option>
-                        <option value="CLOSED">Đã đóng</option>
-                        <option value="PENDING">Chờ duyệt</option>
+                        <option value={10}>10 / trang</option>
+                        <option value={20}>20 / trang</option>
+                        <option value={50}>50 / trang</option>
                     </select>
                 </div>
 
-                <div className="results-info">
-                    Hiển thị <strong>{currentShops.length}</strong> / <strong>{filteredShops.length}</strong> cửa hàng
-                </div>
+                {/* Bulk Actions */}
+                {selectedShops.length > 0 && (
+                    <div className="bulk-actions">
+                        <span>{selectedShops.length} đã chọn</span>
+                        <button className="btn-bulk-delete" onClick={handleBulkDelete}>
+                            <FiTrash2 size={16} /> Xóa đã chọn
+                        </button>
+                    </div>
+                )}
 
                 <button className="btn-add-shop" onClick={() => handleEdit(null)}>
                     <FiPlus size={16} /> Thêm Shop
@@ -158,6 +231,14 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                 <table className="shop-table">
                     <thead>
                         <tr>
+                            <th className="checkbox-col">
+                                <input
+                                    type="checkbox"
+                                    checked={selectAll}
+                                    onChange={handleSelectAll}
+                                    title="Chọn tất cả"
+                                />
+                            </th>
                             <th>ID</th>
                             <th>Hình ảnh</th>
                             <th>Tên cửa hàng</th>
@@ -169,17 +250,25 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                         </tr>
                     </thead>
                     <tbody>
-                        {currentShops.length === 0 ? (
+                        {shops.length === 0 ? (
                             <tr>
-                                <td colSpan="8" className="no-data">
-                                    {searchTerm || statusFilter !== 'ALL'
+                                <td colSpan="9" className="no-data">
+                                    {searchTerm
                                         ? <><FiSearch size={16} /> Không tìm thấy cửa hàng nào</>
                                         : <><FiInbox size={16} /> Chưa có cửa hàng nào</>}
                                 </td>
                             </tr>
                         ) : (
-                            currentShops.map(shop => (
-                                <tr key={shop.id}>
+                            shops.map(shop => (
+                                <tr key={shop.id} className={shop.deletedAt ? 'deleted-row' : ''}>
+                                    <td className="checkbox-col">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedShops.includes(shop.id)}
+                                            onChange={() => handleSelectShop(shop.id, !!shop.deletedAt)}
+                                            disabled={!!shop.deletedAt}
+                                        />
+                                    </td>
                                     <td className="shop-id">
                                         {shop.id.substring(0, 8)}...
                                     </td>
@@ -208,37 +297,55 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                                         ) : 'N/A'}
                                     </td>
                                     <td className="shop-status">
-                                        <span className={`status-badge status-${shop.status.toLowerCase()}`}>
-                                            {shop.status === 'OPEN' && <><FiCheckCircle size={14} /> Đang mở</>}
-                                            {shop.status === 'CLOSED' && <><FiXCircle size={14} /> Đã đóng</>}
-                                            {shop.status === 'PENDING' && <><FiClock size={14} /> Chờ duyệt</>}
-                                        </span>
+                                        {shop.deletedAt ? (
+                                            <span className="status-badge status-deleted">
+                                                <FiTrash2 size={14} /> Đã xóa
+                                            </span>
+                                        ) : (
+                                            <span className={`status-badge status-${shop.status.toLowerCase()}`}>
+                                                {shop.status === 'OPEN' && <><FiCheckCircle size={14} /> Đang mở</>}
+                                                {shop.status === 'CLOSED' && <><FiXCircle size={14} /> Đã đóng</>}
+                                                {shop.status === 'PENDING' && <><FiClock size={14} /> Chờ duyệt</>}
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="shop-rating">
                                         <FiStar size={14} /> {shop.rating || 0} ({shop.reviewCount || 0})
                                     </td>
                                     <td className="shop-actions">
-                                        <button
-                                            className="btn-edit"
-                                            onClick={() => handleEdit(shop)}
-                                            title="Chỉnh sửa"
-                                        >
-                                            <FiEdit2 size={16} />
-                                        </button>
-                                        <button
-                                            className="btn-delete"
-                                            onClick={() => handleDelete(shop.id, shop.name)}
-                                            title="Xóa"
-                                        >
-                                            <FiTrash2 size={16} />
-                                        </button>
-                                        <button
-                                            className="btn-view"
-                                            onClick={() => window.open(`/shop/${shop.id}`, '_blank')}
-                                            title="Xem chi tiết"
-                                        >
-                                            <FiEye size={16} />
-                                        </button>
+                                        {!shop.deletedAt ? (
+                                            <>
+                                                <button
+                                                    className="btn-edit"
+                                                    onClick={() => handleEdit(shop)}
+                                                    title="Chỉnh sửa"
+                                                >
+                                                    <FiEdit2 size={16} />
+                                                </button>
+                                                <button
+                                                    className="btn-delete"
+                                                    onClick={() => handleDelete(shop.id, shop.name)}
+                                                    title="Xóa"
+                                                >
+                                                    <FiTrash2 size={16} />
+                                                </button>
+                                                <button
+                                                    className="btn-view"
+                                                    onClick={() => window.open(`/shop/${shop.id}`, '_blank')}
+                                                    title="Xem chi tiết"
+                                                >
+                                                    <FiEye size={16} />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <button
+                                                className="btn-restore"
+                                                onClick={() => handleRestore(shop.id, shop.name)}
+                                                title="Khôi phục"
+                                            >
+                                                <FiRefreshCw size={16} />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             ))
@@ -251,29 +358,29 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
             {totalPages > 1 && (
                 <div className="pagination">
                     <button
-                        onClick={() => paginate(currentPage - 1)}
-                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(currentPage - 1)}
+                        disabled={currentPage === 0}
                         className="pagination-btn"
                     >
-                        ‹ Trước
+                        <FiChevronLeft size={16} /> Trước
                     </button>
 
                     <div className="pagination-numbers">
                         {[...Array(totalPages)].map((_, index) => {
-                            const pageNumber = index + 1;
+                            const pageNumber = index;
                             // Show first, last, current, and adjacent pages
                             if (
-                                pageNumber === 1 ||
-                                pageNumber === totalPages ||
+                                pageNumber === 0 ||
+                                pageNumber === totalPages - 1 ||
                                 (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
                             ) {
                                 return (
                                     <button
                                         key={pageNumber}
-                                        onClick={() => paginate(pageNumber)}
+                                        onClick={() => setCurrentPage(pageNumber)}
                                         className={`pagination-number ${currentPage === pageNumber ? 'active' : ''}`}
                                     >
-                                        {pageNumber}
+                                        {pageNumber + 1}
                                     </button>
                                 );
                             } else if (
@@ -287,11 +394,11 @@ export default function ShopManagementContent({ shops: initialShops, loading: in
                     </div>
 
                     <button
-                        onClick={() => paginate(currentPage + 1)}
-                        disabled={currentPage === totalPages}
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        disabled={currentPage === totalPages - 1}
                         className="pagination-btn"
                     >
-                        Sau ›
+                        Sau <FiChevronRight size={16} />
                     </button>
                 </div>
             )}

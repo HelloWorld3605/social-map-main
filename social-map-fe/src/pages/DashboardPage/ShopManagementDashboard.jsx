@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { getAllShops } from '../../services/shopService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getAllShopsAdmin } from '../../services/adminService';
 import AdminSidebar from '../../components/Admin/AdminSidebar';
 import ShopManagementContent from '../../components/Admin/ShopManagementContent';
 import { FiShoppingBag, FiCheckCircle, FiXCircle, FiClock } from 'react-icons/fi';
@@ -8,6 +8,14 @@ import './DashboardPage.css';
 export default function ShopManagementDashboard() {
     const [shops, setShops] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
+    const [totalElements, setTotalElements] = useState(0);
+    const [pageSize, setPageSize] = useState(10);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [includeDeleted, setIncludeDeleted] = useState(false);
+    const [sortBy] = useState('createdAt');
+    const [sortDirection] = useState('DESC');
     const [stats, setStats] = useState({
         totalShops: 0,
         openShops: 0,
@@ -15,30 +23,34 @@ export default function ShopManagementDashboard() {
         pendingShops: 0
     });
 
-    useEffect(() => {
-        loadShops();
-    }, []);
-
-    const loadShops = async () => {
+    const loadShops = useCallback(async () => {
         try {
             setLoading(true);
-            const data = await getAllShops();
-            setShops(data);
+            const data = await getAllShopsAdmin(currentPage, pageSize, sortBy, sortDirection, searchTerm, includeDeleted);
+            const shopsList = data.content || [];
+            setShops(shopsList);
+            setTotalPages(data.totalPages || 0);
+            setTotalElements(data.totalElements || 0);
 
-            // Calculate stats
-            const stats = {
-                totalShops: data.length,
-                openShops: data.filter(s => s.status === 'OPEN').length,
-                closedShops: data.filter(s => s.status === 'CLOSED').length,
-                pendingShops: data.filter(s => s.status === 'PENDING').length
+            // Calculate stats from current page (approximate)
+            const statsData = {
+                totalShops: data.totalElements || 0,
+                openShops: shopsList.filter(s => s.status === 'OPEN' && !s.deletedAt).length,
+                closedShops: shopsList.filter(s => s.status === 'CLOSED' && !s.deletedAt).length,
+                pendingShops: shopsList.filter(s => s.status === 'PENDING' && !s.deletedAt).length
             };
-            setStats(stats);
+            setStats(statsData);
         } catch (error) {
             console.error('Failed to load shops:', error);
+            setShops([]);
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentPage, pageSize, sortBy, sortDirection, searchTerm, includeDeleted]);
+
+    useEffect(() => {
+        loadShops();
+    }, [loadShops]);
 
     return (
         <>
@@ -46,7 +58,7 @@ export default function ShopManagementDashboard() {
             <div className="dashboard-container">
                 <div className="dashboard-header">
                     <h1><FiShoppingBag style={{ marginRight: '8px' }} /> Quản Lý Cửa Hàng</h1>
-                    <p className="dashboard-subtitle">Quản lý tất cả cửa hàng trong hệ thống</p>
+                    <p className="dashboard-subtitle">Quản lý tất cả cửa hàng trong hệ thống - Tổng số: {totalElements}</p>
                 </div>
 
                 {/* Shop Stats */}
@@ -89,6 +101,15 @@ export default function ShopManagementDashboard() {
                     shops={shops}
                     loading={loading}
                     onRefresh={loadShops}
+                    currentPage={currentPage}
+                    setCurrentPage={setCurrentPage}
+                    totalPages={totalPages}
+                    pageSize={pageSize}
+                    setPageSize={setPageSize}
+                    searchTerm={searchTerm}
+                    setSearchTerm={setSearchTerm}
+                    includeDeleted={includeDeleted}
+                    setIncludeDeleted={setIncludeDeleted}
                 />
             </div>
         </>

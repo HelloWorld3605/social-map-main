@@ -4,6 +4,7 @@ import com.mapsocial.enums.ShopStatus;
 import lombok.Builder;
 import lombok.Data;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
@@ -25,4 +26,5 @@ public class ShopResponse {
     private Integer reviewCount;
     private List<String> imageShopUrl; // danh sách URL ảnh của shop
     private List<String> tags; // tên tag
+    private LocalDateTime deletedAt; // thời điểm xóa mềm (null = chưa xóa)
 }

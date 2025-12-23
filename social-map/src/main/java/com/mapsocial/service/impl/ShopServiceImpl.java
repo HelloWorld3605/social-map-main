@@ -143,7 +143,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(readOnly = true)
     public ShopResponse getShopById(UUID shopId) {
-        Shop shop = shopRepository.findById(shopId)
+        Shop shop = shopRepository.findActiveById(shopId)
                 .orElseThrow(() -> new EntityNotFoundException("Shop not found"));
         // Lấy trạng thái được tính toán từ Redis
         return ShopMapper.toShopResponse(shop, shopStatusService.getShopStatus(shopId));
@@ -152,7 +152,7 @@ public class ShopServiceImpl implements ShopService {
     @Override
     @Transactional(readOnly = true)
     public List<ShopResponse> getAllShops() {
-        List<Shop> shops = shopRepository.findAll();
+        List<Shop> shops = shopRepository.findAllActive();
         return shops.stream()
                 .map(shop -> ShopMapper.toShopResponse(shop, shopStatusService.getShopStatus(shop.getId())))
                 .toList();

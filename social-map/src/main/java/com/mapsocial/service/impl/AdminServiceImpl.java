@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -146,8 +147,15 @@ public class AdminServiceImpl implements AdminService {
             throw new IllegalStateException("Không thể xóa SUPER_ADMIN");
         }
 
-        user.setDeletedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        user.setDeletedAt(now);
         userRepository.save(user);
+
+        // Soft delete các shops mà user là OWNER
+        List<UUID> shopIds = userShopRepository.findShopIdsByOwnerUserId(userId);
+        if (!shopIds.isEmpty()) {
+            shopRepository.softDeleteByIds(shopIds, now);
+        }
     }
 
     @Override
@@ -158,6 +166,93 @@ public class AdminServiceImpl implements AdminService {
 
         user.setDeletedAt(null);
         userRepository.save(user);
+
+        // Khôi phục các shops mà user là OWNER
+        List<UUID> shopIds = userShopRepository.findShopIdsByOwnerUserId(userId);
+        if (!shopIds.isEmpty()) {
+            shopRepository.restoreByIds(shopIds);
+        }
+    }
+
+    // ==================== SHOP MANAGEMENT ====================
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<com.mapsocial.dto.response.shop.ShopResponse> getAllShopsAdmin(
+            org.springframework.data.domain.Pageable pageable, String search, Boolean includeDeleted) {
+
+        Page<com.mapsocial.entity.Shop> shopsPage;
+
+        if (includeDeleted != null && includeDeleted) {
+            // Include deleted shops
+            if (search != null && !search.trim().isEmpty()) {
+                shopsPage = shopRepository.searchShopsIncludingDeleted(search, pageable);
+            } else {
+                shopsPage = shopRepository.findAllShopsAdmin(pageable);
+            }
+        } else {
+            // Only active shops
+            if (search != null && !search.trim().isEmpty()) {
+                shopsPage = shopRepository.searchActiveShops(search, pageable);
+            } else {
+                shopsPage = shopRepository.findAllActiveShops(pageable);
+            }
+        }
+
+        return shopsPage.map(this::toShopResponse);
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteShop(UUID shopId) {
+        com.mapsocial.entity.Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new EntityNotFoundException("Shop not found"));
+
+        shop.setDeletedAt(LocalDateTime.now());
+        shopRepository.save(shop);
+    }
+
+    @Override
+    @Transactional
+    public void restoreShop(UUID shopId) {
+        com.mapsocial.entity.Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new EntityNotFoundException("Shop not found"));
+
+        shop.setDeletedAt(null);
+        shopRepository.save(shop);
+    }
+
+    @Override
+    @Transactional
+    public void softDeleteMultipleShops(List<UUID> shopIds) {
+        if (shopIds == null || shopIds.isEmpty()) {
+            throw new IllegalArgumentException("Shop IDs list cannot be empty");
+        }
+        shopRepository.softDeleteByIds(shopIds, LocalDateTime.now());
+    }
+
+    private com.mapsocial.dto.response.shop.ShopResponse toShopResponse(com.mapsocial.entity.Shop shop) {
+        return com.mapsocial.dto.response.shop.ShopResponse.builder()
+                .id(shop.getId())
+                .name(shop.getName())
+                .address(shop.getAddress())
+                .latitude(shop.getLatitude())
+                .longitude(shop.getLongitude())
+                .description(shop.getDescription())
+                .phoneNumber(shop.getPhoneNumber())
+                .openingTime(shop.getOpeningTime())
+                .closingTime(shop.getClosingTime())
+                .status(shop.getStatus())
+                .rating(shop.getRating())
+                .reviewCount(shop.getReviewCount())
+                .imageShopUrl(shop.getImageShopUrl())
+                .deletedAt(shop.getDeletedAt())
+                .tags(shop.getTags() != null
+                        ? shop.getTags().stream()
+                                .map(com.mapsocial.entity.Tag::getName)
+                                .toList()
+                        : new java.util.ArrayList<>())
+                .build();
     }
 
     private UserManagementResponse toUserManagementResponse(User user) {

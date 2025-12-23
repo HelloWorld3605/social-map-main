@@ -5,14 +5,16 @@ import com.mapsocial.dto.response.user.UserResponse;
 import com.mapsocial.entity.User;
 import com.mapsocial.mapper.UserMapper;
 import com.mapsocial.repository.FriendshipRepository;
+import com.mapsocial.repository.ShopRepository;
 import com.mapsocial.repository.UserRepository;
+import com.mapsocial.repository.UserShopRepository;
 import com.mapsocial.service.UserService;
-import com.mapsocial.service.UserStatusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -22,6 +24,8 @@ public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final FriendshipRepository friendshipRepository;
+    private final ShopRepository shopRepository;
+    private final UserShopRepository userShopRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -81,9 +85,17 @@ public class UserServiceImpl implements UserService {
             throw new RuntimeException("Tài khoản đã bị xóa rồi");
         }
 
-        // Soft delete
-        user.setDeletedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+
+        // Soft delete user
+        user.setDeletedAt(now);
         userRepository.save(user);
+
+        // Soft delete các shops mà user là OWNER
+        List<UUID> shopIds = userShopRepository.findShopIdsByOwnerUserId(id);
+        if (!shopIds.isEmpty()) {
+            shopRepository.softDeleteByIds(shopIds, now);
+        }
     }
 
     @Override

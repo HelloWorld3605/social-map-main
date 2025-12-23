@@ -4,6 +4,7 @@ import com.mapsocial.dto.request.admin.UpdateUserRequest;
 import com.mapsocial.dto.response.admin.DashboardStatsResponse;
 import com.mapsocial.dto.response.admin.SellerRequestResponse;
 import com.mapsocial.dto.response.admin.UserManagementResponse;
+import com.mapsocial.dto.response.shop.ShopResponse;
 import com.mapsocial.enums.RequestStatus;
 import com.mapsocial.service.AdminService;
 import com.mapsocial.service.SellerRequestService;
@@ -122,6 +123,48 @@ public class AdminController {
     public ResponseEntity<String> restoreUser(@PathVariable UUID userId) {
         adminService.restoreUser(userId);
         return ResponseEntity.ok("User đã được khôi phục thành công");
+    }
+
+    // ==================== SHOP MANAGEMENT ====================
+
+    @GetMapping("/shops")
+    @Operation(summary = "Lấy danh sách shops với phân trang", description = "Admin lấy danh sách tất cả shops")
+    public ResponseEntity<Page<ShopResponse>> getAllShopsAdmin(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDirection,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean includeDeleted) {
+
+        Sort sort = sortDirection.equalsIgnoreCase("ASC")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<ShopResponse> shops = adminService.getAllShopsAdmin(pageable, search, includeDeleted);
+        return ResponseEntity.ok(shops);
+    }
+
+    @DeleteMapping("/shops/{shopId}")
+    @Operation(summary = "Xóa mềm shop", description = "Admin xóa mềm shop")
+    public ResponseEntity<String> softDeleteShop(@PathVariable UUID shopId) {
+        adminService.softDeleteShop(shopId);
+        return ResponseEntity.ok("Shop đã được xóa thành công");
+    }
+
+    @PutMapping("/shops/{shopId}/restore")
+    @Operation(summary = "Khôi phục shop đã xóa", description = "Admin khôi phục shop đã bị xóa mềm")
+    public ResponseEntity<String> restoreShop(@PathVariable UUID shopId) {
+        adminService.restoreShop(shopId);
+        return ResponseEntity.ok("Shop đã được khôi phục thành công");
+    }
+
+    @DeleteMapping("/shops/batch")
+    @Operation(summary = "Xóa mềm nhiều shops", description = "Admin xóa mềm nhiều shops cùng lúc")
+    public ResponseEntity<String> softDeleteMultipleShops(@RequestBody List<UUID> shopIds) {
+        adminService.softDeleteMultipleShops(shopIds);
+        return ResponseEntity.ok("Đã xóa " + shopIds.size() + " shops thành công");
     }
 }
 

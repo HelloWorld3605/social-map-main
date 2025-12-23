@@ -3,9 +3,11 @@ package com.mapsocial.service;
 import com.mapsocial.dto.request.admin.UpdateUserRequest;
 import com.mapsocial.dto.response.admin.DashboardStatsResponse;
 import com.mapsocial.dto.response.admin.UserManagementResponse;
+import com.mapsocial.dto.response.shop.ShopResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface AdminService {
@@ -18,5 +20,14 @@ public interface AdminService {
     void softDeleteUser(UUID userId);
 
     void restoreUser(UUID userId);
+
+    // Shop management
+    Page<ShopResponse> getAllShopsAdmin(Pageable pageable, String search, Boolean includeDeleted);
+
+    void softDeleteShop(UUID shopId);
+
+    void restoreShop(UUID shopId);
+
+    void softDeleteMultipleShops(List<UUID> shopIds);
 }
 

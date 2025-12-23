@@ -30,12 +30,23 @@ export const updateUserRole = async (userId, role) => {
 };
 
 // Quản lý shops
-export const getAllShopsAdmin = async () => {
-  return await api.get('/admin/shops');
+export const getAllShopsAdmin = async (page = 0, size = 10, sortBy = 'createdAt', sortDirection = 'DESC', search = '', includeDeleted = false) => {
+  const params = { page, size, sortBy, sortDirection };
+  if (search) params.search = search;
+  if (includeDeleted) params.includeDeleted = includeDeleted;
+  return await api.get('/admin/shops', { params });
 };
 
 export const deleteShopAdmin = async (shopId) => {
   return await api.delete(`/admin/shops/${shopId}`);
+};
+
+export const restoreShopAdmin = async (shopId) => {
+  return await api.put(`/admin/shops/${shopId}/restore`);
+};
+
+export const deleteMultipleShopsAdmin = async (shopIds) => {
+  return await api.delete('/admin/shops/batch', { data: shopIds });
 };
 
 export const updateShopStatus = async (shopId, status) => {

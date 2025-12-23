@@ -82,6 +82,9 @@ public class SecurityConfig {
                 // Seller requests - require authentication (USER role)
                 .requestMatchers("/api/seller-requests/**").authenticated()
 
+                // Admin endpoints - require ADMIN or SUPER_ADMIN role
+                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+
                 // Health check endpoints
                 .requestMatchers("/actuator/health").permitAll()
 
