@@ -20,13 +20,14 @@
 }
 
 .side-menu ul li {
-    padding: 15px 20px;
+    padding: 10px 20px;
 }
 
 .side-menu ul li a {
     text-decoration: none;
     color: #333;
     font-weight: 500;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -36,7 +37,7 @@
 }
 
 .side-menu ul li a .menu-icon {
-    font-size: 18px;
+    font-size: 20px;
     color: #666;
     min-width: 20px;
     display: flex;
@@ -53,12 +54,22 @@
     color: #3b82f6;
 }
 
-.side-menu ul li a:hover {
+.side-menu ul li:hover a {
     color: #EC5E95;
     background: rgba(236, 94, 149, 0.08);
 }
 
-.side-menu ul li a:hover .menu-icon {
+.side-menu ul li:hover a .menu-icon {
+    color: #EC5E95;
+}
+
+/* Hover for menu items without a tag (like user profile) */
+.side-menu ul li:hover {
+    background: rgba(236, 94, 149, 0.08);
+}
+
+.side-menu ul li:hover .user-name-compact,
+.side-menu ul li:hover .user-role-compact {
     color: #EC5E95;
 }
 
@@ -69,6 +80,12 @@
 /* Khi mở */
 .side-menu.is-active {
     left: 0;
+}
+
+/* Menu items - no animation */
+.side-menu ul li {
+    opacity: 1;
+    transform: none;
 }
 
 /* ===== SIDEBAR ANIMATION ===== */
@@ -86,54 +103,12 @@
     padding-top: 60px;
     /* chừa header */
     z-index: 999;
-    overflow: hidden;
+    overflow-y: auto; /* Cho phép cuộn dọc khi nội dung nhiều */
 }
 
 /* Khi mở */
 .side-menu.is-active {
     left: 0;
-}
-
-/* Ẩn item ban đầu */
-.side-menu ul li {
-    opacity: 0;
-    transform: translateX(-20px);
-}
-
-/* Khi menu active, animate lần lượt */
-.side-menu.is-active ul li {
-    animation: slideIn 0.4s forwards;
-}
-
-.side-menu.is-active ul li:nth-child(1) {
-    animation-delay: 0.1s;
-}
-
-.side-menu.is-active ul li:nth-child(2) {
-    animation-delay: 0.2s;
-}
-
-.side-menu.is-active ul li:nth-child(3) {
-    animation-delay: 0.3s;
-}
-
-/*.side-menu.is-active ul li:nth-child(4) {*/
-/*    animation-delay: 0.4s;*/
-/*}*/
-
-
-
-/* Keyframes */
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
 }
 
 /* Icon màu đen ở light mode */
@@ -297,24 +272,6 @@ body.dark-mode .socialmap-logo {
     font-size: 12px;
     color: #856404;
     flex: 1;
-}
-
-/* Animation for location section */
-.side-menu.is-active .sidebar-location-section {
-    animation: slideUp 0.5s ease 0.7s forwards;
-    opacity: 0;
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
 }
 
 /* Seller Request Link */
@@ -960,3 +917,139 @@ body.dark-mode .socialmap-logo {
     }
 }
 
+/* Menu Toggle Button */
+.menu-toggle-container {
+    padding: 8px 20px;
+}
+
+.menu-toggle-btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+}
+
+.menu-toggle-btn:hover {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    border-color: #94a3b8;
+    color: #334155;
+}
+
+.menu-toggle-btn:active {
+    transform: scale(0.98);
+}
+
+.toggle-icon {
+    font-size: 0.75rem;
+    color: #667eea;
+    transition: transform 0.2s ease;
+}
+
+/* Seller Management Section */
+.seller-management-section {
+    margin-top: 1rem;
+    border-top: 2px solid #e2e8f0;
+    padding-top: 1rem;
+}
+
+.seller-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.seller-section-header .section-icon {
+    font-size: 1.25rem;
+    color: #667eea;
+}
+
+.seller-section-header span {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #334155;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.seller-menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.seller-menu-list li {
+    margin-bottom: 0.25rem;
+}
+
+.seller-menu-list li:last-child {
+    margin-bottom: 0;
+}
+
+/* User Profile Menu Item */
+.user-profile-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    color: #333;
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.user-profile-menu-item:hover {
+    color: #EC5E95;
+    background: rgba(236, 94, 149, 0.08);
+}
+
+.user-avatar-small {
+    flex-shrink: 0;
+}
+
+.user-avatar-small img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e2e8f0;
+    transition: border-color 0.2s ease;
+}
+
+.user-profile-menu-item:hover .user-avatar-small img {
+    border-color: #EC5E95;
+}
+
+.user-info-compact {
+    flex: 1;
+    min-width: 0;
+}
+
+.user-name-compact {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.125rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-role-compact {
+    font-size: 0.75rem;
+    color: #64748b;
+    font-weight: 500;
+}

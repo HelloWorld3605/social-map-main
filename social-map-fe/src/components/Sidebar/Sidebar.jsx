@@ -14,8 +14,15 @@ import {
     FaInfoCircle,
     FaChevronDown,
     FaChevronRight,
-    FaHistory
+    FaHistory,
+    FaNewspaper,
+    FaUsers,
+    FaGamepad,
+    FaBirthdayCake,
+    FaRobot,
+    FaBullhorn
 } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import { createSellerRequest, getMySellerRequests } from '../../services/sellerRequestService';
 import CreateShopModal from '../Shop/CreateShopModal';
 import './Sidebar.css';
@@ -34,6 +41,8 @@ export default function Sidebar() {
     const [latestRequest, setLatestRequest] = useState(null);
     const [loadingRequests, setLoadingRequests] = useState(false);
     const [showAllRequests, setShowAllRequests] = useState(false);
+    const [showAllMenuItems, setShowAllMenuItems] = useState(false);
+    const navigate = useNavigate();
 
     // Load user info
     useEffect(() => {
@@ -173,6 +182,33 @@ export default function Sidebar() {
     return (
         <nav className="side-menu">
             <ul>
+                {/* User Profile Menu Item */}
+                {user && (
+                    <li
+                        onClick={() => navigate('/profile')}
+                        className="user-profile-menu-item"
+                        style={{ cursor: 'pointer' }}
+                    >
+                        <div className="user-avatar-small">
+                            <img
+                                src={user.avatarUrl || '/default-avatar.png'}
+                                alt="Avatar"
+                                onError={(e) => {
+                                    e.target.src = '/default-avatar.png';
+                                }}
+                            />
+                        </div>
+                        <div className="user-info-compact">
+                            <div className="user-name-compact">{user.displayName || 'Người dùng'}</div>
+                            <div className="user-role-compact">
+                                {user.role === 'SELLER' ? 'Người bán hàng' :
+                                 user.role === 'ADMIN' ? 'Quản trị viên' : 'Người dùng'}
+                            </div>
+                        </div>
+                    </li>
+                )}
+
+                {/* 7 mục đầu tiên - luôn hiển thị */}
                 <li>
                     <a href="#">
                         <FaUserFriends className="menu-icon" />
@@ -185,70 +221,153 @@ export default function Sidebar() {
                         <span>Ghi chú</span>
                     </a>
                 </li>
+                <li>
+                    <a href="#">
+                        <FaNewspaper className="menu-icon" />
+                        <span>Bài viết</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <FaHistory className="menu-icon" />
+                        <span>Kỷ niệm</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <FaUsers className="menu-icon" />
+                        <span>Nhóm</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <FaGamepad className="menu-icon" />
+                        <span>Chơi game</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="#">
+                        <FaBirthdayCake className="menu-icon" />
+                        <span>Sinh nhật</span>
+                    </a>
+                </li>
 
-                {/* Hiển thị cho USER và SELLER */}
-                {(() => {
-                    console.log('Sidebar render - User:', user);
-                    console.log('Sidebar render - User role:', user?.role);
+                {/* Các mục còn lại - chỉ hiển thị khi showAllMenuItems = true */}
+                {showAllMenuItems && (
+                    <>
+                        <li>
+                            <a href="#">
+                                <FaCalendarAlt className="menu-icon" />
+                                <span>Sự kiện</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <FaRobot className="menu-icon" />
+                                <span>Chat với AI</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#">
+                                <FaBullhorn className="menu-icon" />
+                                <span>Quảng Cáo</span>
+                            </a>
+                        </li>
+                    </>
+                )}
 
-                    // Hiển thị cho USER (chưa phải SELLER) - Yêu cầu trở thành seller
-                    if (user?.role === 'USER') {
-                        return (
-                            <li>
-                                <a
-                                    href="#"
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        setShowSellerRequestModal(true);
-                                    }}
-                                    className="seller-request-link"
-                                >
-                                    <FaStore className="menu-icon" />
-                                    <span>Yêu cầu trở thành người bán hàng</span>
-                                </a>
-                            </li>
-                        );
-                    }
-
-                    // Hiển thị cho SELLER - Xem thông tin người bán
-                    if (user?.role === 'SELLER') {
-                        return (
+                {/* Nút Xem thêm/Ẩn bớt - luôn ở cuối */}
+                <li className="menu-toggle-container">
+                    <button
+                        className="menu-toggle-btn"
+                        onClick={() => setShowAllMenuItems(!showAllMenuItems)}
+                    >
+                        {showAllMenuItems ? (
                             <>
-                                <li>
-                                    <a
-                                        href="#"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            setShowSellerRequestModal(true);
-                                        }}
-                                        className="seller-request-link"
-                                    >
-                                        <FaCheckCircle className="menu-icon text-success" />
-                                        <span>Thông tin người bán hàng</span>
-                                    </a>
-                                </li>
-                                <li>
-                                    <a
-                                        href="#"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            console.log('🏪 Opening CreateShopModal from Sidebar');
-                                            setShowCreateShopModal(true);
-                                        }}
-                                        className="seller-request-link create-shop-link"
-                                    >
-                                        <FaPlusCircle className="menu-icon text-primary" />
-                                        <span>Tạo cửa hàng mới</span>
-                                    </a>
-                                </li>
+                                <FaChevronDown className="toggle-icon" />
+                                <span>Ẩn bớt</span>
                             </>
-                        );
-                    }
-
-                    return null;
-                })()}
+                        ) : (
+                            <>
+                                <FaChevronRight className="toggle-icon" />
+                                <span>Xem thêm</span>
+                            </>
+                        )}
+                    </button>
+                </li>
             </ul>
 
+            {/* Section Quản lý thông tin seller */}
+            {(user?.role === 'USER' || user?.role === 'SELLER') && (
+                <div className="seller-management-section">
+                    <div className="seller-section-header">
+                        <FaStore className="section-icon" />
+                        <span>Quản lý thông tin seller</span>
+                    </div>
+                    <ul className="seller-menu-list">
+                        {(() => {
+                            console.log('Sidebar seller section - User:', user);
+                            console.log('Sidebar seller section - User role:', user?.role);
+
+                            // Hiển thị cho USER (chưa phải SELLER) - Yêu cầu trở thành seller
+                            if (user?.role === 'USER') {
+                                return (
+                                    <li>
+                                        <a
+                                            href="#"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setShowSellerRequestModal(true);
+                                            }}
+                                            className="seller-request-link"
+                                        >
+                                            <FaStore className="menu-icon" />
+                                            <span>Yêu cầu trở thành người bán hàng</span>
+                                        </a>
+                                    </li>
+                                );
+                            }
+
+                            // Hiển thị cho SELLER - Xem thông tin người bán
+                            if (user?.role === 'SELLER') {
+                                return (
+                                    <>
+                                        <li>
+                                            <a
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setShowSellerRequestModal(true);
+                                                }}
+                                                className="seller-request-link"
+                                            >
+                                                <FaCheckCircle className="menu-icon text-success" />
+                                                <span>Thông tin người bán hàng</span>
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    console.log('🏪 Opening CreateShopModal from Sidebar');
+                                                    setShowCreateShopModal(true);
+                                                }}
+                                                className="seller-request-link create-shop-link"
+                                            >
+                                                <FaPlusCircle className="menu-icon text-primary" />
+                                                <span>Tạo cửa hàng mới</span>
+                                            </a>
+                                        </li>
+                                    </>
+                                );
+                            }
+
+                            return null;
+                        })()}
+                    </ul>
+                </div>
+            )}
 
             {/* Seller Request Modal */}
             {showSellerRequestModal && (
