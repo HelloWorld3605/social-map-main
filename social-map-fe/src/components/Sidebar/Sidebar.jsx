@@ -359,6 +359,23 @@ export default function Sidebar() {
                                                 <span>Tạo cửa hàng mới</span>
                                             </a>
                                         </li>
+                                        <li>
+                                            <a
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    // TODO: Navigate to shop management page or open modal
+                                                    console.log('🏪 Opening Shop Management');
+                                                    // For now, we'll navigate to a shop management route
+                                                    // You can create a new component/page for this
+                                                    navigate('/shop-management');
+                                                }}
+                                                className="seller-request-link shop-management-link"
+                                            >
+                                                <FaStore className="menu-icon text-success" />
+                                                <span>Quản lý các cửa hàng của bạn</span>
+                                            </a>
+                                        </li>
                                     </>
                                 );
                             }
