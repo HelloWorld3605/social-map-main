@@ -12,6 +12,7 @@ import com.mapsocial.repository.TagRepository;
 import com.mapsocial.repository.UserRepository;
 import com.mapsocial.repository.UserShopRepository;
 import com.mapsocial.service.AdminService;
+import com.mapsocial.service.ShopStatusService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,7 @@ public class AdminServiceImpl implements AdminService {
     private final SellerRequestRepository sellerRequestRepository;
     private final FriendshipRepository friendshipRepository;
     private final UserShopRepository userShopRepository;
+    private final ShopStatusService shopStatusService;
 
     @Override
     @Transactional(readOnly = true)
@@ -200,7 +202,7 @@ public class AdminServiceImpl implements AdminService {
             }
         }
 
-        return shopsPage.map(this::toShopResponse);
+        return shopsPage.map(shop -> toShopResponse(shop, shopStatusService.getShopStatus(shop.getId())));
     }
 
     @Override
@@ -232,7 +234,7 @@ public class AdminServiceImpl implements AdminService {
         shopRepository.softDeleteByIds(shopIds, LocalDateTime.now());
     }
 
-    private com.mapsocial.dto.response.shop.ShopResponse toShopResponse(com.mapsocial.entity.Shop shop) {
+    private com.mapsocial.dto.response.shop.ShopResponse toShopResponse(com.mapsocial.entity.Shop shop, com.mapsocial.enums.ShopStatus computedStatus) {
         // Tìm owner của shop
         String ownerId = null;
         String ownerName = null;
@@ -253,7 +255,7 @@ public class AdminServiceImpl implements AdminService {
                 .phoneNumber(shop.getPhoneNumber())
                 .openingTime(shop.getOpeningTime())
                 .closingTime(shop.getClosingTime())
-                .status(shop.getStatus())
+                .status(computedStatus != null ? computedStatus : shop.getStatus())
                 .rating(shop.getRating())
                 .reviewCount(shop.getReviewCount())
                 .imageShopUrl(shop.getImageShopUrl())
@@ -287,4 +289,3 @@ public class AdminServiceImpl implements AdminService {
                 .build();
     }
 }
-
