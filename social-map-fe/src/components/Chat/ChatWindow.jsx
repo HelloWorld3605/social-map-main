@@ -4,6 +4,7 @@ import { FaBellSlash } from 'react-icons/fa'; // 🔇 Import icon
 import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
 import { userService } from '../../services/userService';
+import { getShopById } from '../../services/shopService';
 import { processLocationMessages, processLocationMessage } from '../../utils/locationMessageUtils';
 import './ChatWindows.css';
 import useRealtimeStatus from '../../hooks/useRealtimeStatus';
@@ -1176,6 +1177,26 @@ export default function ChatWindow({
         onMinimize();
     }, [unreadCount, minimized, onMinimize]);
 
+    // Handle view on map for location messages
+    const handleViewOnMap = async (msg) => {
+        if (!msg.content.shopId) {
+            // If no shopId, just focus on location (fallback)
+            window.focusLocation?.(msg.content.coordinates[0], msg.content.coordinates[1], msg.content.name);
+            return;
+        }
+
+        try {
+            // Check if shop exists
+            await getShopById(msg.content.shopId);
+            // Shop exists, focus on location
+            window.focusLocation?.(msg.content.coordinates[0], msg.content.coordinates[1], msg.content.name);
+        } catch (error) {
+            console.error('Shop not found:', error);
+            // Shop doesn't exist, show message
+            alert('Shop không còn tồn tại');
+        }
+    };
+
     return (
         <div
             className={`chat-window ${minimized ? 'minimized' : 'open'} ${isActive ? 'active' : ''}`}
@@ -1322,7 +1343,7 @@ export default function ChatWindow({
                                                 <div className="location-card-description">{msg.content.description}</div>
                                                 <button
                                                     className="location-card-button"
-                                                    onClick={() => window.focusLocation?.(msg.content.coordinates[0], msg.content.coordinates[1], msg.content.name)}
+                                                    onClick={() => handleViewOnMap(msg)}
                                                 >
                                                     🗺️ Xem trên bản đồ
                                                     {/*<img src="/icons/map-outline.svg" alt="map"/> Xem trên bản đồ*/}
