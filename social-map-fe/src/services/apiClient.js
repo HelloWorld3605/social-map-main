@@ -71,8 +71,8 @@ apiClient.interceptors.response.use(
 
         // Xử lý lỗi 401 - token hết hạn
         if ((error.response?.status === 401 || error.response?.status === 403) && !originalRequest._retry) {
-            // Không refresh nếu đang ở trang login hoặc đang gọi endpoint refresh
-            if (window.location.pathname.includes('/login') || originalRequest.url.includes('/auth/refresh')) {
+            // Không refresh nếu đang ở trang login hoặc đang gọi endpoint refresh hoặc login
+            if (window.location.pathname.includes('/login') || originalRequest.url.includes('/auth/refresh') || originalRequest.url.includes('/auth/login')) {
                 return Promise.reject(error);
             }
 

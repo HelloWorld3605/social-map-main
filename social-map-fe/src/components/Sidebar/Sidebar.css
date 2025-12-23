@@ -812,6 +812,12 @@ body.dark-mode .socialmap-logo {
     background: #94a3b8;
 }
 
+/* Hide scrollbar arrows */
+.requests-history::-webkit-scrollbar-button {
+    display: none;
+}
+
+
 /* Request Item */
 .request-item {
     background: white;
@@ -1057,3 +1063,36 @@ body.dark-mode .socialmap-logo {
     color: #64748b;
     font-weight: 500;
 }
+
+/* Hide scrollbar arrows globally */
+::-webkit-scrollbar-button {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
+::-webkit-scrollbar-button:start:decrement,
+::-webkit-scrollbar-button:end:increment,
+::-webkit-scrollbar-button:vertical:start:decrement,
+::-webkit-scrollbar-button:vertical:end:increment {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+.side-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.side-menu::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.side-menu::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 6px;
+}
+
+.side-menu::-webkit-scrollbar-button {
+    display: none;
+}
+

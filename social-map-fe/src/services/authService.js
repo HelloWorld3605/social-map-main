@@ -1,4 +1,5 @@
 import { api } from './apiClient';
+import apiClient from './apiClient';
 import { webSocketService } from './WebSocketChatService';
 import { stopTokenRefresh } from '../utils/tokenMonitor';
 
@@ -22,7 +23,7 @@ export const completeRegistration = async (data) => {
 // 4. Đăng nhập
 export const login = async (data) => {
   // data = { email, password }
-  return await api.post('/auth/login', data);
+  return await apiClient.post('/auth/login', data);
 };
 
 // 5. Đăng xuất
