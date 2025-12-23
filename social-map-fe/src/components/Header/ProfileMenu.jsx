@@ -79,19 +79,19 @@ export default function ProfileMenu() {
 
   return (
     <>
-      <div className="chat-container" id="chatToggle">
+      <div className="chat-container icon-btn" id="chatToggle">
         <img className="chat-icon" src="/icons/chatbubbles-outline.svg" alt="Chat" />
         {/*<span className="unread-messages">1</span>*/}
       </div>
 
-      <div className="notifications-container">
+      <div className="notifications-container icon-btn">
         <img className="notifications-icon" src="/icons/notifications.svg" alt="Notifications" />
         <span className="notification-count">3</span>
       </div>
 
       <div className="profile-container" ref={dropdownRef}>
         <div
-          className="profile-trigger"
+          className="profile-trigger icon-btn"
           onClick={toggleDropdown}
         >
           <img className="current-user-picture" src={avatarUrl} alt="User" />

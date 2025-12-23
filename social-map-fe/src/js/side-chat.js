@@ -34,12 +34,14 @@ document.addEventListener("DOMContentLoaded", function () {
     function openChatPopup() {
         sideChat.classList.add("is-active");
         chatPopupOverlay.classList.add("is-active");
+        chatToggle.classList.add("active");
         // Remove body overflow modification to prevent CSS conflicts
     }
 
     function closeChatPopup() {
         sideChat.classList.remove("is-active");
         chatPopupOverlay.classList.remove("is-active");
+        chatToggle.classList.remove("active");
         // Remove body overflow modification to prevent CSS conflicts
     }
 

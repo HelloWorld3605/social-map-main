@@ -364,6 +364,7 @@
     gap: 5px;
     cursor: pointer;
     transition: opacity 0.15s ease;
+    padding: 0;
 }
 
 .notification-count,
@@ -494,7 +495,7 @@
     background: transparent;
     color: #333;
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transition: background-color 0.2s;
     text-align: left;
@@ -528,18 +529,9 @@
 
 /* ===== HAMBURGER MENU ===== */
 .hamburger {
-    background-color: transparent;
+    background: none;
     border: 0;
-    cursor: pointer;
     padding: 0;
-    transition: opacity 0.15s;
-    width: 40px;
-    /* tăng hitbox */
-    height: 40px;
-    /* tăng hitbox */
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .hamburger-box {
@@ -631,3 +623,29 @@
     bottom: 0;
     transform: rotate(-90deg);
 }
+
+/* ===== FACEBOOK STYLE ICON BUTTON ===== */
+.icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease, opacity 0.15s ease;
+    user-select: none;
+}
+
+.icon-btn:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.icon-btn:active {
+    background-color: rgba(0, 0, 0, 0.12);
+    opacity: 0.9;
+}
+
+
+
+
