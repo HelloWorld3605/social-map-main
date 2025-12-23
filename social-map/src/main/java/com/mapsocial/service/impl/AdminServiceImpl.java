@@ -50,12 +50,12 @@ public class AdminServiceImpl implements AdminService {
         // Lấy tổng số users
         Long totalUsers = userRepository.count();
 
-        // Lấy tổng số shops
-        Long totalShops = shopRepository.count();
-
         // Lấy số shops active/inactive
         Long totalActiveShops = shopRepository.countActiveShops();
         Long totalInactiveShops = shopRepository.countInactiveShops();
+
+        // Lấy tổng số shops (chỉ bao gồm active và inactive, không bao gồm deleted)
+        Long totalShops = totalActiveShops + totalInactiveShops;
 
         // Lấy users và shops mới trong tháng này
         Long newUsersThisMonth = userRepository.countNewUsersSince(startOfMonth);
