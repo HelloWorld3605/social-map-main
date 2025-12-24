@@ -70,6 +70,10 @@
   position: fixed;
 }
 
+.notes-popup.pinned .resize-handle {
+  display: none;
+}
+
 .notes-popup.maximized {
   position: fixed !important;
   left: 0 !important;

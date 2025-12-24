@@ -93,7 +93,22 @@ const NotesPopup = () => {
           newY = Math.max(0, resizeStart.positionY - deltaY);
         }
 
-        setPosition({ x: newX, y: newY });
+        // Clamp position to viewport bounds during resize
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const SAFE_MARGIN = 16;
+        const SAFE_HEADER_HEIGHT = 48;
+
+        const clampedX = Math.min(
+          Math.max(SAFE_MARGIN, newX),
+          vw - newWidth - SAFE_MARGIN
+        );
+        const clampedY = Math.min(
+          Math.max(SAFE_HEADER_HEIGHT, newY),
+          vh - newHeight - SAFE_MARGIN
+        );
+
+        setPosition({ x: clampedX, y: clampedY });
         setSize({ width: newWidth, height: newHeight });
       }
     };
@@ -140,6 +155,7 @@ const NotesPopup = () => {
   };
 
   const handleResizeMouseDown = (e, direction) => {
+    if (isPinned) return;
     e.stopPropagation();
     setIsResizing(true);
     setResizeDirection(direction);

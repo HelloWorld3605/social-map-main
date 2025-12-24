@@ -21,6 +21,7 @@
 
 .side-menu ul li {
     padding: 10px 20px;
+    user-select: none;
 }
 
 .side-menu ul li a {
@@ -948,6 +949,7 @@ body.dark-mode .socialmap-logo {
     border: none;
     cursor: pointer;
     justify-content: flex-start;
+    user-select: none;
 }
 
 .menu-toggle-btn:hover {
@@ -1008,6 +1010,7 @@ body.dark-mode .socialmap-logo {
 
 .seller-menu-list li {
     margin-bottom: 0.25rem;
+    user-select: none;
 }
 
 .seller-menu-list li:last-child {

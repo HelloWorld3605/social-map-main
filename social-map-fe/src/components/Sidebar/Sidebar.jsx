@@ -220,26 +220,16 @@ export default function Sidebar() {
                     </Link>
                 </li>
                 <li>
-                    <button
+                    <Link
+                        to="#"
                         onClick={(e) => {
                             e.preventDefault();
                             openNotes();
                         }}
-                        style={{
-                            background: 'none',
-                            border: 'none',
-                            width: '100%',
-                            textAlign: 'left',
-                            padding: '10px 15px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: 'inherit'
-                        }}
                     >
                         <FaStickyNote className="menu-icon" />
                         <span>Ghi chú</span>
-                    </button>
+                    </Link>
                 </li>
                 <li>
                     <Link to="#">
