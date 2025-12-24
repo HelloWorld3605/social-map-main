@@ -346,6 +346,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    user-select: none;
 }
 
 .message-timestamp-separator::before {
@@ -452,6 +453,10 @@
     transition: background 0.2s, border-color 0.2s;
 }
 
+.chat-window-input::placeholder {
+    user-select: none;
+}
+
 .chat-window-input:focus {
     background: #fff;
     border-color: #EC5E95;
@@ -476,6 +481,7 @@
     font-size: 16px;
     transition: all 0.2s;
     flex-shrink: 0;
+    user-select: none;
 }
 
 .chat-window-send:hover:not(:disabled) {
@@ -699,6 +705,7 @@ body.dark-mode .load-more-messages button:hover {
     justify-content: center;
     font-size: 1.25rem;
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    user-select: none;
 }
 
 .location-card-content {
@@ -733,6 +740,7 @@ body.dark-mode .load-more-messages button:hover {
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.2s;
+    user-select: none;
 }
 
 .location-card-button:hover {
@@ -850,6 +858,7 @@ body.dark-mode .chat-window-input-container.drag-over::before {
     font-size: 11px;
     color: #65676b;
     opacity: 0.9;
+    user-select: none;
 }
 
 .message-status-text.sent {

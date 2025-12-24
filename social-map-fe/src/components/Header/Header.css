@@ -30,6 +30,7 @@
     position: relative;
     left: 26px;
     bottom: 7px;
+    user-select: none;
 }
 
 
@@ -77,6 +78,10 @@
     background-color: transparent;
     /* để hòa với container */
     outline: none;
+}
+
+.search-bar::placeholder {
+    user-select: none;
 }
 
 .location-request-btn {
@@ -645,7 +650,3 @@
     background-color: rgba(0, 0, 0, 0.12);
     opacity: 0.9;
 }
-
-
-
-

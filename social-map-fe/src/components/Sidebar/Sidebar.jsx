@@ -25,6 +25,7 @@ import {
 import { useNavigate, Link } from 'react-router-dom';
 import { createSellerRequest, getMySellerRequests } from '../../services/sellerRequestService';
 import CreateShopModal from '../Shop/CreateShopModal';
+import { useNotes } from '../../context/NotesContext';
 import './Sidebar.css';
 
 export default function Sidebar() {
@@ -44,6 +45,7 @@ export default function Sidebar() {
     const [showAllMenuItems, setShowAllMenuItems] = useState(false);
     const [showAllSellerItems, setShowAllSellerItems] = useState(false);
     const navigate = useNavigate();
+    const { openNotes } = useNotes();
 
     // Load user info
     useEffect(() => {
@@ -218,10 +220,26 @@ export default function Sidebar() {
                     </Link>
                 </li>
                 <li>
-                    <Link to="#">
+                    <button
+                        onClick={(e) => {
+                            e.preventDefault();
+                            openNotes();
+                        }}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            width: '100%',
+                            textAlign: 'left',
+                            padding: '10px 15px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            color: 'inherit'
+                        }}
+                    >
                         <FaStickyNote className="menu-icon" />
                         <span>Ghi chú</span>
-                    </Link>
+                    </button>
                 </li>
                 <li>
                     <Link to="#">

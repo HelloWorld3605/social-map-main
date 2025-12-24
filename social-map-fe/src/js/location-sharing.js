@@ -378,7 +378,7 @@ class LocationSharing {
         this.dragPreview.style.left = `${e.clientX + 12}px`;
         this.dragPreview.style.top = `${e.clientY - 32}px`;
 
-        const zone = document.elementFromPoint(e.clientX, e.clientY)?.closest('.chat-window, .side-chat');
+        const zone = document.elementFromPoint(e.clientX, e.clientY)?.closest('.chat-window, .side-chat, .notes-editor');
         document.querySelectorAll('.location-drop-active').forEach(el => el.classList.remove('location-drop-active'));
         if (zone) zone.classList.add('location-drop-active');
     }
@@ -389,10 +389,12 @@ class LocationSharing {
         const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
         const chatWindow = dropTarget?.closest('.chat-window');
         const sideChat = dropTarget?.closest('.side-chat');
+        const notesEditor = dropTarget?.closest('.notes-editor');
 
         console.log('stopDrag: dropTarget', dropTarget);
         console.log('stopDrag: chatWindow', chatWindow);
         console.log('stopDrag: sideChat', sideChat);
+        console.log('stopDrag: notesEditor', notesEditor);
 
         if (chatWindow) {
             const friendId = chatWindow.dataset.friendId;
@@ -408,6 +410,9 @@ class LocationSharing {
             } else {
                 this.showMessage('Vui lòng chọn người bạn để chia sẻ vị trí', 'warning');
             }
+        } else if (notesEditor) {
+            // Drop marker into notes editor
+            this.addMarkerToNotes(this.draggedMarker);
         }
 
         this.cleanupDrag();
@@ -481,7 +486,7 @@ class LocationSharing {
     }
 
     highlightChats(state) {
-        document.querySelectorAll('.chat-window, .side-chat')
+        document.querySelectorAll('.chat-window, .side-chat, .notes-editor')
             .forEach(el => el.classList.toggle('location-drop-zone', state));
     }
 
@@ -519,6 +524,14 @@ class LocationSharing {
             n.classList.remove('show');
             setTimeout(() => n.remove(), 300);
         }, 2500);
+    }
+
+    addMarkerToNotes(markerData) {
+        // Implement the logic to add the marker data to the notes editor
+        console.log('addMarkerToNotes: ', markerData);
+        // Example: You can dispatch an event or call a function in the notes editor module
+        const event = new CustomEvent('addMarkerToNotes', { detail: markerData });
+        document.dispatchEvent(event);
     }
 }
 

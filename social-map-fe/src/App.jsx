@@ -23,6 +23,9 @@ import {
 } from './utils/tokenMonitor';
 import apiClient from './services/apiClient';
 import useHeartbeat from './hooks/useHeartbeat';
+import { NotesProvider } from './context/NotesContext';
+import NotesPopup from './components/Notes/NotesPopup';
+import { MapProvider } from './context/MapContext';
 
 function App() {
   // Use heartbeat hook for online status
@@ -183,121 +186,126 @@ function App() {
   };
 
   return (
-    <Router>
-      <Routes>
-        {/* Trang đăng nhập - KHÔNG có layout */}
-        <Route path="/login" element={<LoginPage />} />
+    <MapProvider>
+      <NotesProvider>
+        <Router>
+          <Routes>
+            {/* Trang đăng nhập - KHÔNG có layout */}
+            <Route path="/login" element={<LoginPage />} />
 
-        {/* Trang đăng ký - KHÔNG có layout */}
-        <Route path="/register" element={<RegisterPage />} />
+            {/* Trang đăng ký - KHÔNG có layout */}
+            <Route path="/register" element={<RegisterPage />} />
 
-        {/* Trang xác thực token - KHÔNG có layout */}
-        <Route path="/validate-token/:token" element={<ValidateTokenPage />} />
+            {/* Trang xác thực token - KHÔNG có layout */}
+            <Route path="/validate-token/:token" element={<ValidateTokenPage />} />
 
-        {/* Trang hoàn tất đăng ký - KHÔNG có layout */}
-        <Route path="/complete-registration" element={<CompleteRegistrationPage />} />
+            {/* Trang hoàn tất đăng ký - KHÔNG có layout */}
+            <Route path="/complete-registration" element={<CompleteRegistrationPage />} />
 
-        {/* Trang quên mật khẩu - KHÔNG có layout */}
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            {/* Trang quên mật khẩu - KHÔNG có layout */}
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
-        {/* Trang đặt lại mật khẩu - KHÔNG có layout */}
-        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {/* Trang đặt lại mật khẩu - KHÔNG có layout */}
+            <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* Trang chính - Map fullscreen với MainLayout */}
-        <Route
-          path="/home"
-          element={
-            <ProtectedRoute>
-              <HomePage />
-            </ProtectedRoute>
-          }
-        />
+            {/* Trang chính - Map fullscreen với MainLayout */}
+            <Route
+              path="/home"
+              element={
+                <ProtectedRoute>
+                  <HomePage />
+                </ProtectedRoute>
+              }
+            />
 
-        {/* Trang Dashboard cho Admin */}
-        <Route
-          path="/dashboard"
-          element={
-            <AdminRoute>
-              <MainLayout>
-                <DashboardPage />
-              </MainLayout>
-            </AdminRoute>
-          }
-        />
+            {/* Trang Dashboard cho Admin */}
+            <Route
+              path="/dashboard"
+              element={
+                <AdminRoute>
+                  <MainLayout>
+                    <DashboardPage />
+                  </MainLayout>
+                </AdminRoute>
+              }
+            />
 
-        {/* Trang Seller Requests cho Admin */}
-        <Route
-          path="/dashboard/seller-requests"
-          element={
-            <AdminRoute>
-              <MainLayout>
-                <SellerRequestsPage />
-              </MainLayout>
-            </AdminRoute>
-          }
-        />
+            {/* Trang Seller Requests cho Admin */}
+            <Route
+              path="/dashboard/seller-requests"
+              element={
+                <AdminRoute>
+                  <MainLayout>
+                    <SellerRequestsPage />
+                  </MainLayout>
+                </AdminRoute>
+              }
+            />
 
-        {/* Trang Users Management cho Admin */}
-        <Route
-          path="/dashboard/users"
-          element={
-            <AdminRoute>
-              <MainLayout>
-                <UsersManagementPage />
-              </MainLayout>
-            </AdminRoute>
-          }
-        />
+            {/* Trang Users Management cho Admin */}
+            <Route
+              path="/dashboard/users"
+              element={
+                <AdminRoute>
+                  <MainLayout>
+                    <UsersManagementPage />
+                  </MainLayout>
+                </AdminRoute>
+              }
+            />
 
-        {/* Trang Shop Management cho Admin */}
-        <Route
-          path="/dashboard/shops"
-          element={
-            <AdminRoute>
-              <MainLayout>
-                <ShopManagementDashboard />
-              </MainLayout>
-            </AdminRoute>
-          }
-        />
+            {/* Trang Shop Management cho Admin */}
+            <Route
+              path="/dashboard/shops"
+              element={
+                <AdminRoute>
+                  <MainLayout>
+                    <ShopManagementDashboard />
+                  </MainLayout>
+                </AdminRoute>
+              }
+            />
 
-        {/* Trang cá nhân - Normal scroll với MainLayout */}
-        <Route
-          path="/profile/:userId"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <ProfilePage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
+            {/* Trang cá nhân - Normal scroll với MainLayout */}
+            <Route
+              path="/profile/:userId"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <ProfilePage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
 
-        {/* Trang cá nhân của mình - Normal scroll với MainLayout */}
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <ProfilePage />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
+            {/* Trang cá nhân của mình - Normal scroll với MainLayout */}
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <ProfilePage />
+                  </MainLayout>
+                </ProtectedRoute>
+              }
+            />
 
-        {/* Redirect từ / đến /home hoặc /login */}
-        <Route
-          path="/"
-          element={
-            isAuthenticated() ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />
-          }
-        />
+            {/* Redirect từ / đến /home hoặc /login */}
+            <Route
+              path="/"
+              element={
+                isAuthenticated() ? <Navigate to="/home" replace /> : <Navigate to="/login" replace />
+              }
+            />
 
-        {/* Route không tồn tại - redirect về trang chính */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </Router>
+            {/* Route không tồn tại - redirect về trang chính */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          <NotesPopup />
+        </Router>
+      </NotesProvider>
+    </MapProvider>
   )
 }
 
