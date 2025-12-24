@@ -28,7 +28,11 @@ export const NotesProvider = ({ children }) => {
       id: Date.now().toString(),
       title: `Note ${notes.length + 1}`,
       content: '',
-      tabs: [{ id: 'tab1', title: 'Tab 1', content: '', markers: [] }],
+      tabs: [{
+        id: 'tab1',
+        title: 'Tab 1',
+        blocks: [{ id: 'block1', type: 'text', content: '' }]
+      }],
       activeTabId: 'tab1',
       createdAt: new Date().toISOString(),
     };
@@ -53,8 +57,7 @@ export const NotesProvider = ({ children }) => {
       const newTab = {
         id: `tab${note.tabs.length + 1}`,
         title: `Tab ${note.tabs.length + 1}`,
-        content: '',
-        markers: [],
+        blocks: [{ id: `block${Date.now()}`, type: 'text', content: '' }],
       };
       updateNote(noteId, {
         tabs: [...note.tabs, newTab],
@@ -80,15 +83,56 @@ export const NotesProvider = ({ children }) => {
     }
   };
 
-  const addMarkerToTab = (noteId, tabId, markerData) => {
+  // Block management functions
+  const addBlockToTab = (noteId, tabId, blockData, insertIndex = null) => {
     const note = notes.find(n => n.id === noteId);
     if (note) {
       const tab = note.tabs.find(t => t.id === tabId);
       if (tab) {
-        const updatedMarkers = [...(tab.markers || []), { ...markerData, id: Date.now().toString() }];
-        updateTab(noteId, tabId, { markers: updatedMarkers });
+        const newBlock = {
+          id: `block${Date.now()}`,
+          ...blockData
+        };
+        let updatedBlocks = [...(tab.blocks || [])];
+
+        if (insertIndex !== null && insertIndex >= 0 && insertIndex <= updatedBlocks.length) {
+          updatedBlocks.splice(insertIndex, 0, newBlock);
+        } else {
+          updatedBlocks.push(newBlock);
+        }
+
+        updateTab(noteId, tabId, { blocks: updatedBlocks });
       }
     }
+  };
+
+  const updateBlockInTab = (noteId, tabId, blockId, updates) => {
+    const note = notes.find(n => n.id === noteId);
+    if (note) {
+      const tab = note.tabs.find(t => t.id === tabId);
+      if (tab) {
+        const updatedBlocks = (tab.blocks || []).map(block =>
+          block.id === blockId ? { ...block, ...updates } : block
+        );
+        updateTab(noteId, tabId, { blocks: updatedBlocks });
+      }
+    }
+  };
+
+  const removeBlockFromTab = (noteId, tabId, blockId) => {
+    const note = notes.find(n => n.id === noteId);
+    if (note) {
+      const tab = note.tabs.find(t => t.id === tabId);
+      if (tab) {
+        const updatedBlocks = (tab.blocks || []).filter(block => block.id !== blockId);
+        updateTab(noteId, tabId, { blocks: updatedBlocks });
+      }
+    }
+  };
+
+  // Legacy functions for backward compatibility
+  const addMarkerToTab = (noteId, tabId, markerData) => {
+    addBlockToTab(noteId, tabId, { type: 'location', marker: markerData });
   };
 
   const removeMarkerFromTab = (noteId, tabId, markerId) => {
@@ -96,8 +140,12 @@ export const NotesProvider = ({ children }) => {
     if (note) {
       const tab = note.tabs.find(t => t.id === tabId);
       if (tab) {
-        const updatedMarkers = (tab.markers || []).filter(marker => marker.id !== markerId);
-        updateTab(noteId, tabId, { markers: updatedMarkers });
+        const blockToRemove = (tab.blocks || []).find(block =>
+          block.type === 'location' && block.marker?.id === markerId
+        );
+        if (blockToRemove) {
+          removeBlockFromTab(noteId, tabId, blockToRemove.id);
+        }
       }
     }
   };
@@ -131,6 +179,9 @@ export const NotesProvider = ({ children }) => {
       addTab,
       updateTab,
       deleteTab,
+      addBlockToTab,
+      updateBlockInTab,
+      removeBlockFromTab,
       openNotes,
       closeNotes,
       togglePin,

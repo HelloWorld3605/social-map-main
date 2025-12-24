@@ -153,6 +153,19 @@
   transition: all 0.3s ease;
 }
 
+.notes-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  min-height: 100%;
+}
+
+.notes-markers-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .notes-sidebar {
   flex: 0 0 250px;
   background: #f8f8f8;
@@ -295,19 +308,76 @@
   background: rgba(0, 123, 255, 0.1);
 }
 
-.notes-textarea {
-  width: 100%;
-  height: 100%;
-  border: none;
+.notes-editor-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.text-block {
+  padding: 6px 8px;
+  border-radius: 6px;
   outline: none;
-  resize: none;
+  min-height: 24px;
+  line-height: 1.5;
+  font-family: inherit;
+  font-size: 14px;
+  color: #333;
+  transition: background-color 0.2s;
+}
+
+.text-block:focus {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.text-block:empty::before {
+  content: attr(data-placeholder);
+  color: #6c757d;
+  pointer-events: none;
+}
+
+.insert-indicator {
+  height: 2px;
+  background: #4f8cff;
+  border-radius: 2px;
+  margin: 6px 0;
+  animation: insertPulse 1s ease-in-out infinite;
+}
+
+@keyframes insertPulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.notes-textarea.inline {
+  width: 100%;
+  min-height: 60px;
+  border: 1px solid #e4e6ea;
+  border-radius: 8px;
+  padding: 12px;
   font-family: inherit;
   font-size: 14px;
   line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  background: #f8f9fa;
+  transition: all 0.2s;
+  margin-bottom: 8px;
 }
 
-.notes-textarea::placeholder {
+.notes-textarea.inline:focus {
+  background: #fff;
+  border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.notes-textarea.inline::placeholder {
   user-select: none;
+  color: #6c757d;
 }
 
 /* Location Note Styles */
@@ -545,4 +615,77 @@
   .location-note-details .label {
     min-width: 70px;
   }
+}
+
+/* Inline Location Note Styles */
+.location-note.inline {
+  margin: 8px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7f9fc;
+  border-left: 4px solid #4f8cff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.location-note.inline:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  transform: none;
+}
+
+.location-note.inline .location-note-header {
+  background: transparent;
+  color: #333;
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.location-note.inline .location-note-icon {
+  color: #4f8cff;
+  opacity: 1;
+}
+
+.location-note.inline .location-note-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.location-note.inline .location-note-actions {
+  gap: 2px;
+}
+
+.location-note.inline .location-note-view-map,
+.location-note.inline .location-note-remove {
+  color: #666;
+  font-size: 12px;
+  padding: 2px;
+}
+
+.location-note.inline .location-note-view-map:hover,
+.location-note.inline .location-note-remove:hover {
+  background: rgba(0, 0, 0, 0.1);
+  transform: none;
+}
+
+.location-note.inline .location-note-content {
+  padding: 0;
+  gap: 10px;
+}
+
+.location-note.inline .location-note-image {
+  width: 60px;
+  height: 60px;
+}
+
+.location-note.inline .location-note-details {
+  gap: 2px;
+}
+
+.location-note.inline .location-note-details > div {
+  font-size: 12px;
+}
+
+.location-note.inline .location-note-details .label {
+  min-width: 60px;
+  font-weight: 500;
 }

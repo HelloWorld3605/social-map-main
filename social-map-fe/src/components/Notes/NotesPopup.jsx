@@ -9,8 +9,6 @@ import {
   FaChevronUp,
   FaThumbtack,
   FaTimes,
-  FaWindowMaximize,
-  FaWindowRestore,
   FaBars,
   FaAngleLeft
 } from 'react-icons/fa';
@@ -26,7 +24,6 @@ const NotesPopup = () => {
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState('');
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  const [isMaximized, setIsMaximized] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [prevState, setPrevState] = useState(null);
@@ -106,32 +103,18 @@ const NotesPopup = () => {
     });
   };
 
-  const handleDoubleClick = () => {
-    if (isMaximized) {
-      setPosition(prevState.position);
-      setSize(prevState.size);
-    } else {
-      setPrevState({ position, size });
-      setPosition({ x: 0, y: 0 });
-      setSize({ width: window.innerWidth, height: window.innerHeight });
-    }
-    setIsMaximized(!isMaximized);
-  };
-
   const toggleMinimize = () => {
     if (isMinimized) {
       // Restore from minimized state
       if (prevState) {
         setPosition(prevState.position);
         setSize(prevState.size);
-        setIsMaximized(prevState.isMaximized || false);
       }
     } else {
       // Minimize to bottom right corner
-      setPrevState({ position, size, isMaximized });
+      setPrevState({ position, size });
       setPosition({ x: window.innerWidth - 60, y: window.innerHeight - 60 });
       setSize({ width: 50, height: 50 });
-      setIsMaximized(false);
     }
     setIsMinimized(!isMinimized);
   };
@@ -141,7 +124,7 @@ const NotesPopup = () => {
   return (
     <div className="notes-overlay" role="dialog" aria-modal="true">
       <div
-        className={`notes-popup ${isPinned ? 'pinned' : ''} ${isMaximized ? 'maximized' : ''} ${isMinimized ? 'minimized' : ''} ${isResizing ? 'resizing' : ''}`}
+        className={`notes-popup ${isPinned ? 'pinned' : ''} ${isMinimized ? 'minimized' : ''} ${isResizing ? 'resizing' : ''}`}
         ref={popupRef}
         style={{ left: position.x, top: position.y, width: size.width, height: size.height }}
         onClick={(e) => {
@@ -150,7 +133,6 @@ const NotesPopup = () => {
             toggleMinimize();
           }
         }}
-        onDoubleClick={isMinimized ? undefined : handleDoubleClick}
         role="dialog"
         aria-labelledby="notes-title"
       >
@@ -160,9 +142,6 @@ const NotesPopup = () => {
           <div className="notes-controls">
             <button className="sidebar-toggle-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)} title={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}>
               {isSidebarOpen ? <FaAngleLeft /> : <FaBars />}
-            </button>
-            <button className="maximize-btn" onClick={handleDoubleClick} title={isMaximized ? "Restore" : "Maximize"}>
-              {isMaximized ? <FaWindowRestore /> : <FaWindowMaximize />}
             </button>
             <button className="minimize-btn" onClick={toggleMinimize} title={isMinimized ? "Restore" : "Minimize"}>
               {isMinimized ? <FaChevronUp /> : <FaChevronDown />}
@@ -186,7 +165,7 @@ const NotesPopup = () => {
             )}
           </div>
         </div>
-        {!isMaximized && !isMinimized && (
+        {!isMinimized && (
           <>
             {/* Corner handles */}
             <div className="resize-handle se" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} title="Resize (bottom-right)"></div>

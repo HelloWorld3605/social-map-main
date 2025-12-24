@@ -3,15 +3,13 @@ import { useNotes } from '../../context/NotesContext';
 import LocationNote from './LocationNote';
 
 const NotesEditor = ({ note }) => {
-  const { updateTab, addMarkerToTab, removeMarkerFromTab } = useNotes();
+  const { updateBlockInTab, addBlockToTab, removeBlockFromTab } = useNotes();
   const editorRef = useRef(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [insertIndicatorIndex, setInsertIndicatorIndex] = useState(null);
 
   const activeTab = note.tabs.find(tab => tab.id === note.activeTabId);
-
-  const handleContentChange = (content) => {
-    updateTab(note.id, activeTab.id, { content });
-  };
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -30,7 +28,10 @@ const NotesEditor = ({ note }) => {
     const markerData = e.dataTransfer.getData('application/json');
     if (markerData) {
       const marker = JSON.parse(markerData);
-      addMarkerToTab(note.id, activeTab.id, marker);
+      // Insert location block at insert indicator position
+      const insertIndex = insertIndicatorIndex !== null ? insertIndicatorIndex : cursorPosition;
+      addBlockToTab(note.id, activeTab.id, { type: 'location', marker }, insertIndex);
+      setInsertIndicatorIndex(null);
     }
   };
 
@@ -38,7 +39,8 @@ const NotesEditor = ({ note }) => {
   useEffect(() => {
     const handleAddMarkerToNotes = (event) => {
       const markerData = event.detail;
-      addMarkerToTab(note.id, activeTab.id, markerData);
+      // Insert location block at cursor position
+      addBlockToTab(note.id, activeTab.id, { type: 'location', marker: markerData }, cursorPosition);
     };
 
     document.addEventListener('addMarkerToNotes', handleAddMarkerToNotes);
@@ -46,10 +48,47 @@ const NotesEditor = ({ note }) => {
     return () => {
       document.removeEventListener('addMarkerToNotes', handleAddMarkerToNotes);
     };
-  }, [activeTab, addMarkerToTab, note.id]);
+  }, [activeTab, addBlockToTab, note.id, cursorPosition]);
 
-  const handleRemoveMarker = (noteId, tabId, markerId) => {
-    removeMarkerFromTab(noteId, tabId, markerId);
+  const handleBlockChange = (blockId, content) => {
+    updateBlockInTab(note.id, activeTab.id, blockId, { content });
+  };
+
+  const handleBlockFocus = (index) => {
+    setCursorPosition(index);
+  };
+
+  const handleBlockKeyDown = (e, blockId, index) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      // Insert new text block after current block
+      addBlockToTab(note.id, activeTab.id, { type: 'text', content: '' }, index + 1);
+    } else if (e.key === 'Backspace' && e.currentTarget.innerText === '') {
+      e.preventDefault();
+      // Remove empty block if not the last one
+      if (activeTab.blocks.length > 1) {
+        removeBlockFromTab(note.id, activeTab.id, blockId);
+      }
+    }
+  };
+
+  const handleRemoveBlock = (blockId) => {
+    removeBlockFromTab(note.id, activeTab.id, blockId);
+  };
+
+  const handleBlockMouseEnter = (index) => {
+    if (isDragOver) {
+      setInsertIndicatorIndex(index);
+    }
+  };
+
+  const handleBlockMouseLeave = () => {
+    setInsertIndicatorIndex(null);
+  };
+
+  const handleDragOverBlock = (e, index) => {
+    e.preventDefault();
+    setInsertIndicatorIndex(index);
   };
 
   return (
@@ -60,23 +99,44 @@ const NotesEditor = ({ note }) => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* Render LocationNote components */}
-      {activeTab && activeTab.markers && activeTab.markers.map(marker => (
-        <LocationNote
-          key={marker.id}
-          marker={marker}
-          onRemove={handleRemoveMarker}
-          noteId={note.id}
-          tabId={activeTab.id}
-        />
-      ))}
+      <div className="notes-editor-flow">
+        {activeTab && activeTab.blocks && activeTab.blocks.map((block, index) => {
+          const showInsertIndicator = insertIndicatorIndex === index;
 
-      <textarea
-        value={activeTab ? activeTab.content : ''}
-        onChange={(e) => handleContentChange(e.target.value)}
-        placeholder="Start writing your note here... You can drag location markers here to add annotations."
-        className="notes-textarea"
-      />
+          return (
+            <React.Fragment key={block.id}>
+              {showInsertIndicator && (
+                <div className="insert-indicator" />
+              )}
+
+              {block.type === 'location' ? (
+                <LocationNote
+                  marker={block.marker}
+                  onRemove={() => handleRemoveBlock(block.id)}
+                  noteId={note.id}
+                  tabId={activeTab.id}
+                  inline
+                />
+              ) : (
+                <div
+                  contentEditable
+                  className="text-block"
+                  suppressContentEditableWarning
+                  onInput={(e) => handleBlockChange(block.id, e.currentTarget.innerText)}
+                  onFocus={() => handleBlockFocus(index)}
+                  onKeyDown={(e) => handleBlockKeyDown(e, block.id, index)}
+                  onMouseEnter={() => handleBlockMouseEnter(index)}
+                  onMouseLeave={handleBlockMouseLeave}
+                  onDragOver={(e) => handleDragOverBlock(e, index)}
+                  data-placeholder={index === 0 ? "Start writing your note here... You can drag location markers here to add annotations." : "Continue writing..."}
+                >
+                  {block.content}
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
     </div>
   );
 };

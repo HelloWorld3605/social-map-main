@@ -2,7 +2,7 @@ import React from 'react';
 import { FaTimes, FaMapMarkerAlt } from 'react-icons/fa';
 import { useMapContext } from '../../context/MapContext';
 
-const LocationNote = ({ marker, onRemove, noteId, tabId }) => {
+const LocationNote = ({ marker, onRemove, noteId, tabId, inline = false }) => {
   const { flyTo } = useMapContext();
 
   const handleRemove = (e) => {
@@ -23,7 +23,7 @@ const LocationNote = ({ marker, onRemove, noteId, tabId }) => {
   };
 
   return (
-    <div className="location-note">
+    <div className={`location-note ${inline ? 'inline' : ''}`}>
       <div className="location-note-header">
         <div className="location-note-icon">
           <FaMapMarkerAlt />
