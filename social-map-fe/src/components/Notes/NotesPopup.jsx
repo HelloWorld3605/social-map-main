@@ -35,9 +35,41 @@ const NotesPopup = () => {
 
     const handleMouseMove = (e) => {
       if (isDragging) {
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const SAFE_HEADER_HEIGHT = 48;  // luôn thấy header
+        const SAFE_MARGIN = 16;         // padding đẹp
+
         const newX = e.clientX - dragStart.x;
         const newY = e.clientY - dragStart.y;
-        setPosition({ x: Math.max(0, newX), y: Math.max(0, newY) });
+
+        // Clamp vị trí theo viewport
+        let clampedX = Math.min(
+          Math.max(SAFE_MARGIN, newX),
+          vw - size.width - SAFE_MARGIN
+        );
+        let clampedY = Math.min(
+          Math.max(SAFE_HEADER_HEIGHT, newY),
+          vh - size.height - SAFE_MARGIN
+        );
+
+        // Magnetic snap khi gần cạnh
+        const SNAP_DISTANCE = 12;
+        let finalX = clampedX;
+        let finalY = clampedY;
+
+        // Snap left
+        if (finalX < SNAP_DISTANCE) finalX = SAFE_MARGIN;
+        // Snap right
+        if (vw - (finalX + size.width) < SNAP_DISTANCE) {
+          finalX = vw - size.width - SAFE_MARGIN;
+        }
+        // Snap top (header dock)
+        if (finalY < SAFE_HEADER_HEIGHT + SNAP_DISTANCE) {
+          finalY = SAFE_HEADER_HEIGHT;
+        }
+
+        setPosition({ x: finalX, y: finalY });
       } else if (isResizing) {
         let newX = position.x;
         let newY = position.y;
@@ -79,6 +111,24 @@ const NotesPopup = () => {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, dragStart, isResizing, resizeStart, resizeDirection, isNotesOpen]);
+
+  // Auto-recover khi viewport thay đổi
+  useEffect(() => {
+    const handleViewportResize = () => {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const SAFE_MARGIN = 16;
+      const SAFE_HEADER_HEIGHT = 48;
+
+      setPosition(pos => ({
+        x: Math.min(pos.x, vw - size.width - SAFE_MARGIN),
+        y: Math.min(pos.y, vh - size.height - SAFE_MARGIN),
+      }));
+    };
+
+    window.addEventListener('resize', handleViewportResize);
+    return () => window.removeEventListener('resize', handleViewportResize);
+  }, [size]);
 
   const handleMouseDown = (e) => {
     if (isPinned) return;
