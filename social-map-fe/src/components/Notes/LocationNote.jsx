@@ -62,6 +62,13 @@ const LocationNote = ({ marker, onRemove, noteId, tabId }) => {
             </span>
           </div>
 
+          {marker.address && (
+            <div className="location-note-address">
+              <span className="label">Address:</span>
+              <span className="value">{marker.address}</span>
+            </div>
+          )}
+
           {marker.description && (
             <div className="location-note-description">
               <span className="label">Description:</span>
@@ -76,10 +83,24 @@ const LocationNote = ({ marker, onRemove, noteId, tabId }) => {
             </div>
           )}
 
-          {marker.rating && (
-            <div className="location-note-rating">
-              <span className="label">Rating:</span>
-              <span className="value">⭐ {marker.rating}</span>
+          {/*{marker.rating && (*/}
+          {/*  <div className="location-note-rating">*/}
+          {/*    <span className="label">Rating:</span>*/}
+          {/*    <span className="value">⭐ {marker.rating}</span>*/}
+          {/*  </div>*/}
+          {/*)}*/}
+
+          {(marker.openingTime || marker.closingTime) && (
+            <div className="location-note-hours">
+              <span className="label">Hours:</span>
+              <span className="value">
+                {marker.openingTime && marker.closingTime
+                  ? `${marker.openingTime} - ${marker.closingTime}`
+                  : marker.openingTime
+                    ? `Mở cửa: ${marker.openingTime}`
+                    : `Đóng cửa: ${marker.closingTime}`
+                }
+              </span>
             </div>
           )}
         </div>

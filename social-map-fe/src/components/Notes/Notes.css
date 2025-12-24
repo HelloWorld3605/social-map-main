@@ -426,6 +426,11 @@
   font-weight: bold;
 }
 
+.location-note-hours .value {
+  color: #28a745;
+  font-weight: 500;
+}
+
 .location-note-actions {
   display: flex;
   gap: 4px;

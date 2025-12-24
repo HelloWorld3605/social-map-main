@@ -232,13 +232,16 @@ class LocationSharing {
                         name: shopName || 'Shop',
                         coordinates: [lngLat.lng, lngLat.lat],
                         image: shopImage,
-                        description: fullShopData ? (fullShopData.address || 'Cửa hàng') : 'Cửa hàng',
+                        description: fullShopData ? (fullShopData.description || 'Không có mô tả') : 'Không có mô tả',
+                        address: fullShopData ? (fullShopData.address || 'Không có địa chỉ') : 'Không có địa chỉ',
                         type: 'shop',
                         shopId: shopId,
                         // Additional shop info for rich display
                         phoneNumber: fullShopData?.phoneNumber,
                         rating: fullShopData?.rating,
-                        status: fullShopData?.status
+                        status: fullShopData?.status,
+                        openingTime: fullShopData?.openingTime,
+                        closingTime: fullShopData?.closingTime
                     };
                 }
             }
@@ -250,6 +253,7 @@ class LocationSharing {
                     coordinates: [0, 0],
                     image: '/icons/location.svg',
                     description: 'Cửa hàng',
+                    address: 'Không có địa chỉ',
                     type: 'shop',
                     shopId: shopId
                 };
