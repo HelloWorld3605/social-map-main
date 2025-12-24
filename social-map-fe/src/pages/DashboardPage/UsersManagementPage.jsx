@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAllUsers, deleteUser, restoreUser, updateUser } from '../../services/adminService';
-import { getDashboardStats } from '../../services/adminService';
+import { getAllUsers, deleteUser, restoreUser, updateUser, getDashboardStats } from '../../services/adminService';
 import AdminSidebar from '../../components/Admin/AdminSidebar';
 import { FiSearch, FiEdit2, FiTrash2, FiRefreshCw, FiCheck, FiX, FiChevronLeft, FiChevronRight, FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import './UsersManagementPage.css';
@@ -17,6 +16,9 @@ export default function UsersManagementPage() {
     const [sortBy, setSortBy] = useState('createdAt');
     const [sortDirection, setSortDirection] = useState('DESC');
     const [pendingCount, setPendingCount] = useState(0);
+
+    // Local search (for immediate filtering before API call)
+    const [localSearch, setLocalSearch] = useState(searchTerm || '');
 
     // Edit modal state
     const [showEditModal, setShowEditModal] = useState(false);
@@ -59,6 +61,7 @@ export default function UsersManagementPage() {
 
     const handleSearch = (e) => {
         e.preventDefault();
+        setSearchTerm(localSearch);
         setCurrentPage(0); // Reset to first page
     };
 
@@ -159,19 +162,28 @@ export default function UsersManagementPage() {
                 </div>
 
                 {/* Filters */}
-                <div className="filters-section">
-                    <form onSubmit={handleSearch} className="search-form">
+                <div className="shop-filters">
+                    <form onSubmit={handleSearch} className="search-box">
+                        <span className="shop-search-icon"><FiSearch size={18} /></span>
                         <input
                             type="text"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
                             placeholder="Tìm theo tên hoặc email..."
-                            className="search-input"
+                            value={localSearch}
+                            onChange={(e) => setLocalSearch(e.target.value)}
                         />
-                        <button type="submit" className="search-btn">
-                            <FiSearch size={16} />
-                            Tìm kiếm
-                        </button>
+                        {localSearch && (
+                            <button
+                                type="button"
+                                className="clear-search"
+                                onClick={() => {
+                                    setLocalSearch('');
+                                    setSearchTerm('');
+                                }}
+                            >
+                                <FiX size={14} />
+                            </button>
+                        )}
+                        <button type="submit" className="search-btn">Tìm</button>
                     </form>
 
                     <div className="filter-options">
@@ -379,4 +391,3 @@ export default function UsersManagementPage() {
         </>
     );
 }
-

@@ -24,61 +24,84 @@
 }
 
 /* Filters Section */
-.filters-section {
+.shop-filters {
     background: white;
     padding: 1.5rem;
-    border-radius: 1rem;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     margin-bottom: 1.5rem;
     display: flex;
     gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
 }
 
-.search-form {
-    display: flex;
-    gap: 0.5rem;
+.search-box {
     flex: 1;
-    max-width: 500px;
+    min-width: 300px;
+    position: relative;
 }
 
-.search-input {
-    flex: 1;
-    padding: 0.75rem 1rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.5rem;
+.shop-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.125rem;
+    color: #64748b;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 0.875rem 3rem 0.875rem 3rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
     font-size: 0.9375rem;
+    transition: all 0.2s;
 }
 
-.search-input:focus {
+.search-box input:focus {
     outline: none;
     border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.clear-search {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #e5e7eb;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.clear-search:hover {
+    background: #cbd5e1;
 }
 
 .search-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
+    padding: 0.875rem 1.75rem;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
-    border-radius: 0.5rem;
+    border-radius: 10px;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: all 0.2s;
 }
 
 .search-btn:hover {
-    transform: translateY(-1px);
-}
-
-.search-btn svg {
-    width: 18px;
-    height: 18px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
 }
 
 .filter-options {
@@ -485,4 +508,3 @@
         min-width: 1000px;
     }
 }
-

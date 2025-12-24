@@ -22,9 +22,10 @@
 /* Container for marker elements */
 .shop-marker-container {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: center;
     position: relative;
+    gap: 8px;
 }
 
 /* Pin wrapper with pointer shape */
@@ -111,9 +112,8 @@
 
 /* Shop name label */
 .shop-marker-label {
-    margin-top: 6px;
     max-width: 100px;
-    text-align: center;
+    text-align: left;
 }
 
 .shop-marker-name {
@@ -169,6 +169,11 @@
 }
 
 /* Hover effect */
+.shop-marker-container:hover {
+    outline: none !important;
+    border: none !important;
+}
+
 .shop-marker:hover .shop-marker-icon {
     transform: rotate(-45deg) scale(1.12);
     box-shadow:
@@ -397,7 +402,7 @@
 .carousel-indicators {
     position: absolute;
     bottom: 14px;
-    left: 50%;
+    left: 20%;
     transform: translateX(-50%);
     display: flex;
     gap: 8px;
@@ -434,7 +439,7 @@
 .shop-status-badge {
     position: absolute;
     bottom: 14px;
-    right: 14px;
+    right: 4px;
     padding: 0.5rem 1rem;
     border-radius: 24px;
     font-size: 0.7rem;
@@ -763,4 +768,5 @@
 .shop-popup-description::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
+
 
