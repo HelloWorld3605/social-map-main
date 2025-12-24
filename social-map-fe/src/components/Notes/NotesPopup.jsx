@@ -167,17 +167,17 @@ const NotesPopup = () => {
         </div>
         {!isMinimized && (
           <>
-            {/* Corner handles */}
-            <div className="resize-handle se" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} title="Resize (bottom-right)"></div>
-            <div className="resize-handle sw" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} title="Resize (bottom-left)"></div>
-            <div className="resize-handle ne" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} title="Resize (top-right)"></div>
-            <div className="resize-handle nw" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} title="Resize (top-left)"></div>
+            {/* Invisible resize handles - Corner handles */}
+            <div className="resize-handle se invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} title="Resize (bottom-right)"></div>
+            <div className="resize-handle sw invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} title="Resize (bottom-left)"></div>
+            <div className="resize-handle ne invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} title="Resize (top-right)"></div>
+            <div className="resize-handle nw invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} title="Resize (top-left)"></div>
 
-            {/* Edge handles */}
-            <div className="resize-handle e" onMouseDown={(e) => handleResizeMouseDown(e, 'e')} title="Resize (right)"></div>
-            <div className="resize-handle w" onMouseDown={(e) => handleResizeMouseDown(e, 'w')} title="Resize (left)"></div>
-            <div className="resize-handle n" onMouseDown={(e) => handleResizeMouseDown(e, 'n')} title="Resize (top)"></div>
-            <div className="resize-handle s" onMouseDown={(e) => handleResizeMouseDown(e, 's')} title="Resize (bottom)"></div>
+            {/* Invisible resize handles - Edge handles */}
+            <div className="resize-handle e invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'e')} title="Resize (right)"></div>
+            <div className="resize-handle w invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'w')} title="Resize (left)"></div>
+            <div className="resize-handle n invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'n')} title="Resize (top)"></div>
+            <div className="resize-handle s invisible" onMouseDown={(e) => handleResizeMouseDown(e, 's')} title="Resize (bottom)"></div>
           </>
         )}
       </div>

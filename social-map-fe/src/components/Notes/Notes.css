@@ -601,6 +601,13 @@
   opacity: 1;
 }
 
+/* Invisible resize handles */
+.resize-handle.invisible {
+  opacity: 0 !important;
+  background: transparent !important;
+  border: none !important;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .location-note-content {
@@ -688,4 +695,118 @@
 .location-note.inline .location-note-details .label {
   min-width: 60px;
   font-weight: 500;
+}
+
+/* ===== CUSTOM SCROLLBAR (No arrows, clean look) ===== */
+.notes-sidebar::-webkit-scrollbar,
+.notes-editor::-webkit-scrollbar,
+.notes-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.notes-sidebar::-webkit-scrollbar-track,
+.notes-editor::-webkit-scrollbar-track,
+.notes-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.notes-sidebar::-webkit-scrollbar-thumb,
+.notes-editor::-webkit-scrollbar-thumb,
+.notes-list::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 4px;
+}
+
+.notes-sidebar::-webkit-scrollbar-thumb:hover,
+.notes-editor::-webkit-scrollbar-thumb:hover,
+.notes-list::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
+
+.notes-sidebar::-webkit-scrollbar-button,
+.notes-editor::-webkit-scrollbar-button,
+.notes-list::-webkit-scrollbar-button {
+  display: none;
+}
+/* ===== EDGE RESIZE (PRO HIT AREA) ===== */
+.resize-handle.e,
+.resize-handle.w {
+  top: -12px;
+  bottom: -12px;
+  width: 10px;               /* 👈 dày hơn */
+}
+
+.resize-handle.n,
+.resize-handle.s {
+  left: -12px;
+  right: -12px;
+  height: 10px;              /* 👈 cao hơn */
+}
+.resize-handle.e { right: -6px; cursor: ew-resize; }
+.resize-handle.w { left: -6px; cursor: ew-resize; }
+.resize-handle.n { top: -6px; cursor: ns-resize; }
+.resize-handle.s { bottom: -6px; cursor: ns-resize; }
+/* ===== CORNER RESIZE (PRIORITY ZONE) ===== */
+.resize-handle.se,
+.resize-handle.sw,
+.resize-handle.ne,
+.resize-handle.nw {
+  width: 32px;          /* 👈 to hơn */
+  height: 32px;
+  z-index: 60;          /* 👈 ưu tiên hơn edge */
+}
+
+/* Push corners outward */
+.resize-handle.se {
+  right: -14px;
+  bottom: -14px;
+  cursor: nwse-resize;
+}
+
+.resize-handle.sw {
+  left: -14px;
+  bottom: -14px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.ne {
+  right: -14px;
+  top: -14px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.nw {
+  left: -14px;
+  top: -14px;
+  cursor: nwse-resize;
+}
+.resize-handle {
+  pointer-events: auto;
+}
+
+.resize-handle.e,
+.resize-handle.w,
+.resize-handle.n,
+.resize-handle.s {
+  z-index: 40;
+}
+
+.resize-handle.se,
+.resize-handle.sw,
+.resize-handle.ne,
+.resize-handle.nw {
+  z-index: 60;
+}
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  background: rgba(79, 140, 255, 0.6);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.resize-handle:hover::after {
+  opacity: 1;
 }
