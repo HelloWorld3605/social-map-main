@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 import { useNotes } from '../../context/NotesContext';
 import LocationNote from './LocationNote';
 
@@ -51,7 +52,9 @@ const NotesEditor = ({ note }) => {
   }, [activeTab, addBlockToTab, note.id, cursorPosition]);
 
   const handleBlockChange = (blockId, content) => {
-    updateBlockInTab(note.id, activeTab.id, blockId, { content });
+    flushSync(() => {
+      updateBlockInTab(note.id, activeTab.id, blockId, { content });
+    });
   };
 
   const handleBlockFocus = (index) => {
@@ -61,9 +64,9 @@ const NotesEditor = ({ note }) => {
   const handleBlockKeyDown = (e, blockId, index) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      // Insert new text block after current block
-      addBlockToTab(note.id, activeTab.id, { type: 'text', content: '' }, index + 1);
-    } else if (e.key === 'Backspace' && e.currentTarget.innerText === '') {
+      // Insert new text block before current block
+      addBlockToTab(note.id, activeTab.id, { type: 'text', content: '' }, index);
+    } else if (e.key === 'Backspace' && e.currentTarget.textContent === '') {
       e.preventDefault();
       // Remove empty block if not the last one
       if (activeTab.blocks.length > 1) {
@@ -122,16 +125,19 @@ const NotesEditor = ({ note }) => {
                   contentEditable
                   className="text-block"
                   suppressContentEditableWarning
-                  onInput={(e) => handleBlockChange(block.id, e.currentTarget.innerText)}
+                  onInput={(e) => handleBlockChange(block.id, e.currentTarget.textContent)}
                   onFocus={() => handleBlockFocus(index)}
                   onKeyDown={(e) => handleBlockKeyDown(e, block.id, index)}
                   onMouseEnter={() => handleBlockMouseEnter(index)}
                   onMouseLeave={handleBlockMouseLeave}
                   onDragOver={(e) => handleDragOverBlock(e, index)}
                   data-placeholder={index === 0 ? "Start writing your note here... You can drag location markers here to add annotations." : "Continue writing..."}
-                >
-                  {block.content}
-                </div>
+                  ref={(el) => {
+                    if (el && el.textContent !== block.content) {
+                      el.textContent = block.content;
+                    }
+                  }}
+                />
               )}
             </React.Fragment>
           );
