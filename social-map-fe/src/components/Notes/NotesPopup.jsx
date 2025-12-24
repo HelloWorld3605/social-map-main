@@ -18,7 +18,7 @@ const NotesPopup = () => {
   const { isNotesOpen, closeNotes, togglePin, isPinned, activeNoteId, notes } = useNotes();
   const popupRef = useRef(null);
   const [position, setPosition] = useState({ x: 100, y: 100 });
-  const [size, setSize] = useState({ width: 1200, height: 800 });
+  const [size, setSize] = useState({ width: 480, height: 325 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isResizing, setIsResizing] = useState(false);

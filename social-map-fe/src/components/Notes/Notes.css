@@ -755,33 +755,33 @@
 .resize-handle.sw,
 .resize-handle.ne,
 .resize-handle.nw {
-  width: 32px;          /* 👈 to hơn */
-  height: 32px;
+  width: 40px;          /* 👈 to hơn */
+  height: 40px;
   z-index: 60;          /* 👈 ưu tiên hơn edge */
 }
 
 /* Push corners outward */
 .resize-handle.se {
   right: -14px;
-  bottom: -14px;
+  bottom: -20px;
   cursor: nwse-resize;
 }
 
 .resize-handle.sw {
   left: -14px;
-  bottom: -14px;
+  bottom: -20px;
   cursor: nesw-resize;
 }
 
 .resize-handle.ne {
   right: -14px;
-  top: -14px;
+  top: -20px;
   cursor: nesw-resize;
 }
 
 .resize-handle.nw {
   left: -14px;
-  top: -14px;
+  top: -20px;
   cursor: nwse-resize;
 }
 .resize-handle {
@@ -813,4 +813,15 @@
 
 .resize-handle:hover::after {
   opacity: 1;
+}
+
+/* Prevent text selection on LocationNote elements */
+.location-note-title,
+.location-note-details .label,
+.location-note-details .value,
+.location-note-image img,
+.location-note-view-map,
+.location-note-remove,
+.location-note-icon {
+  user-select: none;
 }
