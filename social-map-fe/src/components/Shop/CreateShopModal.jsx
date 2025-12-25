@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
-import { createShop } from '../../services/shopService';
+import { createShop, updateShop } from '../../services/shopService';
 import { UploadService } from '../../services/UploadService';
 import './CreateShopModal.css';
 
@@ -8,7 +8,7 @@ import './CreateShopModal.css';
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
-export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
+export default function CreateShopModal({ isOpen, onClose, onShopCreated, initialData = null, isEditing = false }) {
     const [formData, setFormData] = useState({
         name: '',
         address: '',
@@ -267,30 +267,37 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                 imageShopUrl: formData.imageShopUrl.length > 0 ? formData.imageShopUrl : undefined
             };
 
-            const response = await createShop(shopData);
+            let response;
+            if (isEditing && initialData) {
+                response = await updateShop(initialData.id, shopData);
+            } else {
+                response = await createShop(shopData);
+            }
 
             if (onShopCreated) {
                 onShopCreated(response);
             }
 
-            // Reset form
-            setFormData({
-                name: '',
-                address: '',
-                latitude: 21.0285,
-                longitude: 105.8542,
-                description: '',
-                phoneNumber: '',
-                openingTime: '08:00',
-                closingTime: '22:00',
-                imageShopUrl: [],
-                tagIds: []
-            });
+            // Reset form only when creating
+            if (!isEditing) {
+                setFormData({
+                    name: '',
+                    address: '',
+                    latitude: 21.0285,
+                    longitude: 105.8542,
+                    description: '',
+                    phoneNumber: '',
+                    openingTime: '08:00',
+                    closingTime: '22:00',
+                    imageShopUrl: [],
+                    tagIds: []
+                });
+            }
             setStep(1);
             onClose();
         } catch (err) {
-            console.error('Failed to create shop:', err);
-            setError(err.message || 'Không thể tạo cửa hàng. Vui lòng thử lại.');
+            console.error(`Failed to ${isEditing ? 'update' : 'create'} shop:`, err);
+            setError(err.message || `Không thể ${isEditing ? 'cập nhật' : 'tạo'} cửa hàng. Vui lòng thử lại.`);
         } finally {
             setLoading(false);
         }
@@ -325,6 +332,38 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
         }
     };
 
+    // Initialize form data when editing
+    useEffect(() => {
+        if (isEditing && initialData) {
+            setFormData({
+                name: initialData.name || '',
+                address: initialData.address || '',
+                latitude: initialData.latitude || 21.0285,
+                longitude: initialData.longitude || 105.8542,
+                description: initialData.description || '',
+                phoneNumber: initialData.phoneNumber || '',
+                openingTime: initialData.openingTime ? initialData.openingTime.substring(0, 5) : '08:00',
+                closingTime: initialData.closingTime ? initialData.closingTime.substring(0, 5) : '22:00',
+                imageShopUrl: initialData.imageShopUrl || [],
+                tagIds: initialData.tagIds || []
+            });
+        } else if (!isEditing) {
+            // Reset to default when not editing
+            setFormData({
+                name: '',
+                address: '',
+                latitude: 21.0285,
+                longitude: 105.8542,
+                description: '',
+                phoneNumber: '',
+                openingTime: '08:00',
+                closingTime: '22:00',
+                imageShopUrl: [],
+                tagIds: []
+            });
+        }
+    }, [isEditing, initialData]);
+
     if (!isOpen) {
         console.log('🏪 CreateShopModal not rendering (isOpen = false)');
         return null;
@@ -339,7 +378,7 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                 {/* Header */}
                 <div className="modal-header">
                     <h2>
-                        {step === 1 ? '🏪 Tạo cửa hàng mới' : '📍 Chọn vị trí trên bản đồ'}
+                        {step === 1 ? (isEditing ? '🏪 Chỉnh sửa cửa hàng' : '🏪 Tạo cửa hàng mới') : '📍 Chọn vị trí trên bản đồ'}
                     </h2>
                     <button className="modal-close-btn" onClick={handleModalClose}>×</button>
                 </div>
@@ -567,7 +606,7 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                                 onClick={handleSubmit}
                                 disabled={loading || !formData.address}
                             >
-                                {loading ? 'Đang tạo...' : !formData.address ? '⚠️ Chọn vị trí trước' : '✓ Xác nhận tạo shop'}
+                                {loading ? (isEditing ? 'Đang cập nhật...' : 'Đang tạo...') : !formData.address ? '⚠️ Chọn vị trí trước' : (isEditing ? '✓ Xác nhận cập nhật' : '✓ Xác nhận tạo shop')}
                             </button>
                         </>
                     )}

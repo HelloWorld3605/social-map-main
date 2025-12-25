@@ -26,6 +26,7 @@ import useHeartbeat from './hooks/useHeartbeat';
 import { NotesProvider } from './context/NotesContext';
 import NotesPopup from './components/Notes/NotesPopup';
 import { MapProvider } from './context/MapContext';
+import ShopManagementPage from './pages/ShopManagementPage/ShopManagementPage';
 
 function App() {
   // Use heartbeat hook for online status
@@ -264,6 +265,30 @@ function App() {
                     <ShopManagementDashboard />
                   </MainLayout>
                 </AdminRoute>
+              }
+            />
+
+            {/* Trang Shop Management cho Admin */}
+            <Route
+              path="/shop-management"
+              element={
+                <AdminRoute>
+                  <MainLayout>
+                    <ShopManagementPage />
+                  </MainLayout>
+                </AdminRoute>
+              }
+            />
+
+            {/* Trang Shop Management cho Seller */}
+            <Route
+              path="/shops"
+              element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <ShopManagementPage />
+                  </MainLayout>
+                </ProtectedRoute>
               }
             />
 

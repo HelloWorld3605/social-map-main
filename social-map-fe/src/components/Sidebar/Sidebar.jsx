@@ -353,7 +353,7 @@ export default function Sidebar() {
                                     {
                                         icon: <FaStore className="menu-icon text-success" />,
                                         text: 'Quản lý các cửa hàng của bạn',
-                                        to: '/shop-management'
+                                        to: '/shops'
                                     },
                                     {
                                         icon: <FaStore className="menu-icon" />,

@@ -1,0 +1,151 @@
+.shop-management-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.shop-management-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e5e7eb;
+    padding-bottom: 20px;
+}
+
+.shop-management-header h1 {
+    color: #1f2937;
+    font-size: 2rem;
+    margin: 0;
+}
+
+.create-shop-btn, .create-first-shop-btn {
+    background-color: #10b981;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.create-shop-btn:hover, .create-first-shop-btn:hover {
+    background-color: #059669;
+}
+
+.error-message {
+    background-color: #fee2e2;
+    color: #dc2626;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.shops-list {
+    display: grid;
+    gap: 20px;
+}
+
+.shop-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.shop-info {
+    flex: 1;
+}
+
+.shop-info h3 {
+    margin: 0 0 8px 0;
+    color: #1f2937;
+    font-size: 1.25rem;
+}
+
+.shop-address, .shop-description, .shop-phone, .shop-hours {
+    margin: 4px 0;
+    color: #6b7280;
+}
+
+.shop-description {
+    margin-bottom: 12px;
+}
+
+.shop-actions {
+    display: flex;
+    gap: 12px;
+    margin-left: 20px;
+}
+
+.edit-btn, .delete-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.edit-btn {
+    background-color: #3b82f6;
+    color: white;
+}
+
+.edit-btn:hover {
+    background-color: #2563eb;
+}
+
+.delete-btn {
+    background-color: #ef4444;
+    color: white;
+}
+
+.delete-btn:hover {
+    background-color: #dc2626;
+}
+
+.no-shops {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.no-shops p {
+    color: #6b7280;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+}
+
+.shop-management-loading {
+    text-align: center;
+    padding: 60px;
+    font-size: 1.2rem;
+    color: #6b7280;
+}
+
+@media (max-width: 768px) {
+    .shop-card {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .shop-actions {
+        margin-left: 0;
+        justify-content: center;
+    }
+
+    .shop-management-header {
+        flex-direction: column;
+        gap: 16px;
+        text-align: center;
+    }
+}

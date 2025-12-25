@@ -44,3 +44,11 @@ export const getShopById = async (shopId) => {
 export const getAllShops = async () => {
   return await api.get("/shops");
 };
+
+/**
+ * Lấy danh sách shops của người dùng hiện tại
+ * @returns {Promise<Array>} Danh sách ShopResponse
+ */
+export const getMyShops = async () => {
+  return await api.get("/shops/my");
+};

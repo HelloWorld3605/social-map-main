@@ -3,7 +3,7 @@ spring:
     name: map-social
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/social-map
+    url: jdbc:postgresql://localhost:5432/socialmap
     username: social_map_user
     password: 123456
 
