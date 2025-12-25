@@ -55,13 +55,6 @@ const LocationNote = ({ marker, onRemove, noteId, tabId, inline = false }) => {
         )}
 
         <div className="location-note-details">
-          <div className="location-note-coordinates">
-            <span className="label">Coordinates:</span>
-            <span className="value">
-              {marker.coordinates ? `${marker.coordinates[0].toFixed(6)}, ${marker.coordinates[1].toFixed(6)}` : 'N/A'}
-            </span>
-          </div>
-
           {marker.address && (
             <div className="location-note-address">
               <span className="label">Address:</span>

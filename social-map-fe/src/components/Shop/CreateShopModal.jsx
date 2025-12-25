@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
 import { createShop } from '../../services/shopService';
 import { UploadService } from '../../services/UploadService';
@@ -22,8 +22,7 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
         tagIds: []
     });
 
-    const [map, setMap] = useState(null);
-    const [marker, setMarker] = useState(null);
+    const mapRef = useRef(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
@@ -97,13 +96,15 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                 markerElement.style.zIndex = '9999';
 
                 // Update coordinates when marker is dragged
-                newMarker.on('dragend', () => {
+                newMarker.on('dragend', async () => {
                     const lngLat = newMarker.getLngLat();
                     console.log('Marker dragged to:', lngLat);
+                    const address = await reverseGeocode(lngLat.lng, lngLat.lat);
                     setFormData(prev => ({
                         ...prev,
                         latitude: lngLat.lat,
-                        longitude: lngLat.lng
+                        longitude: lngLat.lng,
+                        address: address
                     }));
                 });
 
@@ -117,35 +118,53 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                 });
 
                 // Add click to move marker
-                newMap.on('click', (e) => {
+                newMap.on('click', async (e) => {
                     const { lng, lat } = e.lngLat;
                     console.log('Map clicked at:', lng, lat);
                     newMarker.setLngLat([lng, lat]);
+                    const address = await reverseGeocode(lng, lat);
                     setFormData(prev => ({
                         ...prev,
                         latitude: lat,
-                        longitude: lng
+                        longitude: lng,
+                        address: address
                     }));
                 });
-
-                setMarker(newMarker);
             });
 
             newMap.on('error', (e) => {
                 console.error('❌ Map error:', e);
             });
 
-            setMap(newMap);
+            mapRef.current = newMap;
         }, 100); // Small delay to ensure DOM is ready
 
         return () => {
             clearTimeout(initTimeout);
             console.log('🧹 Cleaning up map...');
-            if (map) {
-                map.remove();
+            if (mapRef.current) {
+                mapRef.current.remove();
+                mapRef.current = null;
             }
         };
     }, [isOpen, step]);
+
+    const reverseGeocode = async (lng, lat) => {
+        try {
+            const res = await fetch(
+                `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&language=vi`
+            );
+            const data = await res.json();
+
+            if (data.features && data.features.length > 0) {
+                return data.features[0].place_name;
+            }
+            return '';
+        } catch (err) {
+            console.error('Reverse geocode failed', err);
+            return '';
+        }
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -221,10 +240,6 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
             setError('Tên cửa hàng là bắt buộc');
             return;
         }
-        if (!formData.address.trim()) {
-            setError('Địa chỉ là bắt buộc');
-            return;
-        }
         if (!formData.phoneNumber.trim()) {
             setError('Số điện thoại là bắt buộc');
             return;
@@ -239,6 +254,11 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
         try {
             setLoading(true);
             setError('');
+
+            if (!formData.address) {
+                setError('Vui lòng chọn vị trí trên bản đồ');
+                return;
+            }
 
             const shopData = {
                 ...formData,
@@ -367,22 +387,6 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                             </div>
 
                             <div className="form-group">
-                                <label htmlFor="address">
-                                    Địa chỉ <span className="required">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    id="address"
-                                    name="address"
-                                    value={formData.address}
-                                    onChange={handleInputChange}
-                                    placeholder="VD: 123 Đường ABC, Quận XYZ, TP.HCM"
-                                    maxLength={255}
-                                    required
-                                />
-                            </div>
-
-                            <div className="form-group">
                                 <label htmlFor="phoneNumber">
                                     Số điện thoại <span className="required">*</span>
                                 </label>
@@ -497,7 +501,6 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                 {/* Step 2: Map Preview */}
                 {step === 2 && (
                     <div className="modal-body map-step">
-                        {console.log('🗺️ Rendering Step 2 - Map Preview')}
                         <div className="map-instructions">
                             <p>
                                 📍 Click vào bản đồ hoặc kéo marker để chọn vị trí chính xác cho cửa hàng của bạn
@@ -509,6 +512,17 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                                 <span>Vĩ độ: <strong>{formData.latitude.toFixed(6)}</strong></span>
                                 <span>Kinh độ: <strong>{formData.longitude.toFixed(6)}</strong></span>
                             </div>
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="address">📍 Địa chỉ được xác định</label>
+                            <input
+                                type="text"
+                                id="address"
+                                value={formData.address}
+                                readOnly
+                                placeholder="Click vào bản đồ để chọn vị trí"
+                                style={{ background: '#f1f5f9' }}
+                            />
                         </div>
                         <div
                             id="create-shop-map"
@@ -551,9 +565,9 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
                                 type="button"
                                 className="btn-submit"
                                 onClick={handleSubmit}
-                                disabled={loading}
+                                disabled={loading || !formData.address}
                             >
-                                {loading ? 'Đang tạo...' : '✓ Xác nhận tạo shop'}
+                                {loading ? 'Đang tạo...' : !formData.address ? '⚠️ Chọn vị trí trước' : '✓ Xác nhận tạo shop'}
                             </button>
                         </>
                     )}
@@ -562,4 +576,3 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated }) {
         </div>
     );
 }
-
