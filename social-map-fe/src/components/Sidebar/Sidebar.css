@@ -103,7 +103,7 @@
     /* trượt mượt */
     padding-top: 60px;
     /* chừa header */
-    z-index: 999;
+    z-index: 800;
     overflow-y: auto; /* Cho phép cuộn dọc khi nội dung nhiều */
 }
 

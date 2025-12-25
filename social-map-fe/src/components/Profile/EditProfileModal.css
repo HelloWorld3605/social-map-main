@@ -309,6 +309,8 @@
 
 .input-warning-icon-svg:hover {
     color: #d35400;
+    background-color: #e4e6eb;
+    border-radius: 50%;
 }
 
 .field-hint {
