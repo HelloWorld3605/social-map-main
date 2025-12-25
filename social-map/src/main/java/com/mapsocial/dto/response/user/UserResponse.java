@@ -39,4 +39,7 @@ public class UserResponse {
 
     @Schema(description = "Thời gian tạo tài khoản", example = "2024-01-01T00:00:00")
     private String createdAt;
+
+    @Schema(description = "Thời gian thay đổi tên hiển thị lần cuối", example = "2024-01-01T00:00:00")
+    private String lastNameChangeDate;
 }

@@ -22,6 +22,7 @@ public class UserMapper {
                 .citizenId(user.getCitizenId())
                 .isEmailVerified(user.getIsEmailVerified())
                 .createdAt(user.getCreatedAt() != null ? user.getCreatedAt().toString() : null)
+                .lastNameChangeDate(user.getLastNameChangeDate() != null ? user.getLastNameChangeDate().toString() : null)
                 .build();
     }
 }

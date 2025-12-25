@@ -55,6 +55,19 @@ public class UserServiceImpl implements UserService {
             if (updateRequest.getDisplayName().length() > 20) {
                 throw new RuntimeException("Tên hiển thị không được vượt quá 20 ký tự");
             }
+            // Check if display name is changing
+            if (!updateRequest.getDisplayName().trim().equals(user.getDisplayName())) {
+                // Check if last change was within 2 weeks
+                if (user.getLastNameChangeDate() != null) {
+                    LocalDateTime now = LocalDateTime.now();
+                    LocalDateTime twoWeeksAgo = now.minusWeeks(2);
+                    if (user.getLastNameChangeDate().isAfter(twoWeeksAgo)) {
+                        throw new RuntimeException("Bạn chỉ có thể thay đổi tên hiển thị mỗi 2 tuần một lần");
+                    }
+                }
+                // Update last change date
+                user.setLastNameChangeDate(LocalDateTime.now());
+            }
             user.setDisplayName(updateRequest.getDisplayName().trim());
         }
 

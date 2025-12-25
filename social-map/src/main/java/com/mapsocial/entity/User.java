@@ -86,6 +86,9 @@ public class User {
     )
     private List<Shop> shops = new ArrayList<>();
 
+    @Column(name = "last_name_change_date")
+    private LocalDateTime lastNameChangeDate;
+
     @PrePersist
     public void prePersist() {
         if (this.role == null) {

@@ -82,6 +82,24 @@
     margin-bottom: 8px;
 }
 
+.label-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.warning-icon {
+    color: #e67e22;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    transition: color 0.2s;
+}
+
+.warning-icon:hover {
+    color: #d35400;
+}
+
 /* Cover Photo Upload */
 .cover-upload-container {
     position: relative;
@@ -269,10 +287,63 @@
     border-color: #EC5E95;
 }
 
+.input-with-icon {
+    position: relative;
+}
+
+.input-with-icon .form-input {
+    padding-right: 40px;
+}
+
+.input-warning-icon-svg {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #e67e22;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    transition: color 0.2s;
+}
+
+.input-warning-icon-svg:hover {
+    color: #d35400;
+}
+
 .field-hint {
     margin-top: 6px;
     font-size: 13px;
     color: #65676b;
+    user-select: none;
+}
+
+.next-change-hint {
+    margin-top: 6px;
+    font-size: 13px;
+    color: #e67e22;
+    font-weight: 500;
+}
+
+.restriction-checkbox {
+    margin-top: 12px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.restriction-checkbox input[type="checkbox"] {
+    margin-top: 2px;
+    width: 16px;
+    height: 16px;
+    accent-color: #EC5E95;
+}
+
+.restriction-checkbox label {
+    font-size: 14px;
+    color: #050505;
+    line-height: 1.4;
+    cursor: pointer;
 }
 
 /* Error Message */
@@ -335,6 +406,25 @@
 
 .btn-save:hover:not(:disabled) {
     background: #d14d85;
+}
+
+/* Tooltip */
+.info-tooltip {
+    position: absolute;
+    top: -80px; /* Adjust to position above the input */
+    left: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 14px;
+    color: #050505;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 0; /* Remove margin since it's positioned */
+    max-width: 400px;
+    word-wrap: break-word;
+    user-select: none;
+    z-index: 10001; /* Higher than form overlay */
 }
 
 /* Responsive */
@@ -404,6 +494,10 @@ body.dark-mode .field-hint {
     color: #b0b3b8;
 }
 
+body.dark-mode .next-change-hint {
+    color: #f39c12;
+}
+
 body.dark-mode .btn-cancel {
     background: #3a3b3c;
     color: #e4e6eb;
@@ -417,3 +511,12 @@ body.dark-mode .form-actions {
     border-top-color: #3e4042;
 }
 
+body.dark-mode .info-tooltip {
+    background: #3a3b3c;
+    border-color: #555;
+    color: #e4e6eb;
+}
+
+body.dark-mode .restriction-checkbox label {
+    color: #e4e6eb;
+}

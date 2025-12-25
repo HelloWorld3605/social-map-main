@@ -14,7 +14,7 @@
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    z-index: 1200 !important;
+    z-index: 10000 !important;
     animation: fadeIn 0.2s ease-out;
     pointer-events: auto !important;
 }
@@ -41,7 +41,7 @@
     flex-direction: column !important;
     animation: slideUp 0.3s ease-out;
     position: relative !important;
-    z-index: 1201 !important;
+    z-index: 10001 !important;
     overflow: hidden;
 }
 

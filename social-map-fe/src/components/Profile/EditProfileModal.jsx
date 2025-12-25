@@ -13,6 +13,30 @@ export default function EditProfileModal({ user, onClose, onProfileUpdated }) {
     const [uploadingAvatar, setUploadingAvatar] = useState(false);
     const [uploadingCover, setUploadingCover] = useState(false);
     const [error, setError] = useState('');
+    const [understandRestriction, setUnderstandRestriction] = useState(false);
+    const [showTooltip, setShowTooltip] = useState(false);
+
+    // Check if name change is allowed
+    const canChangeName = () => {
+        if (!user?.lastNameChangeDate) return true;
+        const lastChange = new Date(user.lastNameChangeDate);
+        const now = new Date();
+        const twoWeeks = 14 * 24 * 60 * 60 * 1000; // 14 days in ms
+        return (now - lastChange) >= twoWeeks;
+    };
+
+    const nextChangeDate = () => {
+        if (!user?.lastNameChangeDate) return null;
+        const lastChange = new Date(user.lastNameChangeDate);
+        const next = new Date(lastChange.getTime() + 14 * 24 * 60 * 60 * 1000);
+        return next.toLocaleDateString('vi-VN');
+    };
+
+    const lastChangeDateFormatted = () => {
+        if (!user?.lastNameChangeDate) return null;
+        const date = new Date(user.lastNameChangeDate);
+        return date.toLocaleDateString('vi-VN');
+    };
 
     const avatarInputRef = useRef(null);
     const coverInputRef = useRef(null);
@@ -109,6 +133,18 @@ export default function EditProfileModal({ user, onClose, onProfileUpdated }) {
 
         if (formData.displayName.length > 20) {
             setError('Tên hiển thị không được vượt quá 20 ký tự');
+            return;
+        }
+
+        // Check if trying to change name but not allowed
+        if (formData.displayName.trim() !== user?.displayName && !canChangeName()) {
+            setError('Bạn chỉ có thể thay đổi tên hiển thị mỗi 2 tuần một lần');
+            return;
+        }
+
+        // Check if changing name and must check the box
+        if (formData.displayName.trim() !== user?.displayName && canChangeName() && !understandRestriction) {
+            setError('Vui lòng xác nhận rằng bạn hiểu quy tắc thay đổi tên hiển thị');
             return;
         }
 
@@ -255,21 +291,58 @@ export default function EditProfileModal({ user, onClose, onProfileUpdated }) {
 
                     {/* Display Name */}
                     <div className="form-section">
-                        <label className="section-label" htmlFor="displayName">
-                            Tên hiển thị
-                        </label>
-                        <input
-                            id="displayName"
-                            type="text"
-                            className="form-input"
-                            value={formData.displayName}
-                            onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
-                            maxLength={20}
-                            placeholder="Nhập tên hiển thị"
-                        />
+                        <div className="label-with-icon">
+                            <label className="section-label" htmlFor="displayName">
+                                Tên hiển thị
+                            </label>
+                        </div>
+                        <div className="input-with-icon">
+                            <input
+                                id="displayName"
+                                type="text"
+                                className="form-input"
+                                value={formData.displayName}
+                                onChange={(e) => setFormData(prev => ({ ...prev, displayName: e.target.value }))}
+                                maxLength={20}
+                                placeholder="Nhập tên hiển thị"
+                                disabled={!canChangeName()}
+                            />
+                            {user?.lastNameChangeDate && (
+                                <svg
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    className="input-warning-icon-svg"
+                                    onMouseEnter={() => setShowTooltip(true)}
+                                    onMouseLeave={() => setShowTooltip(false)}
+                                    onClick={() => setShowTooltip(!showTooltip)}
+                                >
+                                    <path d="M9.75 12a.75.75 0 0 1 .75-.75H12a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-3.75h-.75a.75.75 0 0 1-.75-.75M12 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2"></path>
+                                    <path fillRule="evenodd" clipRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12M12 3.75a8.25 8.25 0 1 0 0 16.5 8.25 8.25 0 0 0 0-16.5"></path>
+                                </svg>
+                            )}
+                            {showTooltip && user?.lastNameChangeDate && (
+                                <div className="info-tooltip">
+                                    Xin lưu ý: Lần cuối cùng bạn thay đổi Tên hiển thị trên Social Map là vào ngày {lastChangeDateFormatted()}. Bạn không thể thay đổi lại cho đến ngày {nextChangeDate()}.
+                                </div>
+                            )}
+                        </div>
                         <p className="field-hint">
                             {formData.displayName.length}/20 ký tự
                         </p>
+                        {canChangeName() && formData.displayName.trim() !== user?.displayName && (
+                            <div className="restriction-checkbox">
+                                <input
+                                    type="checkbox"
+                                    id="understandRestriction"
+                                    checked={understandRestriction}
+                                    onChange={(e) => setUnderstandRestriction(e.target.checked)}
+                                />
+                                <label htmlFor="understandRestriction">
+                                    Tôi hiểu rằng tôi không thể thay đổi tên hiển thị của mình trong vòng 2 tuần sau khi thay đổi này diễn ra.
+                                </label>
+                            </div>
+                        )}
                     </div>
 
                     {/* Error Message */}
