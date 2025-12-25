@@ -225,7 +225,7 @@ const NotesPopup = () => {
           <div className="notes-main">
             {activeNote && (
               <>
-                <NotesTabHeader note={activeNote} />
+                <NotesTabHeader />
                 <NotesEditor note={activeNote} />
               </>
             )}

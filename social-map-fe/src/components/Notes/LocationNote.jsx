@@ -57,22 +57,22 @@ const LocationNote = ({ marker, onRemove, noteId, tabId, inline = false }) => {
         <div className="location-note-details">
           {marker.address && (
             <div className="location-note-address">
-              <span className="label">Address:</span>
+              <span className="label">Địa Chỉ:</span>
               <span className="value">{marker.address}</span>
             </div>
           )}
 
           {marker.description && (
             <div className="location-note-description">
-              <span className="label">Description:</span>
+              <span className="label">Mô tả:</span>
               <span className="value">{marker.description}</span>
             </div>
           )}
 
           {marker.phoneNumber && (
             <div className="location-note-phone">
-              <span className="label">Phone:</span>
-              <span className="value">{marker.phoneNumber}</span>
+              <span className="label">Liên hệ:</span>
+              <a href={`tel:${marker.phoneNumber}`} className="value">{marker.phoneNumber}</a>
             </div>
           )}
 
@@ -85,7 +85,7 @@ const LocationNote = ({ marker, onRemove, noteId, tabId, inline = false }) => {
 
           {(marker.openingTime || marker.closingTime) && (
             <div className="location-note-hours">
-              <span className="label">Hours:</span>
+              <span className="label">Giờ mở cửa:</span>
               <span className="value">
                 {marker.openingTime && marker.closingTime
                   ? `${marker.openingTime} - ${marker.closingTime}`

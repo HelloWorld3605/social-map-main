@@ -7,6 +7,7 @@ export const useNotes = () => useContext(NotesContext);
 export const NotesProvider = ({ children }) => {
   const [notes, setNotes] = useState([]);
   const [activeNoteId, setActiveNoteId] = useState(null);
+  const [openNoteIds, setOpenNoteIds] = useState([]);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
 
@@ -37,6 +38,7 @@ export const NotesProvider = ({ children }) => {
       createdAt: new Date().toISOString(),
     };
     setNotes([...notes, newNote]);
+    setOpenNoteIds([...openNoteIds, newNote.id]);
     setActiveNoteId(newNote.id);
   };
 
@@ -45,9 +47,11 @@ export const NotesProvider = ({ children }) => {
   };
 
   const deleteNote = (noteId) => {
-    setNotes(notes.filter(note => note.id !== noteId));
+    const remainingNotes = notes.filter(note => note.id !== noteId);
+    setNotes(remainingNotes);
+    setOpenNoteIds(openNoteIds.filter(id => id !== noteId));
     if (activeNoteId === noteId) {
-      setActiveNoteId(notes.length > 1 ? notes[0].id : null);
+      setActiveNoteId(remainingNotes.length > 0 ? remainingNotes[0].id : null);
     }
   };
 
@@ -152,10 +156,21 @@ export const NotesProvider = ({ children }) => {
 
   const openNotes = (noteId = null) => {
     setIsNotesOpen(true);
+    if (noteId && !openNoteIds.includes(noteId)) {
+      setOpenNoteIds([...openNoteIds, noteId]);
+    }
     if (noteId) {
       setActiveNoteId(noteId);
     } else if (!activeNoteId && notes.length > 0) {
       setActiveNoteId(notes[0].id);
+    }
+  };
+
+  const closeNoteTab = (noteId) => {
+    setOpenNoteIds(openNoteIds.filter(id => id !== noteId));
+    if (activeNoteId === noteId) {
+      const remaining = openNoteIds.filter(id => id !== noteId);
+      setActiveNoteId(remaining.length > 0 ? remaining[remaining.length - 1] : null);
     }
   };
 
@@ -171,6 +186,8 @@ export const NotesProvider = ({ children }) => {
     <NotesContext.Provider value={{
       notes,
       activeNoteId,
+      setActiveNoteId,
+      openNoteIds,
       isNotesOpen,
       isPinned,
       addNote,
@@ -183,6 +200,7 @@ export const NotesProvider = ({ children }) => {
       updateBlockInTab,
       removeBlockFromTab,
       openNotes,
+      closeNoteTab,
       closeNotes,
       togglePin,
       addMarkerToTab,

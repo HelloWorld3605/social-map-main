@@ -1,64 +1,68 @@
 import React, { useState } from 'react';
 import { useNotes } from '../../context/NotesContext';
 
-const NotesTabHeader = ({ note }) => {
-  const { updateNote, addTab, deleteTab } = useNotes();
+const NotesTabHeader = () => {
+  const { openNoteIds, activeNoteId, notes, closeNoteTab, setActiveNoteId, updateNote } = useNotes();
   const [editingTabId, setEditingTabId] = useState(null);
 
-  const handleTabClick = (tabId) => {
-    updateNote(note.id, { activeTabId: tabId });
+  const openNotes = notes.filter(note => openNoteIds.includes(note.id));
+
+  const handleTabClick = (noteId) => {
+    setActiveNoteId(noteId);
   };
 
-  const handleTabDoubleClick = (tabId) => {
-    setEditingTabId(tabId);
+  const handleTabDoubleClick = (noteId) => {
+    setEditingTabId(noteId);
   };
 
-  const handleTabTitleChange = (tabId, newTitle) => {
-    updateNote(note.id, { tabs: note.tabs.map(tab => tab.id === tabId ? { ...tab, title: newTitle } : tab) });
+  const handleTabTitleChange = (noteId, newTitle) => {
+    updateNote(noteId, { title: newTitle });
     setEditingTabId(null);
   };
 
-  const handleAddTab = () => {
-    addTab(note.id);
-  };
-
-  const handleDeleteTab = (tabId, e) => {
+  const handleDeleteTab = (noteId, e) => {
     e.stopPropagation();
-    deleteTab(note.id, tabId);
+    closeNoteTab(noteId);
   };
 
   return (
     <div className="notes-tab-header">
-      {note.tabs.map(tab => (
+      {openNotes.map(note => (
         <div
-          key={tab.id}
-          className={`tab ${note.activeTabId === tab.id ? 'active' : ''}`}
-          onClick={() => handleTabClick(tab.id)}
-          onDoubleClick={() => handleTabDoubleClick(tab.id)}
+          key={note.id}
+          className={`tab ${activeNoteId === note.id ? 'active' : ''}`}
+          onClick={() => handleTabClick(note.id)}
+          onDoubleClick={() => handleTabDoubleClick(note.id)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              handleTabClick(note.id);
+            }
+          }}
         >
-          {editingTabId === tab.id ? (
+          {editingTabId === note.id ? (
             <input
               type="text"
-              defaultValue={tab.title}
-              onBlur={(e) => handleTabTitleChange(tab.id, e.target.value)}
+              defaultValue={note.title}
+              onBlur={(e) => handleTabTitleChange(note.id, e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  handleTabTitleChange(tab.id, e.target.value);
+                  handleTabTitleChange(note.id, e.target.value);
                 }
               }}
               autoFocus
             />
           ) : (
-            <span>{tab.title}</span>
+            <span>{note.title}</span>
           )}
-          {note.tabs.length > 1 && (
-            <button className="delete-tab-btn" onClick={(e) => handleDeleteTab(tab.id, e)}>
+          {openNotes.length > 1 && (
+            <button className="delete-tab-btn" onClick={(e) => handleDeleteTab(note.id, e)}>
               ×
             </button>
           )}
         </div>
       ))}
-      <button className="add-tab-btn" onClick={handleAddTab}>+</button>
     </div>
   );
 };

@@ -375,8 +375,8 @@
 .notification-count,
 .unread-messages {
     position: absolute;
-    top: -6px;
-    right: -5px;
+    top: 1px;
+    right: 4px;
     font-size: 13px;
     background-color: rgb(200, 0, 0);
     color: white;
