@@ -28,4 +28,6 @@ public interface UserShopRepository extends JpaRepository<UserShop, UUID> {
      */
     @Query("SELECT us.shop.id FROM UserShop us WHERE us.user.id = :userId AND us.managerRole = 'OWNER'")
     List<UUID> findShopIdsByOwnerUserId(@Param("userId") UUID userId);
+
+    List<UserShop> findByUserId(UUID userId);
 }

@@ -15,4 +15,5 @@ public interface ShopService {
     List<ShopResponse> getAllShops();
     List<ShopResponse> searchShops(String query, double lng, double lat);
     List<ShopResponse> searchShopsAdvanced(String query, double lng, double lat); // Hỗ trợ tiếng Việt không dấu
+    List<ShopResponse> getShopsByUser(UUID userId);
 }

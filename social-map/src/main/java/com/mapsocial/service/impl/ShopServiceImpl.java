@@ -5,6 +5,7 @@ import com.mapsocial.dto.request.shop.UpdateShopRequest;
 import com.mapsocial.dto.response.shop.ShopResponse;
 import com.mapsocial.entity.*;
 import com.mapsocial.enums.ShopRole;
+import com.mapsocial.enums.ShopStatus;
 import com.mapsocial.enums.UserRole;
 import com.mapsocial.mapper.MarkerMapper;
 import com.mapsocial.mapper.ShopMapper;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -121,7 +123,7 @@ public class ShopServiceImpl implements ShopService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        // Admins and super-admins can delete any shop
+        // Admins and super-admins can hard delete any shop
         if (user.getRole() == UserRole.ADMIN || user.getRole() == UserRole.SUPER_ADMIN) {
             shopStatusService.invalidateShopStatus(shopId);
             shopRepository.delete(shop);
@@ -136,8 +138,12 @@ public class ShopServiceImpl implements ShopService {
             throw new SecurityException("Chỉ chủ shop (OWNER) mới được xóa shop");
         }
 
+        // Soft delete for sellers
+        shop.setDeletedAt(LocalDateTime.now());
+        shopRepository.save(shop);
+
+        // Invalidate cache
         shopStatusService.invalidateShopStatus(shopId);
-        shopRepository.delete(shop);
     }
 
     @Override
@@ -178,6 +184,17 @@ public class ShopServiceImpl implements ShopService {
         }
         return shopRepository.searchShopsAdvanced(query, lng, lat)
                 .stream()
+                .map(shop -> ShopMapper.toShopResponse(shop, shopStatusService.getShopStatus(shop.getId())))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ShopResponse> getShopsByUser(UUID userId) {
+        List<UserShop> userShops = userShopRepository.findByUserId(userId);
+        return userShops.stream()
+                .map(userShop -> userShop.getShop())
+                .filter(shop -> shop.getDeletedAt() == null) // Only active (not soft deleted)
                 .map(shop -> ShopMapper.toShopResponse(shop, shopStatusService.getShopStatus(shop.getId())))
                 .toList();
     }

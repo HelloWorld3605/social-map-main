@@ -227,4 +227,14 @@ public class ShopController {
         shopStatusService.updateShopStatus(shopId, status);
         return ResponseEntity.ok().build();
     }
+
+    @GetMapping("/my")
+    @Operation(summary = "Lấy danh sách shops của người dùng hiện tại",
+            description = "Trả về danh sách shops mà người dùng sở hữu hoặc quản lý")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Thành công")
+    })
+    public ResponseEntity<List<ShopResponse>> getMyShops(@AuthenticationPrincipal UserPrincipal userPrincipal) {
+        return ResponseEntity.ok(shopService.getShopsByUser(userPrincipal.getUser().getId()));
+    }
 }
