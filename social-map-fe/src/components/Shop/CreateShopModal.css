@@ -251,6 +251,36 @@
     resize: vertical;
 }
 
+/* Time Select Group */
+.time-select-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.time-select-group select {
+    padding: 0.875rem 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 0.9375rem;
+    transition: all 0.2s;
+    font-family: inherit;
+    background: white;
+    min-width: 80px;
+}
+
+.time-select-group select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.time-select-group span {
+    font-weight: 600;
+    color: #374151;
+    font-size: 1.125rem;
+}
+
 /* Form Row */
 .form-row {
     display: grid;

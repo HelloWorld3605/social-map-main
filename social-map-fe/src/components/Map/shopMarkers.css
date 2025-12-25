@@ -8,6 +8,8 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
     z-index: 10;
+    outline: none !important;
+    border: none !important;
 }
 
 .shop-marker:active {
@@ -170,6 +172,11 @@
 
 /* Hover effect */
 .shop-marker-container:hover {
+    outline: none !important;
+    border: none !important;
+}
+
+.shop-marker:hover {
     outline: none !important;
     border: none !important;
 }
@@ -768,5 +775,3 @@
 .shop-popup-description::-webkit-scrollbar-thumb:hover {
     background: #94a3b8;
 }
-
-

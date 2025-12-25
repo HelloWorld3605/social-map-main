@@ -168,10 +168,28 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
+        if (name === 'openingHour' || name === 'openingMinute') {
+            const [hour, minute] = formData.openingTime.split(':');
+            const newHour = name === 'openingHour' ? value : hour;
+            const newMinute = name === 'openingMinute' ? value : minute;
+            setFormData(prev => ({
+                ...prev,
+                openingTime: `${newHour}:${newMinute}`
+            }));
+        } else if (name === 'closingHour' || name === 'closingMinute') {
+            const [hour, minute] = formData.closingTime.split(':');
+            const newHour = name === 'closingHour' ? value : hour;
+            const newMinute = name === 'closingMinute' ? value : minute;
+            setFormData(prev => ({
+                ...prev,
+                closingTime: `${newHour}:${newMinute}`
+            }));
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                [name]: value
+            }));
+        }
     };
 
     const handleImageUpload = async (e) => {
@@ -460,27 +478,65 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
 
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label htmlFor="openingTime">Giờ mở cửa</label>
-                                    <input
-                                        type="time"
-                                        id="openingTime"
-                                        name="openingTime"
-                                        value={formData.openingTime}
-                                        onChange={handleInputChange}
-                                        required
-                                    />
+                                    <label>Giờ mở cửa</label>
+                                    <div className="time-select-group">
+                                        <select
+                                            name="openingHour"
+                                            value={formData.openingTime.split(':')[0]}
+                                            onChange={handleInputChange}
+                                            required
+                                        >
+                                            {Array.from({ length: 24 }, (_, i) => (
+                                                <option key={i} value={i.toString().padStart(2, '0')}>
+                                                    {i.toString().padStart(2, '0')}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <span>:</span>
+                                        <select
+                                            name="openingMinute"
+                                            value={formData.openingTime.split(':')[1]}
+                                            onChange={handleInputChange}
+                                            required
+                                        >
+                                            {Array.from({ length: 60 }, (_, i) => (
+                                                <option key={i} value={i.toString().padStart(2, '0')}>
+                                                    {i.toString().padStart(2, '0')}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div className="form-group">
-                                    <label htmlFor="closingTime">Giờ đóng cửa</label>
-                                    <input
-                                        type="time"
-                                        id="closingTime"
-                                        name="closingTime"
-                                        value={formData.closingTime}
-                                        onChange={handleInputChange}
-                                        required
-                                    />
+                                    <label>Giờ đóng cửa</label>
+                                    <div className="time-select-group">
+                                        <select
+                                            name="closingHour"
+                                            value={formData.closingTime.split(':')[0]}
+                                            onChange={handleInputChange}
+                                            required
+                                        >
+                                            {Array.from({ length: 24 }, (_, i) => (
+                                                <option key={i} value={i.toString().padStart(2, '0')}>
+                                                    {i.toString().padStart(2, '0')}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <span>:</span>
+                                        <select
+                                            name="closingMinute"
+                                            value={formData.closingTime.split(':')[1]}
+                                            onChange={handleInputChange}
+                                            required
+                                        >
+                                            {Array.from({ length: 60 }, (_, i) => (
+                                                <option key={i} value={i.toString().padStart(2, '0')}>
+                                                    {i.toString().padStart(2, '0')}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                         </div>
