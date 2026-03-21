@@ -16,6 +16,7 @@
 ### 🗺️ Home Page (Map View)
 
 ![HomePage](https://github.com/HelloWorld3605/social-map-main/blob/main/Only%20homepage.png?raw=true)
+![SearchDropdown](https://github.com/HelloWorld3605/social-map-main/blob/main/Search.png?raw=true)
 
 * Fullscreen interactive map (Mapbox GL)
 * Real-time shop markers
