@@ -149,6 +149,7 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
     /**
      * Tìm kiếm shops với Full-Text Search và khoảng cách (Best Practice)
      * Hỗ trợ prefix matching và fuzzy search giống Google Maps
+     * Sử dụng tính khoảng cách thuần toán học (không cần PostGIS)
      */
     @Query(value = "SELECT *, " +
             "CASE " +
@@ -165,10 +166,7 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
             "        plainto_tsquery('simple', :query)" +
             "    ) * 20 " +
             "END AS score, " +
-            "ST_Distance(" +
-            "    geography(ST_MakePoint(longitude, latitude)), " +
-            "    geography(ST_MakePoint(:lng, :lat))" +
-            ") AS distance " +
+            "((latitude - :lat) * (latitude - :lat) + (longitude - :lng) * (longitude - :lng)) AS distance " +
             "FROM shops " +
             "WHERE status = 'OPEN' AND deleted_at IS NULL AND (" +
             "    LOWER(name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
@@ -189,6 +187,7 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
      * Tìm kiếm shops với unaccent (hỗ trợ tiếng Việt không dấu)
      * VD: "ca phe" sẽ tìm được "Cà phê", "Cafe"
      * Yêu cầu: CREATE EXTENSION unaccent; + CREATE FUNCTION immutable_unaccent;
+     * Sử dụng tính khoảng cách thuần toán học (không cần PostGIS)
      */
     @Query(value = "SELECT *, " +
             "CASE " +
@@ -198,10 +197,7 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
             "    WHEN LOWER(immutable_unaccent(description)) LIKE LOWER(immutable_unaccent(CONCAT('%', :query, '%'))) THEN 40 " +
             "    ELSE 20 " +
             "END AS score, " +
-            "ST_Distance(" +
-            "    geography(ST_MakePoint(longitude, latitude)), " +
-            "    geography(ST_MakePoint(:lng, :lat))" +
-            ") AS distance " +
+            "((latitude - :lat) * (latitude - :lat) + (longitude - :lng) * (longitude - :lng)) AS distance " +
             "FROM shops " +
             "WHERE status = 'OPEN' AND deleted_at IS NULL AND (" +
             "    LOWER(immutable_unaccent(name)) LIKE LOWER(immutable_unaccent(CONCAT('%', :query, '%'))) OR " +

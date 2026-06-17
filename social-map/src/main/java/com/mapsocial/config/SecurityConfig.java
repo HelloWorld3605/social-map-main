@@ -94,6 +94,9 @@ public class SecurityConfig {
                 // Search history endpoints - require authentication
                 .requestMatchers("/api/search-history/**").authenticated()
 
+                // Notes endpoints - require authentication
+                .requestMatchers("/api/notes/**").authenticated()
+
                 // All other requests need authentication
                 .anyRequest().authenticated()
             )

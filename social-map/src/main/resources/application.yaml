@@ -4,7 +4,7 @@ spring:
 
   datasource:
     url: jdbc:postgresql://localhost:5432/socialmap
-    username: social_map_user
+    username: postgres
     password: 123456
 
   jpa:
@@ -25,7 +25,8 @@ spring:
     host: smtp.gmail.com
     port: 587
     username: tuanhai362005t@gmail.com
-    password: njeb iwnj exin kjjr
+    password: iocf gbgq vnih uqcb
+
     properties:
       mail:
         smtp:
