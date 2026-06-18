@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -25,5 +27,29 @@ public class DashboardStatsResponse {
 
     // Seller requests
     private Long pendingSellerRequests;
+
+    // New additions
+    private List<UserGrowthDetail> userGrowth;
+    private List<RecentActivity> recentActivities;
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class UserGrowthDetail {
+        private String month;
+        private Long value;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class RecentActivity {
+        private String name;
+        private String action;
+        private LocalDateTime createdAt;
+        private String color;
+    }
 }
 

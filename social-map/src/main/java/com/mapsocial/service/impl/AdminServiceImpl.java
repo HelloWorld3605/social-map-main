@@ -21,8 +21,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import com.mapsocial.entity.Shop;
+import com.mapsocial.entity.SellerRequest;
 
 @Service
 @RequiredArgsConstructor
@@ -72,6 +78,105 @@ public class AdminServiceImpl implements AdminService {
         // Lấy số lượng yêu cầu trở thành seller đang chờ
         Long pendingSellerRequests = sellerRequestRepository.countPendingRequests();
 
+        // --- TÍNH TOÁN USER GROWTH STATS (6 THÁNG GẦN NHẤT) ---
+        List<DashboardStatsResponse.UserGrowthDetail> userGrowthList = new ArrayList<>();
+        // Khởi tạo trước danh sách 6 tháng gần nhất với giá trị mặc định là 0
+        LocalDateTime current = LocalDateTime.now().minusMonths(5);
+        for (int i = 0; i < 6; i++) {
+            userGrowthList.add(DashboardStatsResponse.UserGrowthDetail.builder()
+                    .month("T" + current.getMonthValue())
+                    .value(0L)
+                    .build());
+            current = current.plusMonths(1);
+        }
+
+        LocalDateTime sinceDate = LocalDateTime.now().minusMonths(5)
+                .withDayOfMonth(1)
+                .withHour(0)
+                .withMinute(0)
+                .withSecond(0)
+                .withNano(0);
+
+        List<Object[]> rows = userRepository.getUserGrowthStatsNative(sinceDate);
+        for (Object[] row : rows) {
+            if (row[0] != null && row[2] != null) {
+                int m = ((Number) row[0]).intValue();
+                long val = ((Number) row[2]).longValue();
+                String label = "T" + m;
+                for (DashboardStatsResponse.UserGrowthDetail detail : userGrowthList) {
+                    if (detail.getMonth().equals(label)) {
+                        detail.setValue(val);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // --- THU THẬP HOẠT ĐỘNG GẦN ĐÂY (MERGE TỪ NHIỀU NGUỒN) ---
+        List<DashboardStatsResponse.RecentActivity> activities = new ArrayList<>();
+
+        // 1. Users đăng ký tài khoản mới gần đây
+        List<User> recentUsers = userRepository.findTop5ByDeletedAtIsNullOrderByCreatedAtDesc();
+        for (User u : recentUsers) {
+            if (u.getCreatedAt() != null) {
+                activities.add(DashboardStatsResponse.RecentActivity.builder()
+                        .name(u.getDisplayName() != null && !u.getDisplayName().trim().isEmpty() 
+                                ? u.getDisplayName() 
+                                : u.getEmail().split("@")[0])
+                        .action("đã đăng ký tài khoản")
+                        .createdAt(u.getCreatedAt())
+                        .color("#C7CFA0")
+                        .build());
+            }
+        }
+
+        // 2. Cửa hàng được tạo mới gần đây
+        List<Shop> recentShops = shopRepository.findTop5ByDeletedAtIsNullOrderByCreatedAtDesc();
+        for (Shop s : recentShops) {
+            if (s.getCreatedAt() != null) {
+                String ownerName = s.getUserShops().stream()
+                        .filter(us -> us.getManagerRole() == com.mapsocial.enums.ShopRole.OWNER)
+                        .map(us -> us.getUser().getDisplayName())
+                        .findFirst()
+                        .orElse("Ẩn danh");
+                activities.add(DashboardStatsResponse.RecentActivity.builder()
+                        .name(ownerName)
+                        .action("đã tạo cửa hàng mới \"" + s.getName() + "\"")
+                        .createdAt(s.getCreatedAt())
+                        .color("#BBD4E8")
+                        .build());
+            }
+        }
+
+        // 3. Yêu cầu làm seller mới gần đây
+        List<SellerRequest> recentRequests = sellerRequestRepository.findTop5ByOrderByCreatedAtDesc();
+        for (SellerRequest sr : recentRequests) {
+            if (sr.getCreatedAt() != null) {
+                String actionText = "đã gửi yêu cầu trở thành seller";
+                if (sr.getStatus() == com.mapsocial.enums.RequestStatus.APPROVED) {
+                    actionText = "đã được duyệt trở thành seller";
+                } else if (sr.getStatus() == com.mapsocial.enums.RequestStatus.REJECTED) {
+                    actionText = "bị từ chối yêu cầu trở thành seller";
+                }
+                activities.add(DashboardStatsResponse.RecentActivity.builder()
+                        .name(sr.getUser().getDisplayName() != null && !sr.getUser().getDisplayName().trim().isEmpty() 
+                                ? sr.getUser().getDisplayName() 
+                                : sr.getUser().getEmail().split("@")[0])
+                        .action(actionText)
+                        .createdAt(sr.getCreatedAt())
+                        .color("#F3C6D9")
+                        .build());
+            }
+        }
+
+        // Sắp xếp các hoạt động theo thời gian giảm dần
+        activities.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
+
+        // Chỉ lấy 5 hoạt động mới nhất
+        List<DashboardStatsResponse.RecentActivity> limitedActivities = activities.stream()
+                .limit(5)
+                .collect(Collectors.toList());
+
         return DashboardStatsResponse.builder()
                 .totalUsers(totalUsers)
                 .totalShops(totalShops)
@@ -84,6 +189,8 @@ public class AdminServiceImpl implements AdminService {
                 .sellerCount(sellerCount)
                 .adminCount(adminCount)
                 .pendingSellerRequests(pendingSellerRequests)
+                .userGrowth(userGrowthList)
+                .recentActivities(limitedActivities)
                 .build();
     }
 

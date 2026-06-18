@@ -25,5 +25,7 @@ public interface SellerRequestRepository extends JpaRepository<SellerRequest, UU
     Long countPendingRequests();
 
     boolean existsByUserIdAndStatus(UUID userId, RequestStatus status);
+
+    List<SellerRequest> findTop5ByOrderByCreatedAtDesc();
 }
 

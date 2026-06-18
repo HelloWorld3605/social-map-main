@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBellSlash } from 'react-icons/fa'; // 🔇 Import icon
+import { FaBellSlash, FaMap, FaMapMarkerAlt } from 'react-icons/fa'; // 🔇 Import icons
 import { ChatService } from '../../services/ChatService';
 import { webSocketService } from '../../services/WebSocketChatService';
 import { userService } from '../../services/userService';
@@ -1336,7 +1336,7 @@ export default function ChatWindow({
                                         <div className="location-message-card">
                                             <div className="location-card-image">
                                                 <img src={msg.content.image} alt={msg.content.name} />
-                                                <div className="location-card-overlay"><img src="/icons/location.svg" alt="location" /></div>
+                                                <div className="location-card-overlay"><FaMapMarkerAlt style={{ color: 'white' }} /></div>
                                             </div>
                                             <div className="location-card-content">
                                                 <div className="location-card-title">{msg.content.name}</div>
@@ -1345,8 +1345,7 @@ export default function ChatWindow({
                                                     className="location-card-button"
                                                     onClick={() => handleViewOnMap(msg)}
                                                 >
-                                                    🗺️ Xem trên bản đồ
-                                                    {/*<img src="/icons/map-outline.svg" alt="map"/> Xem trên bản đồ*/}
+                                                    <FaMap style={{ marginRight: '6px' }} /> Xem trên bản đồ
                                                 </button>
                                             </div>
                                         </div>

@@ -208,4 +208,6 @@ public interface ShopRepository extends JpaRepository<Shop, UUID> {
             "ORDER BY score DESC, distance ASC " +
             "LIMIT 20", nativeQuery = true)
     List<Shop> searchShopsAdvanced(@Param("query") String query, @Param("lng") double lng, @Param("lat") double lat);
+
+    List<Shop> findTop5ByDeletedAtIsNullOrderByCreatedAtDesc();
 }

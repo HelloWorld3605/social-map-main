@@ -99,4 +99,13 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // Find status by id
     @Query("SELECT new com.mapsocial.dto.UserStatusDTO(u.isOnline, u.lastActiveAt) FROM User u WHERE u.id = :userId")
     Optional<UserStatusDTO> findStatusById(@Param("userId") UUID userId);
+
+    List<User> findTop5ByDeletedAtIsNullOrderByCreatedAtDesc();
+
+    @Query(value = "SELECT EXTRACT(MONTH FROM u.created_at) as monthVal, EXTRACT(YEAR FROM u.created_at) as yearVal, COUNT(*) as countVal " +
+           "FROM users u " +
+           "WHERE u.deleted_at IS NULL AND u.created_at >= :sinceDate " +
+           "GROUP BY EXTRACT(YEAR FROM u.created_at), EXTRACT(MONTH FROM u.created_at) " +
+           "ORDER BY yearVal ASC, monthVal ASC", nativeQuery = true)
+    List<Object[]> getUserGrowthStatsNative(@Param("sinceDate") LocalDateTime sinceDate);
 }

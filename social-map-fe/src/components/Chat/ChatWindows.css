@@ -10,17 +10,21 @@
 }
 
 .chat-window {
-    width: 320px;
-    background: #fff;
-    border-radius: 8px 8px 0 0;
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    width: 340px;
+    background: rgba(255, 255, 255, 0.85) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-radius: 20px 20px 0 0 !important; /* rounded top corners matching modern theme */
+    box-shadow: 0 -10px 25px rgba(15, 23, 42, 0.08) !important;
     display: flex;
     flex-direction: column;
-    max-height: 400px;
-    height: 400px;
+    max-height: 440px;
+    height: 440px;
     pointer-events: auto;
     transform: translateY(100%);
     transition: transform 0.3s ease, box-shadow 0.2s ease;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    border-bottom: none !important;
 }
 
 /* Active window (Facebook-style) - stronger shadow */
@@ -48,10 +52,11 @@
     padding: 12px 15px;
     background: #EC5E95;
     color: white;
-    border-radius: 8px 8px 0 0;
+    border-radius: 20px 20px 0 0 !important;
     cursor: pointer;
     user-select: none;
     transition: background 0.2s ease, opacity 0.2s ease;
+    font-family: 'Inter', sans-serif !important;
 }
 
 /* Inactive window header - slightly transparent */
@@ -183,7 +188,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: #fff;
+    background: transparent !important;
     min-height: 0; /* ✅ IMPORTANT: Allow flex item to shrink and enable scroll */
 }
 
@@ -192,16 +197,16 @@
 }
 
 .chat-window-messages::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: transparent;
 }
 
 .chat-window-messages::-webkit-scrollbar-thumb {
-    background: #888;
+    background: rgba(15, 23, 42, 0.08);
     border-radius: 3px;
 }
 
 .chat-window-messages::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: rgba(15, 23, 42, 0.15);
 }
 
 /* Load More Messages */
@@ -288,7 +293,8 @@
 }
 
 .chat-window-message-text {
-    background: #f0f2f5;
+    background: rgba(15, 23, 42, 0.05) !important;
+    color: #0f172a !important;
     padding: 8px 12px;
     border-radius: 16px;
     font-size: 14px;
@@ -427,9 +433,9 @@
 .chat-window-input-container {
     display: flex;
     padding: 10px;
-    border-top: 1px solid #e4e6ea;
+    border-top: 1px solid rgba(15, 23, 42, 0.06) !important;
     gap: 8px;
-    background: #fff;
+    background: transparent !important;
     transition: opacity 0.2s;
 }
 
@@ -444,13 +450,14 @@
 
 .chat-window-input {
     flex: 1;
-    border: 1px solid #e4e6ea;
-    border-radius: 18px;
+    border: 1px solid rgba(15, 23, 42, 0.08) !important;
+    border-radius: 14px !important; /* rounded-xl */
     padding: 8px 12px;
     font-size: 13px;
     outline: none;
-    background: #f0f2f5;
-    transition: background 0.2s, border-color 0.2s;
+    background: rgba(15, 23, 42, 0.03) !important;
+    color: #0f172a !important;
+    transition: all 0.25s ease;
 }
 
 .chat-window-input::placeholder {
@@ -458,8 +465,9 @@
 }
 
 .chat-window-input:focus {
-    background: #fff;
-    border-color: #EC5E95;
+    background: #fff !important;
+    border-color: #EC5E95 !important;
+    box-shadow: 0 0 0 3px rgba(236, 94, 149, 0.15) !important;
 }
 
 .chat-window-input:disabled {
@@ -664,32 +672,36 @@ body.dark-mode .load-more-messages button:hover {
 /* ===== LOCATION MESSAGE CARD ===== */
 .location-message-card {
     background: white;
-    border-radius: 12px;
+    border-radius: 16px !important;
     overflow: hidden;
-    max-width: 300px;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
-    border: 2px solid #667eea;
+    width: 240px !important; /* locked width */
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.12) !important;
+    border: 1px solid rgba(102, 126, 234, 0.2) !important;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
 }
 
 .location-message-card:hover {
-    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.25);
-    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.2) !important;
+    transform: translateY(-2px);
+    border-color: rgba(102, 126, 234, 0.8) !important;
 }
 
 .location-card-image {
     position: relative;
-    width: 100%;
-    height: 150px;
+    width: 100% !important;
+    height: 120px !important; /* locked aspect ratio height */
     overflow: hidden;
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
 }
 
 .location-card-image img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important; /* handles varying image sizes gracefully */
+    display: block;
 }
 
 .location-card-overlay {
@@ -697,69 +709,81 @@ body.dark-mode .load-more-messages button:hover {
     top: 10px;
     right: 10px;
     background: rgba(255, 255, 255, 0.95);
-    width: 38px;
-    height: 38px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
     user-select: none;
 }
 
 .location-card-content {
-    padding: 14px;
+    padding: 12px !important;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .location-card-title {
     font-weight: 700;
-    font-size: 0.9375rem;
+    font-size: 14px !important;
     color: #1a202c;
-    margin-bottom: 8px;
+    margin-bottom: 2px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .location-card-description {
-    font-size: 0.8125rem;
+    font-size: 11px !important;
     color: #64748b;
-    margin-bottom: 10px;
+    margin-bottom: 8px !important;
+    line-height: 15px !important;
+    height: 30px !important; /* locks height for text up to 2 lines */
+    overflow: hidden;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
-    overflow: hidden;
 }
 
 .location-card-button {
-    width: 100%;
-    padding: 9px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border: none;
-    border-radius: 8px;
+    width: 100% !important;
+    padding: 8px 12px !important;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 10px !important;
     font-weight: 600;
-    font-size: 0.875rem;
+    font-size: 12px !important;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
     user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 .location-card-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25) !important;
 }
 
 .location-card-overlay img {
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     object-fit: contain;
     display: block;
 }
 
 .location-card-button img {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
     object-fit: contain;
-    margin-right: 8px;
+    margin-right: 6px;
     vertical-align: middle;
     display: inline-block;
 }

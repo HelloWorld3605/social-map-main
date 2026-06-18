@@ -4,23 +4,29 @@ import { getDashboardStats } from '../../services/adminService';
 import { Users, Store, UserCheck, Tag, ArrowUpRight, TrendingUp } from 'lucide-react';
 import { AreaChart, Area, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 
-const growthData = [
-  { month: 'T1', value: 420 },
-  { month: 'T2', value: 510 },
-  { month: 'T3', value: 480 },
-  { month: 'T4', value: 630 },
-  { month: 'T5', value: 740 },
-  { month: 'T6', value: 890 },
-  { month: 'T7', value: 1020 },
-  { month: 'T8', value: 1248 }
-];
+const formatRelativeTime = (dateString) => {
+  if (!dateString) return '';
+  const now = new Date();
+  const past = new Date(dateString);
+  const diffMs = now - past;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
 
-const recentActivity = [
-  { name: 'Nguyễn Văn An', action: 'đã gửi yêu cầu trở thành seller', time: '5 phút trước', color: '#F3C6D9' },
-  { name: 'Trần Thị Bình', action: 'đã tạo cửa hàng mới "Bình An Store"', time: '32 phút trước', color: '#BBD4E8' },
-  { name: 'Lê Hoàng Cường', action: 'đã đăng ký tài khoản', time: '1 giờ trước', color: '#C7CFA0' },
-  { name: 'Phạm Thu Dung', action: 'cửa hàng "Dung Shop" đã bị tạm đóng', time: '2 giờ trước', color: '#F2E9A0' }
-];
+  if (diffMins < 1) {
+    return 'vừa xong';
+  }
+  if (diffMins < 60) {
+    return `${diffMins} phút trước`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours} giờ trước`;
+  }
+  if (diffDays === 1) {
+    return 'hôm qua';
+  }
+  return `${diffDays} ngày trước`;
+};
 
 export default function DashboardPage() {
   const [stats, setStats] = useState(null);
@@ -51,7 +57,23 @@ export default function DashboardPage() {
         sellerCount: 2140,
         adminCount: 100,
         totalActiveShops: 1200,
-        totalInactiveShops: 142
+        totalInactiveShops: 142,
+        userGrowth: [
+          { month: 'T1', value: 420 },
+          { month: 'T2', value: 510 },
+          { month: 'T3', value: 480 },
+          { month: 'T4', value: 630 },
+          { month: 'T5', value: 740 },
+          { month: 'T6', value: 890 },
+          { month: 'T7', value: 1020 },
+          { month: 'T8', value: 1248 }
+        ],
+        recentActivities: [
+          { name: 'Nguyễn Văn An', action: 'đã gửi yêu cầu trở thành seller', createdAt: new Date(Date.now() - 5 * 60000).toISOString(), color: '#F3C6D9' },
+          { name: 'Trần Thị Bình', action: 'đã tạo cửa hàng mới "Bình An Store"', createdAt: new Date(Date.now() - 32 * 60000).toISOString(), color: '#BBD4E8' },
+          { name: 'Lê Hoàng Cường', action: 'đã đăng ký tài khoản', createdAt: new Date(Date.now() - 60 * 60000).toISOString(), color: '#C7CFA0' },
+          { name: 'Phạm Thu Dung', action: 'cửa hàng "Dung Shop" đã bị tạm đóng', createdAt: new Date(Date.now() - 120 * 60000).toISOString(), color: '#F2E9A0' }
+        ]
       });
       setError(null);
     } finally {
@@ -168,7 +190,7 @@ export default function DashboardPage() {
           </div>
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart
-              data={growthData}
+              data={stats?.userGrowth || []}
               margin={{ left: 0, right: 0, top: 8, bottom: 0 }}
             >
               <defs>
@@ -207,20 +229,20 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-5">Hoạt động gần đây</h2>
             <ul className="space-y-4 list-none p-0 m-0">
-              {recentActivity.map((item, idx) => (
+              {(stats?.recentActivities || []).map((item, idx) => (
                 <li key={idx} className="flex gap-3">
                   <div
                     className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-black/70"
                     style={{ backgroundColor: item.color }}
                   >
-                    {item.name.split(' ').slice(-1)[0][0]}
+                    {item.name ? item.name.split(' ').slice(-1)[0][0] : '?'}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm leading-snug text-gray-800">
-                      <span className="font-semibold">{item.name}</span>{' '}
+                      <span className="font-semibold">{item.name || 'Người dùng'}</span>{' '}
                       <span className="text-gray-600">{item.action}</span>
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{formatRelativeTime(item.createdAt)}</p>
                   </div>
                 </li>
               ))}
