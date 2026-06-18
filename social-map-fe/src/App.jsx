@@ -15,6 +15,7 @@ import SellerRequestsPage from './pages/DashboardPage/SellerRequestsPage';
 import UsersManagementPage from './pages/DashboardPage/UsersManagementPage';
 import ShopManagementDashboard from './pages/DashboardPage/ShopManagementDashboard';
 import MainLayout from './components/Layout/MainLayout';
+import AdminLayout from './components/Admin/AdminLayout';
 import { webSocketService } from './services/WebSocketChatService';
 import {
   isTokenExpired,
@@ -220,53 +221,20 @@ function App() {
               }
             />
 
-            {/* Trang Dashboard cho Admin */}
+            {/* Nhóm các trang Dashboard Admin với AdminLayout */}
             <Route
               path="/dashboard"
               element={
                 <AdminRoute>
-                  <MainLayout>
-                    <DashboardPage />
-                  </MainLayout>
+                  <AdminLayout />
                 </AdminRoute>
               }
-            />
-
-            {/* Trang Seller Requests cho Admin */}
-            <Route
-              path="/dashboard/seller-requests"
-              element={
-                <AdminRoute>
-                  <MainLayout>
-                    <SellerRequestsPage />
-                  </MainLayout>
-                </AdminRoute>
-              }
-            />
-
-            {/* Trang Users Management cho Admin */}
-            <Route
-              path="/dashboard/users"
-              element={
-                <AdminRoute>
-                  <MainLayout>
-                    <UsersManagementPage />
-                  </MainLayout>
-                </AdminRoute>
-              }
-            />
-
-            {/* Trang Shop Management cho Admin */}
-            <Route
-              path="/dashboard/shops"
-              element={
-                <AdminRoute>
-                  <MainLayout>
-                    <ShopManagementDashboard />
-                  </MainLayout>
-                </AdminRoute>
-              }
-            />
+            >
+              <Route index element={<DashboardPage />} />
+              <Route path="seller-requests" element={<SellerRequestsPage />} />
+              <Route path="users" element={<UsersManagementPage />} />
+              <Route path="shops" element={<ShopManagementDashboard />} />
+            </Route>
 
             {/* Trang Shop Management cho Admin */}
             <Route

@@ -22,7 +22,7 @@ import {
     FaRobot,
     FaBullhorn
 } from 'react-icons/fa';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { createSellerRequest, getMySellerRequests } from '../../services/sellerRequestService';
 import CreateShopModal from '../Shop/CreateShopModal';
 import { useNotes } from '../../context/NotesContext';
@@ -44,7 +44,7 @@ export default function Sidebar() {
     const [showAllRequests, setShowAllRequests] = useState(false);
     const [showAllMenuItems, setShowAllMenuItems] = useState(false);
     const [showAllSellerItems, setShowAllSellerItems] = useState(false);
-    const navigate = useNavigate();
+
     const { openNotes } = useNotes();
 
     // Load user info

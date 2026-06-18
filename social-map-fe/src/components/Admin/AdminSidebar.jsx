@@ -1,94 +1,141 @@
-import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import './AdminSidebar.css';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  LayoutDashboard,
+  UserCheck,
+  Users,
+  Store,
+  LogOut,
+  Map
+} from 'lucide-react';
+import { getDashboardStats } from '../../services/adminService';
+import { logout } from '../../services/authService';
 
-export default function AdminSidebar({ pendingCount = 0 }) {
-    const navigate = useNavigate();
-    const location = useLocation();
+export default function AdminSidebar() {
+  const [pendingCount, setPendingCount] = useState(0);
+  const navigate = useNavigate();
 
-    const menuItems = [
-        {
-            path: '/dashboard',
-            icon: (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-            ),
-            label: 'Tổng quan',
-        },
-        {
-            path: '/dashboard/seller-requests',
-            icon: (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            ),
-            label: 'Yêu cầu Seller',
-            badge: pendingCount > 0 ? pendingCount : null,
-        },
-        {
-            path: '/dashboard/users',
-            icon: (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-            ),
-            label: 'Quản lý Users',
-        },
-        {
-            path: '/dashboard/shops',
-            icon: (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-            ),
-            label: 'Quản lý Shops',
-        },
-        {
-            path: '/dashboard/tags',
-            icon: (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                </svg>
-            ),
-            label: 'Quản lý Tags',
-        },
-    ];
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const stats = await getDashboardStats();
+        if (stats && stats.pendingSellerRequests !== undefined) {
+          setPendingCount(stats.pendingSellerRequests);
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats in sidebar:', error);
+      }
+    };
+    fetchStats();
+    
+    // Listen for custom events if other pages change stats
+    const handleRefresh = () => fetchStats();
+    window.addEventListener('refresh-admin-stats', handleRefresh);
+    return () => {
+      window.removeEventListener('refresh-admin-stats', handleRefresh);
+    };
+  }, []);
 
-    return (
-        <aside className="admin-sidebar">
-            <div className="admin-sidebar-header">
-                <h2>Admin Panel</h2>
-            </div>
+  const handleLogout = async () => {
+    if (!window.confirm('Bạn có chắc muốn đăng xuất?')) return;
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Failed to logout:', error);
+      alert('Có lỗi xảy ra khi đăng xuất');
+    }
+  };
 
-            <nav className="admin-sidebar-nav">
-                {menuItems.map((item) => (
-                    <button
-                        key={item.path}
-                        onClick={() => navigate(item.path)}
-                        className={`admin-sidebar-item ${location.pathname === item.path ? 'active' : ''}`}
-                    >
-                        <span className="admin-sidebar-icon">{item.icon}</span>
-                        <span className="admin-sidebar-label">{item.label}</span>
-                        {item.badge && (
-                            <span className="admin-sidebar-badge">{item.badge}</span>
-                        )}
-                    </button>
-                ))}
-            </nav>
+  const navItems = [
+    {
+      to: '/dashboard',
+      icon: LayoutDashboard,
+      label: 'Trang tổng quan',
+      end: true
+    },
+    {
+      to: '/dashboard/seller-requests',
+      icon: UserCheck,
+      label: 'Yêu cầu seller',
+      badge: pendingCount > 0 ? pendingCount : null
+    },
+    {
+      to: '/dashboard/users',
+      icon: Users,
+      label: 'Quản lý User'
+    },
+    {
+      to: '/dashboard/shops',
+      icon: Store,
+      label: 'Quản lý Shops'
+    }
+  ];
 
-            <div className="admin-sidebar-footer">
-                <button
-                    onClick={() => navigate('/home')}
-                    className="admin-sidebar-item"
+  return (
+    <nav className="w-64 bg-black rounded-3xl p-6 flex flex-col h-full select-none">
+      <div className="flex items-center gap-2.5 mb-10 px-1">
+        <div className="w-9 h-9 rounded-xl bg-[#F3C6D9] flex items-center justify-center">
+          <Map size={20} className="text-black" />
+        </div>
+        <h1 className="text-white text-xl font-bold tracking-tight">
+          Social Map
+        </h1>
+      </div>
+
+      <div className="flex-1">
+        <h2 className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3 px-3">
+          Quản trị
+        </h2>
+        <ul className="space-y-1.5 list-none p-0 m-0">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <li key={item.to}>
+                <NavLink
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) =>
+                    `w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors ${
+                      isActive
+                        ? 'bg-white text-black font-semibold'
+                        : 'text-gray-400 hover:bg-white/10 hover:text-white'
+                    }`
+                  }
                 >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    <span>Về trang chính</span>
-                </button>
-            </div>
-        </aside>
-    );
-}
+                  <div className="flex items-center gap-3">
+                    <Icon size={20} />
+                    <span className="text-sm">{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="bg-[#F3C6D9] text-black text-xs font-bold px-2 py-0.5 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                </NavLink>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
+      <div className="flex flex-col gap-2 mt-auto border-t border-white/10 pt-4">
+        <button
+          onClick={() => navigate('/home')}
+          className="flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white transition-colors bg-transparent border-none cursor-pointer text-left w-full"
+        >
+          <Map size={20} />
+          <span className="text-sm font-medium">Về trang chính</span>
+        </button>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2.5 text-gray-400 hover:text-white transition-colors bg-transparent border-none cursor-pointer text-left w-full"
+        >
+          <LogOut size={20} />
+          <span className="text-sm font-medium">Đăng xuất</span>
+        </button>
+      </div>
+    </nav>
+  );
+}

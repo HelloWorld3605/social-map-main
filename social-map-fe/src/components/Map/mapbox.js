@@ -271,8 +271,8 @@ window.exploreLocation = function (locationId) {
             console.log('Exploring Hanoi...');
 
             // Optional: Show notification
-            if (typeof showNotification === 'function') {
-                showNotification('Đang khám phá Hà Nội...', 'info');
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Đang khám phá Hà Nội...', 'info');
             }
             break;
 
