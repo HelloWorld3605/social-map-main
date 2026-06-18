@@ -37,8 +37,8 @@ public class ShopServiceImpl implements ShopService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
-        if (user.getRole() != UserRole.SELLER) {
-            throw new IllegalStateException("Chỉ người bán (SELLER) mới được tạo shop");
+        if (user.getRole() != UserRole.SELLER && user.getRole() != UserRole.ADMIN && user.getRole() != UserRole.SUPER_ADMIN) {
+            throw new IllegalStateException("Chỉ người bán (SELLER) hoặc Admin mới được tạo shop");
         }
 
         Shop shop = ShopMapper.toShop(request);

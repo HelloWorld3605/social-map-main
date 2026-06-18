@@ -29,5 +29,7 @@ public interface AdminService {
     void restoreShop(UUID shopId);
 
     void softDeleteMultipleShops(List<UUID> shopIds);
+
+    void updateShopStatus(UUID shopId, com.mapsocial.enums.ShopStatus status);
 }
 

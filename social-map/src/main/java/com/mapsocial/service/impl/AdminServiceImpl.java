@@ -341,6 +341,19 @@ public class AdminServiceImpl implements AdminService {
         shopRepository.softDeleteByIds(shopIds, LocalDateTime.now());
     }
 
+    @Override
+    @Transactional
+    public void updateShopStatus(UUID shopId, com.mapsocial.enums.ShopStatus status) {
+        com.mapsocial.entity.Shop shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new EntityNotFoundException("Shop not found"));
+        shop.setStatus(status);
+        shopRepository.save(shop);
+
+        shopStatusService.invalidateShopStatus(shopId);
+        shopStatusService.cacheShopStatus(shopId, status);
+    }
+
+
     private com.mapsocial.dto.response.shop.ShopResponse toShopResponse(com.mapsocial.entity.Shop shop, com.mapsocial.enums.ShopStatus computedStatus) {
         // Tìm owner của shop
         String ownerId = null;

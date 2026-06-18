@@ -1,11 +1,13 @@
 package com.mapsocial.controller;
 
 import com.mapsocial.dto.request.admin.UpdateUserRequest;
+import com.mapsocial.dto.request.admin.UpdateShopStatusRequest;
 import com.mapsocial.dto.response.admin.DashboardStatsResponse;
 import com.mapsocial.dto.response.admin.SellerRequestResponse;
 import com.mapsocial.dto.response.admin.UserManagementResponse;
 import com.mapsocial.dto.response.shop.ShopResponse;
 import com.mapsocial.enums.RequestStatus;
+import com.mapsocial.enums.ShopStatus;
 import com.mapsocial.service.AdminService;
 import com.mapsocial.service.SellerRequestService;
 import com.mapsocial.service.impl.CustomUserDetailsService.UserPrincipal;
@@ -165,6 +167,15 @@ public class AdminController {
     public ResponseEntity<String> softDeleteMultipleShops(@RequestBody List<UUID> shopIds) {
         adminService.softDeleteMultipleShops(shopIds);
         return ResponseEntity.ok("Đã xóa " + shopIds.size() + " shops thành công");
+    }
+
+    @PutMapping("/shops/{shopId}/status")
+    @Operation(summary = "Cập nhật trạng thái shop", description = "Admin cập nhật trạng thái hoạt động của shop")
+    public ResponseEntity<Void> updateShopStatus(
+            @PathVariable UUID shopId,
+            @Valid @RequestBody UpdateShopStatusRequest request) {
+        adminService.updateShopStatus(shopId, request.getStatus());
+        return ResponseEntity.ok().build();
     }
 }
 

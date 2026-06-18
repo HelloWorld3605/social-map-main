@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { deleteShopAdmin, restoreShopAdmin, deleteMultipleShopsAdmin, updateShopStatus } from '../../services/adminService';
+import { createShop } from '../../services/shopService';
+import { UploadService } from '../../services/UploadService';
 import StatusBadge from './StatusBadge';
 import Pagination from './Pagination';
 import {
   Search, Pencil, Trash2, Eye, Plus, X,
   Star, MapPin, Phone, Save, RotateCcw,
-  ShoppingBag, ChevronDown, Check
+  ShoppingBag, ChevronDown, Check, Clock, Compass, FileText, Upload
 } from 'lucide-react';
+import mapboxgl from 'mapbox-gl';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 export default function ShopManagementContent({
   shops: initialShops,
@@ -403,6 +407,24 @@ export default function ShopManagementContent({
   );
 }
 
+const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
+
+const reverseGeocode = async (lng, lat) => {
+  try {
+    const res = await fetch(
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&language=vi`
+    );
+    const data = await res.json();
+    if (data.features && data.features.length > 0) {
+      return data.features[0].place_name;
+    }
+    return '';
+  } catch (err) {
+    console.error('Reverse geocode failed', err);
+    return '';
+  }
+};
+
 // Sub-component: Shop Edit Modal
 function ShopEditModal({ shop, onClose, onSave }) {
   const [formData, setFormData] = useState({
@@ -410,8 +432,156 @@ function ShopEditModal({ shop, onClose, onSave }) {
     address: shop?.address || '',
     phoneNumber: shop?.phoneNumber || '',
     description: shop?.description || '',
+    latitude: shop?.latitude || 21.0285,
+    longitude: shop?.longitude || 105.8542,
+    openingTime: shop?.openingTime ? shop.openingTime.substring(0, 5) : '08:00',
+    closingTime: shop?.closingTime ? shop.closingTime.substring(0, 5) : '22:00',
+    imageShopUrl: shop?.imageShopUrl || [],
     status: shop?.status || 'PENDING'
   });
+
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+  const isDraggingOrClicking = useRef(false);
+
+  // Initialize Mapbox map
+  useEffect(() => {
+    const initTimeout = setTimeout(() => {
+      const mapContainer = document.getElementById('admin-shop-map');
+      if (!mapContainer) return;
+
+      const lng = parseFloat(formData.longitude) || 105.8542;
+      const lat = parseFloat(formData.latitude) || 21.0285;
+
+      const map = new mapboxgl.Map({
+        container: 'admin-shop-map',
+        style: 'mapbox://styles/mapbox/streets-v12',
+        center: [lng, lat],
+        zoom: 14
+      });
+
+      const marker = new mapboxgl.Marker({
+        draggable: !shop,
+        color: '#10b981'
+      })
+        .setLngLat([lng, lat])
+        .addTo(map);
+
+      markerRef.current = marker;
+      mapRef.current = map;
+
+      if (!shop) {
+        // Handle dragging marker
+        marker.on('drag', () => {
+          isDraggingOrClicking.current = true;
+          const lngLat = marker.getLngLat();
+          setFormData(prev => ({
+            ...prev,
+            latitude: lngLat.lat,
+            longitude: lngLat.lng
+          }));
+        });
+
+        marker.on('dragend', async () => {
+          const lngLat = marker.getLngLat();
+          const address = await reverseGeocode(lngLat.lng, lngLat.lat);
+          setFormData(prev => ({
+            ...prev,
+            latitude: lngLat.lat,
+            longitude: lngLat.lng,
+            address: address || prev.address
+          }));
+          isDraggingOrClicking.current = false;
+        });
+
+        // Handle clicking on map
+        map.on('click', async (e) => {
+          isDraggingOrClicking.current = true;
+          const { lng: clickLng, lat: clickLat } = e.lngLat;
+          marker.setLngLat([clickLng, clickLat]);
+          const address = await reverseGeocode(clickLng, clickLat);
+          setFormData(prev => ({
+            ...prev,
+            latitude: clickLat,
+            longitude: clickLng,
+            address: address || prev.address
+          }));
+          isDraggingOrClicking.current = false;
+        });
+      }
+    }, 150);
+
+    return () => {
+      clearTimeout(initTimeout);
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+      markerRef.current = null;
+    };
+  }, []);
+
+  // Update map/marker when manual inputs change
+  useEffect(() => {
+    if (!mapRef.current || !markerRef.current || isDraggingOrClicking.current) return;
+    const lat = parseFloat(formData.latitude);
+    const lng = parseFloat(formData.longitude);
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    const currentLngLat = markerRef.current.getLngLat();
+    if (Math.abs(currentLngLat.lat - lat) > 0.0001 || Math.abs(currentLngLat.lng - lng) > 0.0001) {
+      markerRef.current.setLngLat([lng, lat]);
+      mapRef.current.flyTo({ center: [lng, lat] });
+    }
+  }, [formData.latitude, formData.longitude]);
+
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    if (formData.imageShopUrl.length + files.length > 10) {
+      setUploadError(`Chỉ có thể tải lên tối đa 10 ảnh. Hiện tại: ${formData.imageShopUrl.length}/10`);
+      return;
+    }
+
+    setUploadingImage(true);
+    setUploadError('');
+
+    try {
+      const uploadPromises = files.map(file => {
+        if (!file.type.startsWith('image/')) {
+          throw new Error(`File ${file.name} không phải là hình ảnh`);
+        }
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error(`File ${file.name} quá lớn. Tối đa 5MB`);
+        }
+        return UploadService.uploadFile(file);
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+
+      setFormData(prev => ({
+        ...prev,
+        imageShopUrl: [...prev.imageShopUrl, ...uploadedUrls]
+      }));
+      e.target.value = '';
+    } catch (err) {
+      console.error('Upload failed:', err);
+      setUploadError(err.message || 'Không thể tải ảnh lên. Vui lòng thử lại.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      imageShopUrl: prev.imageShopUrl.filter((_, i) => i !== index)
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -425,17 +595,70 @@ function ShopEditModal({ shop, onClose, onSave }) {
         alert('Có lỗi xảy ra khi cập nhật shop!');
       }
     } else {
-      alert('Chức năng thêm shop mới của Admin đang phát triển!');
-      onSave();
+      try {
+        const shopData = {
+          name: formData.name,
+          address: formData.address,
+          latitude: parseFloat(formData.latitude),
+          longitude: parseFloat(formData.longitude),
+          description: formData.description,
+          phoneNumber: formData.phoneNumber,
+          openingTime: formData.openingTime + ':00',
+          closingTime: formData.closingTime + ':00',
+          imageShopUrl: formData.imageShopUrl.length > 0 ? formData.imageShopUrl : []
+        };
+        await createShop(shopData);
+        alert('Thêm shop mới thành công!');
+        onSave();
+      } catch (err) {
+        console.error('Failed to create shop:', err);
+        alert(err.message || 'Có lỗi xảy ra khi thêm shop!');
+      }
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div className="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl border border-gray-100 flex flex-col gap-4 mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white w-full max-w-5xl rounded-3xl p-6 shadow-2xl border border-gray-100 flex flex-col gap-4 mx-4 animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+        <style>{`
+          #admin-shop-map.mapboxgl-map {
+            position: relative !important;
+            top: auto !important;
+            left: auto !important;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 250px;
+            border-radius: 16px;
+            overflow: hidden;
+            flex-grow: 1;
+            margin-top: 8px !important;
+          }
+          .admin-shop-form-column::-webkit-scrollbar {
+            width: 4px;
+          }
+          .admin-shop-form-column::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+          }
+          @media (min-width: 1024px) {
+            .admin-shop-split-container {
+              height: 60vh;
+            }
+            .admin-shop-form-column {
+              height: 100%;
+            }
+            .admin-shop-map-column {
+              height: 100%;
+            }
+            #admin-shop-map.mapboxgl-map {
+              min-height: 280px;
+            }
+          }
+        `}</style>
         <div className="flex justify-between items-center pb-2 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">
-            {shop ? `Chỉnh sửa: ${shop.name}` : 'Thêm Cửa Hàng Mới'}
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <ShoppingBag className="text-black" size={20} />
+            <span>{shop ? `Chỉnh sửa: ${shop.name}` : 'Thêm Cửa Hàng Mới'}</span>
           </h2>
           <button
             onClick={onClose}
@@ -446,57 +669,235 @@ function ShopEditModal({ shop, onClose, onSave }) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-gray-700">Tên cửa hàng *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60"
-              disabled={!!shop} // Admin can edit status but let's keep original details display
-              required
-            />
-          </div>
+          <div className="flex flex-col lg:flex-row gap-6 admin-shop-split-container">
+            
+            {/* Left Column: Form Fields */}
+            <div className="w-full lg:w-1/2 overflow-y-auto pr-2 flex flex-col gap-4 admin-shop-form-column">
+              
+              {/* Tên cửa hàng */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-700">Tên cửa hàng *</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60 font-medium"
+                  disabled={!!shop}
+                  required
+                />
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-gray-700">Địa chỉ *</label>
-            <input
-              type="text"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-              className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60"
-              disabled={!!shop}
-              required
-            />
-          </div>
+              {/* Địa chỉ */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-700">Địa chỉ *</label>
+                <input
+                  type="text"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="Click vào bản đồ hoặc tự nhập địa chỉ"
+                  className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60 font-medium"
+                  disabled={!!shop}
+                  required
+                />
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-gray-700">Số điện thoại</label>
-            <input
-              type="tel"
-              value={formData.phoneNumber}
-              onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-              className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60"
-              disabled={!!shop}
-            />
-          </div>
+              {/* Coordinates Row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Compass size={14} className="text-gray-500" /> Vĩ độ (Latitude) *
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="-90"
+                    max="90"
+                    value={formData.latitude}
+                    onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+                    className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60"
+                    disabled={!!shop}
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Compass size={14} className="text-gray-500" /> Kinh độ (Longitude) *
+                  </label>
+                  <input
+                    type="number"
+                    step="any"
+                    min="-180"
+                    max="180"
+                    value={formData.longitude}
+                    onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
+                    className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60"
+                    disabled={!!shop}
+                    required
+                  />
+                </div>
+              </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-semibold text-gray-700">Trạng thái</label>
-            <div className="relative">
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full appearance-none px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm text-gray-800 cursor-pointer"
-              >
-                <option value="OPEN">Đang mở</option>
-                <option value="CLOSED">Đã đóng</option>
-                <option value="PENDING">Chờ duyệt</option>
-              </select>
-              <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+              {/* Số điện thoại */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                  <Phone size={14} className="text-gray-500" /> Số điện thoại
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phoneNumber}
+                  onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
+                  placeholder="VD: 0901234567"
+                  pattern="^(0|\+84)(\d{9})$"
+                  title="Số điện thoại không hợp lệ (VD: 090xxxxxxx)"
+                  className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60"
+                  disabled={!!shop}
+                />
+              </div>
+
+              {/* Hours Row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Clock size={14} className="text-gray-500" /> Giờ mở cửa *
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.openingTime}
+                    onChange={(e) => setFormData({ ...formData, openingTime: e.target.value })}
+                    className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60 w-full"
+                    disabled={!!shop}
+                    required
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                    <Clock size={14} className="text-gray-500" /> Giờ đóng cửa *
+                  </label>
+                  <input
+                    type="time"
+                    value={formData.closingTime}
+                    onChange={(e) => setFormData({ ...formData, closingTime: e.target.value })}
+                    className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60 w-full"
+                    disabled={!!shop}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Mô tả */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                  <FileText size={14} className="text-gray-500" /> Mô tả
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Mô tả về cửa hàng..."
+                  rows={3}
+                  maxLength={500}
+                  className="px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm disabled:opacity-60 resize-none"
+                  disabled={!!shop}
+                />
+              </div>
+
+              {/* Trạng thái */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-semibold text-gray-700">Trạng thái</label>
+                <div className="relative">
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full appearance-none px-4 py-2.5 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:border-black/20 focus:ring-2 focus:ring-black/10 transition text-sm text-gray-800 cursor-pointer"
+                  >
+                    <option value="OPEN">Đang mở</option>
+                    <option value="CLOSED">Đã đóng</option>
+                    <option value="PENDING">Chờ duyệt</option>
+                  </select>
+                  <ChevronDown size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400" />
+                </div>
+              </div>
+
+              {/* Hình ảnh cửa hàng */}
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                  <Upload size={14} className="text-gray-500" /> Hình ảnh ({formData.imageShopUrl.length}/10)
+                </label>
+
+                {!shop && (
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="admin-shop-images" className={`border border-dashed border-gray-300 rounded-2xl p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-black/30 transition text-gray-500 ${uploadingImage ? 'pointer-events-none opacity-60' : ''}`}>
+                      {uploadingImage ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-sm font-medium">Đang tải ảnh lên...</span>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload size={20} className="mb-1" />
+                          <span className="text-xs font-semibold">Nhấp vào để chọn ảnh tải lên</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">Tối đa 10 ảnh, mỗi ảnh ≤ 5MB</span>
+                        </>
+                      )}
+                    </label>
+                    <input
+                      type="file"
+                      id="admin-shop-images"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage || formData.imageShopUrl.length >= 10}
+                      className="hidden"
+                    />
+                    {uploadError && <p className="text-xs text-red-500 font-semibold">{uploadError}</p>}
+                  </div>
+                )}
+
+                {formData.imageShopUrl.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 mt-1">
+                    {formData.imageShopUrl.map((url, index) => (
+                      <div key={index} className="relative group aspect-square rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                        <img src={url} alt={`Shop ${index + 1}`} className="w-full h-full object-cover" />
+                        {!shop && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(index)}
+                            className="absolute top-1 right-1 w-5 h-5 bg-black/75 text-white rounded-full flex items-center justify-center hover:bg-black transition border-none cursor-pointer"
+                            disabled={uploadingImage}
+                            aria-label="Remove image"
+                          >
+                            <X size={10} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
+
+            {/* Right Column: Map Picker */}
+            <div className="w-full lg:w-1/2 flex flex-col gap-4 admin-shop-map-column">
+              
+              <div className="flex items-center gap-2 text-[#166534] bg-emerald-50/50 border border-emerald-100/50 px-3 py-2 rounded-xl text-xs font-semibold">
+                <MapPin size={14} />
+                <span>Kéo marker hoặc click bản đồ để chọn vị trí chính xác</span>
+              </div>
+
+              <div 
+                id="admin-shop-map" 
+                className="w-full flex-1 rounded-2xl overflow-hidden border border-gray-200 relative bg-gray-50 shadow-inner"
+              />
+              {!shop && (
+                <p className="text-[11px] text-gray-400">
+                  * Click lên bản đồ hoặc kéo marker để cập nhật tọa độ và tự động lấy địa chỉ (bạn vẫn có thể sửa địa chỉ theo ý muốn).
+                </p>
+              )}
+            </div>
+
           </div>
 
+          {/* Footer buttons */}
           <div className="flex justify-end gap-2 pt-4 border-t border-gray-100">
             <button
               type="button"

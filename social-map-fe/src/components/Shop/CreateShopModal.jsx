@@ -8,8 +8,6 @@ import {
     FaClock,
     FaImage,
     FaUpload,
-    FaArrowLeft,
-    FaArrowRight,
     FaCheck,
     FaTimes
 } from 'react-icons/fa';
@@ -17,10 +15,26 @@ import { createShop, updateShop } from '../../services/shopService';
 import { UploadService } from '../../services/UploadService';
 import './CreateShopModal.css';
 
-
 // Use the same working token as MapSection
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
 mapboxgl.accessToken = MAPBOX_TOKEN;
+
+const reverseGeocode = async (lng, lat) => {
+    try {
+        const res = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&language=vi`
+        );
+        const data = await res.json();
+
+        if (data.features && data.features.length > 0) {
+            return data.features[0].place_name;
+        }
+        return '';
+    } catch (err) {
+        console.error('Reverse geocode failed', err);
+        return '';
+    }
+};
 
 export default function CreateShopModal({ isOpen, onClose, onShopCreated, initialData = null, isEditing = false }) {
     const [formData, setFormData] = useState({
@@ -37,29 +51,16 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
     });
 
     const mapRef = useRef(null);
+    const markerRef = useRef(null);
+    const isDraggingOrClicking = useRef(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [uploadingImage, setUploadingImage] = useState(false);
-    const [step, setStep] = useState(1); // 1: Form, 2: Map
-
-    // Track modal open/close
-    useEffect(() => {
-        console.log('🏪 CreateShopModal isOpen changed:', isOpen);
-        if (!isOpen) {
-            // Reset step when modal closes
-            setStep(1);
-        }
-    }, [isOpen]);
-
-    // Track step changes
-    useEffect(() => {
-        console.log('📍 Step changed to:', step);
-    }, [step]);
 
     // Initialize map
     useEffect(() => {
-        if (!isOpen || step !== 2) {
-            console.log('⏭️ Skipping map init - isOpen:', isOpen, 'step:', step);
+        if (!isOpen) {
+            console.log('Resource check: skipping map init - isOpen is false');
             return;
         }
 
@@ -70,88 +71,80 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
             const mapContainer = document.getElementById('create-shop-map');
             if (!mapContainer) {
                 console.error('❌ Map container not found!');
-                console.log('🔍 Searching for container with id: create-shop-map');
-                console.log('🔍 All elements with create-shop:', document.querySelectorAll('[id*="create-shop"]'));
                 return;
             }
 
             console.log('✅ Map container found:', mapContainer);
-            console.log('📏 Container dimensions:', mapContainer.offsetWidth, 'x', mapContainer.offsetHeight);
 
-            console.log('🗺️ Initializing Mapbox...');
+            const lng = parseFloat(formData.longitude) || 105.8542;
+            const lat = parseFloat(formData.latitude) || 21.0285;
 
             const newMap = new mapboxgl.Map({
                 container: 'create-shop-map',
                 style: 'mapbox://styles/mapbox/streets-v12',
-                center: [formData.longitude, formData.latitude],
+                center: [lng, lat],
                 zoom: 15
             });
 
             console.log('✅ Map instance created');
 
-            newMap.on('load', () => {
-                console.log('✅ Map loaded successfully!');
+            const newMarker = new mapboxgl.Marker({
+                draggable: true,
+                color: '#10b981' // Green color for shop
+            })
+                .setLngLat([lng, lat])
+                .addTo(newMap);
 
-                // Add marker
-                const newMarker = new mapboxgl.Marker({
-                    draggable: true,
-                    color: '#10b981' // Green color for shop
-                })
-                    .setLngLat([formData.longitude, formData.latitude])
-                    .addTo(newMap);
-
-                console.log('✅ Marker added to map');
-
-                // Mark this marker as shop creation marker (to exclude from LocationSharing)
-                const markerElement = newMarker.getElement();
-                markerElement.classList.add('create-shop-marker');
-                markerElement.dataset.shopCreation = 'true';
-                markerElement.style.cursor = 'move';
-                markerElement.style.zIndex = '9999';
-
-                // Update coordinates when marker is dragged
-                newMarker.on('dragend', async () => {
-                    const lngLat = newMarker.getLngLat();
-                    console.log('Marker dragged to:', lngLat);
-                    const address = await reverseGeocode(lngLat.lng, lngLat.lat);
-                    setFormData(prev => ({
-                        ...prev,
-                        latitude: lngLat.lat,
-                        longitude: lngLat.lng,
-                        address: address
-                    }));
-                });
-
-                newMarker.on('drag', () => {
-                    const lngLat = newMarker.getLngLat();
-                    setFormData(prev => ({
-                        ...prev,
-                        latitude: lngLat.lat,
-                        longitude: lngLat.lng
-                    }));
-                });
-
-                // Add click to move marker
-                newMap.on('click', async (e) => {
-                    const { lng, lat } = e.lngLat;
-                    console.log('Map clicked at:', lng, lat);
-                    newMarker.setLngLat([lng, lat]);
-                    const address = await reverseGeocode(lng, lat);
-                    setFormData(prev => ({
-                        ...prev,
-                        latitude: lat,
-                        longitude: lng,
-                        address: address
-                    }));
-                });
-            });
-
-            newMap.on('error', (e) => {
-                console.error('❌ Map error:', e);
-            });
-
+            markerRef.current = newMarker;
             mapRef.current = newMap;
-        }, 100); // Small delay to ensure DOM is ready
+
+            // Mark this marker as shop creation marker (to exclude from LocationSharing)
+            const markerElement = newMarker.getElement();
+            markerElement.classList.add('create-shop-marker');
+            markerElement.dataset.shopCreation = 'true';
+            markerElement.style.cursor = 'move';
+            markerElement.style.zIndex = '9999';
+
+            // Update coordinates when marker is dragged
+            newMarker.on('drag', () => {
+                isDraggingOrClicking.current = true;
+                const lngLat = newMarker.getLngLat();
+                setFormData(prev => ({
+                    ...prev,
+                    latitude: lngLat.lat,
+                    longitude: lngLat.lng
+                }));
+            });
+
+            newMarker.on('dragend', async () => {
+                const lngLat = newMarker.getLngLat();
+                console.log('Marker dragged to:', lngLat);
+                const address = await reverseGeocode(lngLat.lng, lngLat.lat);
+                setFormData(prev => ({
+                    ...prev,
+                    latitude: lngLat.lat,
+                    longitude: lngLat.lng,
+                    address: address || prev.address
+                }));
+                isDraggingOrClicking.current = false;
+            });
+
+            // Add click to move marker
+            newMap.on('click', async (e) => {
+                isDraggingOrClicking.current = true;
+                const { lng: clickLng, lat: clickLat } = e.lngLat;
+                console.log('Map clicked at:', clickLng, clickLat);
+                newMarker.setLngLat([clickLng, clickLat]);
+                const address = await reverseGeocode(clickLng, clickLat);
+                setFormData(prev => ({
+                    ...prev,
+                    latitude: clickLat,
+                    longitude: clickLng,
+                    address: address || prev.address
+                }));
+                isDraggingOrClicking.current = false;
+            });
+        }, 150); // Small delay to ensure DOM is ready
 
         return () => {
             clearTimeout(initTimeout);
@@ -160,25 +153,23 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                 mapRef.current.remove();
                 mapRef.current = null;
             }
+            markerRef.current = null;
         };
-    }, [isOpen, step]);
+    }, [isOpen]);
 
-    const reverseGeocode = async (lng, lat) => {
-        try {
-            const res = await fetch(
-                `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${MAPBOX_TOKEN}&language=vi`
-            );
-            const data = await res.json();
+    // Update map/marker when manual inputs change
+    useEffect(() => {
+        if (!mapRef.current || !markerRef.current || isDraggingOrClicking.current) return;
+        const lat = parseFloat(formData.latitude);
+        const lng = parseFloat(formData.longitude);
+        if (isNaN(lat) || isNaN(lng)) return;
 
-            if (data.features && data.features.length > 0) {
-                return data.features[0].place_name;
-            }
-            return '';
-        } catch (err) {
-            console.error('Reverse geocode failed', err);
-            return '';
+        const currentLngLat = markerRef.current.getLngLat();
+        if (Math.abs(currentLngLat.lat - lat) > 0.0001 || Math.abs(currentLngLat.lng - lng) > 0.0001) {
+            markerRef.current.setLngLat([lng, lat]);
+            mapRef.current.flyTo({ center: [lng, lat] });
         }
-    };
+    }, [formData.latitude, formData.longitude]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -258,37 +249,13 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
         }));
     };
 
-    const handleNextStep = (e) => {
-        // Prevent any default behavior
-        if (e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        console.log('🔄 Moving to step 2...');
-
-        // Validate required fields
-        if (!formData.name.trim()) {
-            setError('Tên cửa hàng là bắt buộc');
-            return;
-        }
-        if (!formData.phoneNumber.trim()) {
-            setError('Số điện thoại là bắt buộc');
-            return;
-        }
-
-        setError('');
-        setStep(2);
-        console.log('✅ Moved to step 2 - Map preview');
-    };
-
     const handleSubmit = async () => {
         try {
             setLoading(true);
             setError('');
 
             if (!formData.address) {
-                setError('Vui lòng chọn vị trí trên bản đồ');
+                setError('Vui lòng chọn hoặc điền địa chỉ cửa hàng');
                 return;
             }
 
@@ -325,7 +292,6 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                     tagIds: []
                 });
             }
-            setStep(1);
             onClose();
         } catch (err) {
             console.error(`Failed to ${isEditing ? 'update' : 'create'} shop:`, err);
@@ -336,25 +302,18 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
     };
 
     const handleOverlayClick = () => {
-        console.log('📍 Overlay clicked, current step:', step);
-        // Ask for confirmation if user has entered data
-        if (step === 2 || formData.name || formData.address) {
+        if (formData.name || formData.address) {
             const confirmed = window.confirm('Bạn có chắc muốn đóng? Các thông tin đã nhập sẽ bị mất.');
             if (confirmed) {
-                console.log('✅ User confirmed close');
                 onClose();
-            } else {
-                console.log('❌ User cancelled close');
             }
         } else {
-            console.log('✅ Closing modal (no data entered)');
             onClose();
         }
     };
 
     const handleModalClose = () => {
-        console.log('🚪 Close button clicked');
-        if (step === 2 || formData.name || formData.address) {
+        if (formData.name || formData.address) {
             const confirmed = window.confirm('Bạn có chắc muốn đóng? Các thông tin đã nhập sẽ bị mất.');
             if (confirmed) {
                 onClose();
@@ -401,43 +360,76 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
         return null;
     }
 
-    console.log('🏪 CreateShopModal RENDERING - step:', step, 'isOpen:', isOpen);
-    console.log('🏪 FormData:', { name: formData.name, address: formData.address });
-
     return (
         <div className="create-shop-modal-overlay" onClick={handleOverlayClick}>
-            <div className="create-shop-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="create-shop-modal animate-in fade-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                {/* Scoped CSS Overrides for Split Horizontal Layout */}
+                <style>{`
+                    .create-shop-modal {
+                        max-width: 1024px !important;
+                        width: 95% !important;
+                        height: 90vh !important;
+                        max-height: 90vh !important;
+                    }
+                    .create-shop-split-container {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 24px;
+                        height: 100%;
+                    }
+                    @media (min-width: 1024px) {
+                        .create-shop-split-container {
+                            flex-direction: row;
+                            height: calc(90vh - 150px);
+                        }
+                        .create-shop-form-column {
+                            width: 50%;
+                            height: 100%;
+                            overflow-y: auto;
+                            padding-right: 16px;
+                        }
+                        .create-shop-map-column {
+                            width: 50%;
+                            display: flex;
+                            flex-direction: column;
+                            height: 100%;
+                        }
+                    }
+                    .create-shop-form-column::-webkit-scrollbar {
+                        width: 4px;
+                    }
+                    .create-shop-form-column::-webkit-scrollbar-thumb {
+                        background: #cbd5e1;
+                        border-radius: 10px;
+                    }
+                    #create-shop-map.create-shop-map.mapboxgl-map {
+                        position: relative !important;
+                        top: auto !important;
+                        left: auto !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        min-height: 350px;
+                        border-radius: 20px;
+                        overflow: hidden;
+                        flex-grow: 1;
+                        margin-top: 8px !important;
+                    }
+                    @media (min-width: 1024px) {
+                        #create-shop-map.create-shop-map.mapboxgl-map {
+                            min-height: 400px;
+                        }
+                    }
+                `}</style>
+
                 {/* Header */}
                 <div className="modal-header">
                     <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {step === 1 ? (
-                            <>
-                                <FaStore style={{ color: '#0f172a' }} />
-                                <span>{isEditing ? 'Chỉnh sửa cửa hàng' : 'Tạo cửa hàng mới'}</span>
-                            </>
-                        ) : (
-                            <>
-                                <FaMapMarkerAlt style={{ color: '#0f172a' }} />
-                                <span>Chọn vị trí trên bản đồ</span>
-                            </>
-                        )}
+                        <FaStore style={{ color: '#0f172a' }} />
+                        <span>{isEditing ? 'Chỉnh sửa cửa hàng' : 'Tạo cửa hàng mới'}</span>
                     </h2>
                     <button className="modal-close-btn" onClick={handleModalClose} aria-label="Close">
                         <FaTimes />
                     </button>
-                </div>
-
-                {/* Progress Steps */}
-                <div className="progress-steps">
-                    <div className={`step ${step >= 1 ? 'active' : ''}`}>
-                        <div className="step-number">1</div>
-                        <div className="step-label">Thông tin</div>
-                    </div>
-                    <div className="step-line"></div>
-                    <div className={`step ${step >= 2 ? 'active' : ''}`}>
-                        <div className="step-number">2</div>
-                        <div className="step-label">Vị trí</div>
-                    </div>
                 </div>
 
                 {error && (
@@ -449,280 +441,282 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                     </div>
                 )}
 
-                {/* Step 1: Form */}
-                {step === 1 && (
-                    <div className="modal-body">
-                        <div className="form-section">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <FaClipboardList style={{ color: '#475569' }} />
-                                <span>Thông tin cơ bản</span>
-                            </h3>
+                <div className="modal-body">
+                    <div className="create-shop-split-container">
+                        
+                        {/* Left Column: Form Fields */}
+                        <div className="create-shop-form-column">
+                            
+                            <div className="form-section">
+                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <FaClipboardList style={{ color: '#475569' }} />
+                                    <span>Thông tin cơ bản</span>
+                                </h3>
 
-                            <div className="form-group">
-                                <label htmlFor="name">
-                                    Tên cửa hàng <span className="required">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    id="name"
-                                    name="name"
-                                    value={formData.name}
-                                    onChange={handleInputChange}
-                                    placeholder="VD: Quán Cafe Sunny"
-                                    maxLength={100}
-                                    required
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="phoneNumber">
-                                    Số điện thoại <span className="required">*</span>
-                                </label>
-                                <input
-                                    type="tel"
-                                    id="phoneNumber"
-                                    name="phoneNumber"
-                                    value={formData.phoneNumber}
-                                    onChange={handleInputChange}
-                                    placeholder="VD: 0901234567"
-                                    pattern="^(0|\+84)(\d{9})$"
-                                    required
-                                />
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="description">Mô tả</label>
-                                <textarea
-                                    id="description"
-                                    name="description"
-                                    value={formData.description}
-                                    onChange={handleInputChange}
-                                    placeholder="Mô tả về cửa hàng của bạn..."
-                                    rows={4}
-                                    maxLength={500}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="form-section">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <FaClock style={{ color: '#475569' }} />
-                                <span>Giờ hoạt động</span>
-                            </h3>
-
-                            <div className="form-row">
                                 <div className="form-group">
-                                    <label>Giờ mở cửa</label>
-                                    <div className="time-select-group">
-                                        <select
-                                            name="openingHour"
-                                            value={formData.openingTime.split(':')[0]}
+                                    <label htmlFor="name">
+                                        Tên cửa hàng <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="name"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleInputChange}
+                                        placeholder="VD: Quán Cafe Sunny"
+                                        maxLength={100}
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="address" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <FaMapMarkerAlt />
+                                        <span>Địa chỉ cửa hàng *</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="address"
+                                        name="address"
+                                        value={formData.address}
+                                        onChange={handleInputChange}
+                                        placeholder="Click vào bản đồ hoặc tự nhập địa chỉ"
+                                        required
+                                    />
+                                </div>
+
+                                {/* Coordinates inputs */}
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="latitude">Vĩ độ (Latitude) *</label>
+                                        <input
+                                            type="number"
+                                            id="latitude"
+                                            name="latitude"
+                                            step="any"
+                                            min="-90"
+                                            max="90"
+                                            value={formData.latitude}
                                             onChange={handleInputChange}
                                             required
-                                        >
-                                            {Array.from({ length: 24 }, (_, i) => (
-                                                <option key={i} value={i.toString().padStart(2, '0')}>
-                                                    {i.toString().padStart(2, '0')}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <span>:</span>
-                                        <select
-                                            name="openingMinute"
-                                            value={formData.openingTime.split(':')[1]}
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label htmlFor="longitude">Kinh độ (Longitude) *</label>
+                                        <input
+                                            type="number"
+                                            id="longitude"
+                                            name="longitude"
+                                            step="any"
+                                            min="-180"
+                                            max="180"
+                                            value={formData.longitude}
                                             onChange={handleInputChange}
                                             required
-                                        >
-                                            {Array.from({ length: 60 }, (_, i) => (
-                                                <option key={i} value={i.toString().padStart(2, '0')}>
-                                                    {i.toString().padStart(2, '0')}
-                                                </option>
-                                            ))}
-                                        </select>
+                                        />
                                     </div>
                                 </div>
 
                                 <div className="form-group">
-                                    <label>Giờ đóng cửa</label>
-                                    <div className="time-select-group">
-                                        <select
-                                            name="closingHour"
-                                            value={formData.closingTime.split(':')[0]}
-                                            onChange={handleInputChange}
-                                            required
-                                        >
-                                            {Array.from({ length: 24 }, (_, i) => (
-                                                <option key={i} value={i.toString().padStart(2, '0')}>
-                                                    {i.toString().padStart(2, '0')}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <span>:</span>
-                                        <select
-                                            name="closingMinute"
-                                            value={formData.closingTime.split(':')[1]}
-                                            onChange={handleInputChange}
-                                            required
-                                        >
-                                            {Array.from({ length: 60 }, (_, i) => (
-                                                <option key={i} value={i.toString().padStart(2, '0')}>
-                                                    {i.toString().padStart(2, '0')}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <label htmlFor="phoneNumber">
+                                        Số điện thoại <span className="required">*</span>
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        id="phoneNumber"
+                                        name="phoneNumber"
+                                        value={formData.phoneNumber}
+                                        onChange={handleInputChange}
+                                        placeholder="VD: 0901234567"
+                                        pattern="^(0|\+84)(\d{9})$"
+                                        required
+                                    />
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="description">Mô tả</label>
+                                    <textarea
+                                        id="description"
+                                        name="description"
+                                        value={formData.description}
+                                        onChange={handleInputChange}
+                                        placeholder="Mô tả về cửa hàng của bạn..."
+                                        rows={4}
+                                        maxLength={500}
+                                    />
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="form-section">
-                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <FaImage style={{ color: '#475569' }} />
-                                <span>Hình ảnh cửa hàng</span>
-                            </h3>
+                            <div className="form-section">
+                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <FaClock style={{ color: '#475569' }} />
+                                    <span>Giờ hoạt động</span>
+                                </h3>
 
-                            <div className="image-upload-group">
-                                <label htmlFor="shop-images" className="btn-upload-image">
-                                    {uploadingImage ? (
-                                        <>
-                                            <span className="upload-spinner"></span>
-                                            <span>Đang tải lên...</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <FaUpload />
-                                            <span>Chọn ảnh để tải lên</span>
-                                        </>
-                                    )}
-                                </label>
-                                <input
-                                    type="file"
-                                    id="shop-images"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={handleImageUpload}
-                                    disabled={uploadingImage || formData.imageShopUrl.length >= 10}
-                                    style={{ display: 'none' }}
-                                />
-                            </div>
-
-                            {formData.imageShopUrl.length > 0 && (
-                                <div className="image-list">
-                                    {formData.imageShopUrl.map((url, index) => (
-                                        <div key={index} className="image-item">
-                                            <img src={url} alt={`Shop ${index + 1}`} />
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRemoveImage(index)}
-                                                className="btn-remove-image"
-                                                disabled={uploadingImage}
-                                                aria-label="Remove image"
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label>Giờ mở cửa</label>
+                                        <div className="time-select-group">
+                                            <select
+                                                name="openingHour"
+                                                value={formData.openingTime.split(':')[0]}
+                                                onChange={handleInputChange}
+                                                required
                                             >
-                                                <FaTimes size={12} />
-                                            </button>
+                                                {Array.from({ length: 24 }, (_, i) => (
+                                                    <option key={i} value={i.toString().padStart(2, '0')}>
+                                                        {i.toString().padStart(2, '0')}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <span>:</span>
+                                            <select
+                                                name="openingMinute"
+                                                value={formData.openingTime.split(':')[1]}
+                                                onChange={handleInputChange}
+                                                required
+                                            >
+                                                {Array.from({ length: 60 }, (_, i) => (
+                                                    <option key={i} value={i.toString().padStart(2, '0')}>
+                                                        {i.toString().padStart(2, '0')}
+                                                    </option>
+                                                ))}
+                                            </select>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
-                            <p className="form-hint">
-                                Tối đa 10 ảnh, mỗi ảnh tối đa 5MB. Đã thêm: {formData.imageShopUrl.length}/10
-                            </p>
-                        </div>
-                    </div>
-                )}
+                                    </div>
 
-                {/* Step 2: Map Preview */}
-                {step === 2 && (
-                    <div className="modal-body map-step">
-                        <div className="map-instructions">
-                            <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <FaMapMarkerAlt style={{ color: '#166534' }} />
-                                <span>Click vào bản đồ hoặc kéo marker để chọn vị trí chính xác cho cửa hàng của bạn</span>
-                            </p>
-                            <p className="preview-note" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <FaExclamationTriangle style={{ color: '#b45309', flexShrink: 0 }} />
-                                <span>Đây là bản đồ xem trước. Vị trí sẽ được pin lên bản đồ thật sau khi bạn nhấn "Xác nhận tạo shop"</span>
-                            </p>
-                            <div className="coordinates-display">
-                                <span>Vĩ độ: <strong>{formData.latitude.toFixed(6)}</strong></span>
-                                <span>Kinh độ: <strong>{formData.longitude.toFixed(6)}</strong></span>
+                                    <div className="form-group">
+                                        <label>Giờ đóng cửa</label>
+                                        <div className="time-select-group">
+                                            <select
+                                                name="closingHour"
+                                                value={formData.closingTime.split(':')[0]}
+                                                onChange={handleInputChange}
+                                                required
+                                            >
+                                                {Array.from({ length: 24 }, (_, i) => (
+                                                    <option key={i} value={i.toString().padStart(2, '0')}>
+                                                        {i.toString().padStart(2, '0')}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <span>:</span>
+                                            <select
+                                                name="closingMinute"
+                                                value={formData.closingTime.split(':')[1]}
+                                                onChange={handleInputChange}
+                                                required
+                                            >
+                                                {Array.from({ length: 60 }, (_, i) => (
+                                                    <option key={i} value={i.toString().padStart(2, '0')}>
+                                                        {i.toString().padStart(2, '0')}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="form-section">
+                                <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <FaImage style={{ color: '#475569' }} />
+                                    <span>Hình ảnh cửa hàng</span>
+                                </h3>
+
+                                <div className="image-upload-group">
+                                    <label htmlFor="shop-images" className="btn-upload-image">
+                                        {uploadingImage ? (
+                                            <>
+                                                <span className="upload-spinner"></span>
+                                                <span>Đang tải lên...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <FaUpload />
+                                                <span>Chọn ảnh để tải lên</span>
+                                            </>
+                                        )}
+                                    </label>
+                                    <input
+                                        type="file"
+                                        id="shop-images"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={handleImageUpload}
+                                        disabled={uploadingImage || formData.imageShopUrl.length >= 10}
+                                        style={{ display: 'none' }}
+                                    />
+                                </div>
+
+                                {formData.imageShopUrl.length > 0 && (
+                                    <div className="image-list">
+                                        {formData.imageShopUrl.map((url, index) => (
+                                            <div key={index} className="image-item">
+                                                <img src={url} alt={`Shop ${index + 1}`} />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveImage(index)}
+                                                    className="btn-remove-image"
+                                                    disabled={uploadingImage}
+                                                    aria-label="Remove image"
+                                                >
+                                                    <FaTimes size={12} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <p className="form-hint">
+                                    Tối đa 10 ảnh, mỗi ảnh tối đa 5MB. Đã thêm: {formData.imageShopUrl.length}/10
+                                </p>
                             </div>
                         </div>
-                        <div className="form-group">
-                            <label htmlFor="address" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <FaMapMarkerAlt />
-                                <span>Địa chỉ được xác định</span>
-                            </label>
-                            <input
-                                type="text"
-                                id="address"
-                                value={formData.address}
-                                readOnly
-                                placeholder="Click vào bản đồ để chọn vị trí"
-                                style={{ background: '#f1f5f9' }}
-                            />
+
+                        {/* Right Column: Map picker */}
+                        <div className="create-shop-map-column">
+                            <div className="map-instructions" style={{ padding: '8px 12px', marginBottom: '8px' }}>
+                                <p style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                                    <FaMapMarkerAlt style={{ color: '#166534' }} />
+                                    <span>Kéo marker hoặc click bản đồ để chọn vị trí chính xác</span>
+                                </p>
+                            </div>
+
+                            <div
+                                id="create-shop-map"
+                                className="create-shop-map"
+                            >
+                                {/* Map will be initialized here */}
+                            </div>
                         </div>
-                        <div
-                            id="create-shop-map"
-                            className="create-shop-map"
-                        >
-                            {/* Map will be initialized here */}
-                        </div>
+
                     </div>
-                )}
+                </div>
 
                 {/* Footer */}
                 <div className="modal-footer">
-                    {step === 1 ? (
-                        <>
-                            <button
-                                type="button"
-                                className="btn-cancel"
-                                onClick={handleModalClose}
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                type="button"
-                                className="btn-next"
-                                onClick={handleNextStep}
-                            >
-                                <span>Tiếp theo</span>
-                                <FaArrowRight />
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            <button
-                                type="button"
-                                className="btn-back"
-                                onClick={() => setStep(1)}
-                            >
-                                <FaArrowLeft />
-                                <span>Quay lại</span>
-                            </button>
-                            <button
-                                type="button"
-                                className="btn-submit"
-                                onClick={handleSubmit}
-                                disabled={loading || !formData.address}
-                            >
-                                {loading ? (
-                                    <span>{isEditing ? 'Đang cập nhật...' : 'Đang tạo...'}</span>
-                                ) : !formData.address ? (
-                                    <>
-                                        <FaExclamationTriangle />
-                                        <span>Chọn vị trí trước</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <FaCheck />
-                                        <span>{isEditing ? 'Xác nhận cập nhật' : 'Xác nhận tạo shop'}</span>
-                                    </>
-                                )}
-                            </button>
-                        </>
-                    )}
+                    <button
+                        type="button"
+                        className="btn-cancel"
+                        onClick={handleModalClose}
+                    >
+                        Hủy
+                    </button>
+                    <button
+                        type="button"
+                        className="btn-submit"
+                        onClick={handleSubmit}
+                        disabled={loading || !formData.address}
+                    >
+                        {loading ? (
+                            <span>{isEditing ? 'Đang cập nhật...' : 'Đang tạo...'}</span>
+                        ) : (
+                            <>
+                                <FaCheck />
+                                <span>{isEditing ? 'Xác nhận cập nhật' : 'Xác nhận tạo shop'}</span>
+                            </>
+                        )}
+                    </button>
                 </div>
             </div>
         </div>
