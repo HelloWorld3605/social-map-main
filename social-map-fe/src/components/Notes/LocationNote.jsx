@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTimes, FaMapMarkerAlt } from 'react-icons/fa';
+import { FaTimes, FaMapMarkerAlt, FaMap } from 'react-icons/fa';
 import { useMapContext } from '../../context/MapContext';
 
 const LocationNote = ({ marker, onRemove, noteId, tabId, inline = false }) => {
@@ -33,7 +33,7 @@ const LocationNote = ({ marker, onRemove, noteId, tabId, inline = false }) => {
         </div>
         <div className="location-note-actions">
           <button className="location-note-view-map" onClick={handleViewOnMap} title="Xem trên Bản đồ">
-            🗺️
+            <FaMap />
           </button>
           <button className="location-note-remove" onClick={handleRemove} title="Xóa marker">
             <FaTimes />

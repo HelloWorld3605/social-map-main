@@ -43,14 +43,14 @@ const NotesPopup = () => {
         const newX = e.clientX - dragStart.x;
         const newY = e.clientY - dragStart.y;
 
-        // Clamp vị trí theo viewport
+        // Clamp vị trí theo viewport (sử dụng dragStart.width/height để tránh stale closure)
         let clampedX = Math.min(
           Math.max(SAFE_MARGIN, newX),
-          vw - size.width - SAFE_MARGIN
+          vw - dragStart.width - SAFE_MARGIN
         );
         let clampedY = Math.min(
           Math.max(SAFE_HEADER_HEIGHT, newY),
-          vh - size.height - SAFE_MARGIN
+          vh - dragStart.height - SAFE_MARGIN
         );
 
         // Magnetic snap khi gần cạnh
@@ -61,8 +61,8 @@ const NotesPopup = () => {
         // Snap left
         if (finalX < SNAP_DISTANCE) finalX = SAFE_MARGIN;
         // Snap right
-        if (vw - (finalX + size.width) < SNAP_DISTANCE) {
-          finalX = vw - size.width - SAFE_MARGIN;
+        if (vw - (finalX + dragStart.width) < SNAP_DISTANCE) {
+          finalX = vw - dragStart.width - SAFE_MARGIN;
         }
         // Snap top (header dock)
         if (finalY < SAFE_HEADER_HEIGHT + SNAP_DISTANCE) {
@@ -71,10 +71,10 @@ const NotesPopup = () => {
 
         setPosition({ x: finalX, y: finalY });
       } else if (isResizing) {
-        let newX = position.x;
-        let newY = position.y;
-        let newWidth = size.width;
-        let newHeight = size.height;
+        let newX = resizeStart.positionX;
+        let newY = resizeStart.positionY;
+        let newWidth = resizeStart.width;
+        let newHeight = resizeStart.height;
 
         if (resizeDirection.includes('e')) {
           newWidth = Math.max(300, resizeStart.width + (e.clientX - resizeStart.x));
@@ -151,6 +151,8 @@ const NotesPopup = () => {
     setDragStart({
       x: e.clientX - position.x,
       y: e.clientY - position.y,
+      width: size.width,
+      height: size.height,
     });
   };
 
@@ -234,16 +236,16 @@ const NotesPopup = () => {
         {!isMinimized && (
           <>
             {/* Invisible resize handles - Corner handles */}
-            <div className="resize-handle se invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} title="Resize (bottom-right)"></div>
-            <div className="resize-handle sw invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} title="Resize (bottom-left)"></div>
-            <div className="resize-handle ne invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} title="Resize (top-right)"></div>
-            <div className="resize-handle nw invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} title="Resize (top-left)"></div>
+            <div className="resize-handle se" onMouseDown={(e) => handleResizeMouseDown(e, 'se')} title="Resize (bottom-right)"></div>
+            <div className="resize-handle sw" onMouseDown={(e) => handleResizeMouseDown(e, 'sw')} title="Resize (bottom-left)"></div>
+            <div className="resize-handle ne" onMouseDown={(e) => handleResizeMouseDown(e, 'ne')} title="Resize (top-right)"></div>
+            <div className="resize-handle nw" onMouseDown={(e) => handleResizeMouseDown(e, 'nw')} title="Resize (top-left)"></div>
 
             {/* Invisible resize handles - Edge handles */}
-            <div className="resize-handle e invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'e')} title="Resize (right)"></div>
-            <div className="resize-handle w invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'w')} title="Resize (left)"></div>
-            <div className="resize-handle n invisible" onMouseDown={(e) => handleResizeMouseDown(e, 'n')} title="Resize (top)"></div>
-            <div className="resize-handle s invisible" onMouseDown={(e) => handleResizeMouseDown(e, 's')} title="Resize (bottom)"></div>
+            <div className="resize-handle e" onMouseDown={(e) => handleResizeMouseDown(e, 'e')} title="Resize (right)"></div>
+            <div className="resize-handle w" onMouseDown={(e) => handleResizeMouseDown(e, 'w')} title="Resize (left)"></div>
+            <div className="resize-handle n" onMouseDown={(e) => handleResizeMouseDown(e, 'n')} title="Resize (top)"></div>
+            <div className="resize-handle s" onMouseDown={(e) => handleResizeMouseDown(e, 's')} title="Resize (bottom)"></div>
           </>
         )}
       </div>

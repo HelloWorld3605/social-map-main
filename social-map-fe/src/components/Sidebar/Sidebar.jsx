@@ -751,8 +751,9 @@ export default function Sidebar() {
                                                 color: '#64748b'
                                             }}
                                         />
-                                        <small style={{ display: 'block', marginTop: '0.5rem', color: '#10b981' }}>
-                                            ✓ CCCD của bạn đã được xác thực trong hệ thống
+                                        <small style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '0.5rem', color: '#10b981' }}>
+                                            <FaCheckCircle />
+                                            <span>CCCD của bạn đã được xác thực trong hệ thống</span>
                                         </small>
                                     </div>
                                 ) : (

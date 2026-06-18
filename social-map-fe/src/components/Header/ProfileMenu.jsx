@@ -21,7 +21,7 @@ export default function ProfileMenu() {
     }
   }, []);
 
-    // Đóng dropdown khi click ra ngoài
+  // Đóng dropdown khi click ra ngoài
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {

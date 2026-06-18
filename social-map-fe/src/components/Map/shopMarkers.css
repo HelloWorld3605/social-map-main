@@ -266,16 +266,14 @@
 /* Shop Popup */
 .shop-popup .mapboxgl-popup-content {
     padding: 0;
-    border-radius: 20px;
-    box-shadow:
-        0 20px 40px rgba(0, 0, 0, 0.12),
-        0 8px 16px rgba(0, 0, 0, 0.08);
+    border-radius: 24px !important; /* rounded-3xl */
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15) !important;
     overflow: hidden;
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     position: relative;
     cursor: default !important;
     background: #ffffff;
-    border: 1px solid rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05) !important;
 }
 
 .shop-popup .mapboxgl-popup-close-button {
@@ -446,7 +444,7 @@
 .shop-status-badge {
     position: absolute;
     bottom: 14px;
-    right: 4px;
+    right: 14px; /* Move slightly further inward from corner */
     padding: 0.5rem 1rem;
     border-radius: 24px;
     font-size: 0.7rem;
@@ -630,15 +628,17 @@
 }
 
 .btn-view-shop {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: white;
-    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    background: #F3C6D9 !important; /* Pastel Pink */
+    color: #851c44 !important;
+    border-radius: 14px !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(243, 198, 217, 0.35) !important;
 }
 
 .btn-view-shop:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    box-shadow: 0 6px 15px rgba(243, 198, 217, 0.5) !important;
+    background: #e2b3c7 !important;
 }
 
 .btn-view-shop:active {
@@ -646,18 +646,18 @@
 }
 
 .btn-get-directions {
-    background: #ffffff;
-    color: #6366f1;
-    border: 2px solid #e0e7ff;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    background: #BBD4E8 !important; /* Pastel Blue */
+    color: #1e3a8a !important;
+    border-radius: 14px !important;
+    border: none !important;
+    box-shadow: 0 4px 10px rgba(187, 212, 232, 0.35) !important;
 }
 
 .btn-get-directions:hover {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    color: white;
-    border-color: transparent;
+    background: #a9c5db !important;
+    color: #112763 !important;
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+    box-shadow: 0 6px 15px rgba(187, 212, 232, 0.5) !important;
 }
 
 .btn-get-directions:active {

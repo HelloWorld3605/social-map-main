@@ -1,8 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import mapboxgl from 'mapbox-gl';
+import {
+    FaStore,
+    FaMapMarkerAlt,
+    FaExclamationTriangle,
+    FaClipboardList,
+    FaClock,
+    FaImage,
+    FaUpload,
+    FaArrowLeft,
+    FaArrowRight,
+    FaCheck,
+    FaTimes
+} from 'react-icons/fa';
 import { createShop, updateShop } from '../../services/shopService';
 import { UploadService } from '../../services/UploadService';
 import './CreateShopModal.css';
+
 
 // Use the same working token as MapSection
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
@@ -395,10 +409,22 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
             <div className="create-shop-modal" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="modal-header">
-                    <h2>
-                        {step === 1 ? (isEditing ? '🏪 Chỉnh sửa cửa hàng' : '🏪 Tạo cửa hàng mới') : '📍 Chọn vị trí trên bản đồ'}
+                    <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {step === 1 ? (
+                            <>
+                                <FaStore style={{ color: '#0f172a' }} />
+                                <span>{isEditing ? 'Chỉnh sửa cửa hàng' : 'Tạo cửa hàng mới'}</span>
+                            </>
+                        ) : (
+                            <>
+                                <FaMapMarkerAlt style={{ color: '#0f172a' }} />
+                                <span>Chọn vị trí trên bản đồ</span>
+                            </>
+                        )}
                     </h2>
-                    <button className="modal-close-btn" onClick={handleModalClose}>×</button>
+                    <button className="modal-close-btn" onClick={handleModalClose} aria-label="Close">
+                        <FaTimes />
+                    </button>
                 </div>
 
                 {/* Progress Steps */}
@@ -416,7 +442,9 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
 
                 {error && (
                     <div className="error-banner">
-                        <span className="error-icon">⚠️</span>
+                        <span className="error-icon">
+                            <FaExclamationTriangle />
+                        </span>
                         <span>{error}</span>
                     </div>
                 )}
@@ -425,7 +453,10 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                 {step === 1 && (
                     <div className="modal-body">
                         <div className="form-section">
-                            <h3>📋 Thông tin cơ bản</h3>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FaClipboardList style={{ color: '#475569' }} />
+                                <span>Thông tin cơ bản</span>
+                            </h3>
 
                             <div className="form-group">
                                 <label htmlFor="name">
@@ -474,7 +505,10 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                         </div>
 
                         <div className="form-section">
-                            <h3>⏰ Giờ hoạt động</h3>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FaClock style={{ color: '#475569' }} />
+                                <span>Giờ hoạt động</span>
+                            </h3>
 
                             <div className="form-row">
                                 <div className="form-group">
@@ -542,7 +576,10 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                         </div>
 
                         <div className="form-section">
-                            <h3>🖼️ Hình ảnh cửa hàng</h3>
+                            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FaImage style={{ color: '#475569' }} />
+                                <span>Hình ảnh cửa hàng</span>
+                            </h3>
 
                             <div className="image-upload-group">
                                 <label htmlFor="shop-images" className="btn-upload-image">
@@ -553,7 +590,7 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                                         </>
                                     ) : (
                                         <>
-                                            <span>📤</span>
+                                            <FaUpload />
                                             <span>Chọn ảnh để tải lên</span>
                                         </>
                                     )}
@@ -579,8 +616,9 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                                                 onClick={() => handleRemoveImage(index)}
                                                 className="btn-remove-image"
                                                 disabled={uploadingImage}
+                                                aria-label="Remove image"
                                             >
-                                                ×
+                                                <FaTimes size={12} />
                                             </button>
                                         </div>
                                     ))}
@@ -597,11 +635,13 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                 {step === 2 && (
                     <div className="modal-body map-step">
                         <div className="map-instructions">
-                            <p>
-                                📍 Click vào bản đồ hoặc kéo marker để chọn vị trí chính xác cho cửa hàng của bạn
+                            <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <FaMapMarkerAlt style={{ color: '#166534' }} />
+                                <span>Click vào bản đồ hoặc kéo marker để chọn vị trí chính xác cho cửa hàng của bạn</span>
                             </p>
-                            <p className="preview-note">
-                                ⚠️ Đây là bản đồ xem trước. Vị trí sẽ được pin lên bản đồ thật sau khi bạn nhấn "Xác nhận tạo shop"
+                            <p className="preview-note" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <FaExclamationTriangle style={{ color: '#b45309', flexShrink: 0 }} />
+                                <span>Đây là bản đồ xem trước. Vị trí sẽ được pin lên bản đồ thật sau khi bạn nhấn "Xác nhận tạo shop"</span>
                             </p>
                             <div className="coordinates-display">
                                 <span>Vĩ độ: <strong>{formData.latitude.toFixed(6)}</strong></span>
@@ -609,7 +649,10 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                             </div>
                         </div>
                         <div className="form-group">
-                            <label htmlFor="address">📍 Địa chỉ được xác định</label>
+                            <label htmlFor="address" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <FaMapMarkerAlt />
+                                <span>Địa chỉ được xác định</span>
+                            </label>
                             <input
                                 type="text"
                                 id="address"
@@ -644,7 +687,8 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                                 className="btn-next"
                                 onClick={handleNextStep}
                             >
-                                Tiếp theo →
+                                <span>Tiếp theo</span>
+                                <FaArrowRight />
                             </button>
                         </>
                     ) : (
@@ -654,7 +698,8 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                                 className="btn-back"
                                 onClick={() => setStep(1)}
                             >
-                                ← Quay lại
+                                <FaArrowLeft />
+                                <span>Quay lại</span>
                             </button>
                             <button
                                 type="button"
@@ -662,7 +707,19 @@ export default function CreateShopModal({ isOpen, onClose, onShopCreated, initia
                                 onClick={handleSubmit}
                                 disabled={loading || !formData.address}
                             >
-                                {loading ? (isEditing ? 'Đang cập nhật...' : 'Đang tạo...') : !formData.address ? '⚠️ Chọn vị trí trước' : (isEditing ? '✓ Xác nhận cập nhật' : '✓ Xác nhận tạo shop')}
+                                {loading ? (
+                                    <span>{isEditing ? 'Đang cập nhật...' : 'Đang tạo...'}</span>
+                                ) : !formData.address ? (
+                                    <>
+                                        <FaExclamationTriangle />
+                                        <span>Chọn vị trí trước</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <FaCheck />
+                                        <span>{isEditing ? 'Xác nhận cập nhật' : 'Xác nhận tạo shop'}</span>
+                                    </>
+                                )}
                             </button>
                         </>
                     )}

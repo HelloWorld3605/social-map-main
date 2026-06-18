@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import { userService } from '../../services/userService';
 import { searchHistoryService } from '../../services/searchHistoryService';
+import { FaHistory, FaUser, FaStore, FaMapMarkerAlt, FaTrash, FaSearch, FaClock } from 'react-icons/fa';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoidHVhbmhhaTM2MjAwNSIsImEiOiJjbWdicGFvbW8xMml5Mmpxd3N1NW83amQzIn0.gXamOjOWJNMeQl4eMkHnSg';
 
@@ -543,7 +544,7 @@ export default function SearchBar() {
                         return (
                             <div
                                 key={uniqueKey}
-                                className="search-result-item"
+                                className={`search-result-item type-${result.type}`}
                                 onClick={() => {
                                     if (result.type === 'user') {
                                         handleUserSelect(result);
@@ -558,15 +559,15 @@ export default function SearchBar() {
                             >
                                 <div className="search-result-icon">
                                     {isShowingHistory ? (
-                                        <img src="/icons/timer-outline.svg" alt="history" style={{ width: '20px', height: '20px' }} />
+                                        <FaClock className="result-icon-fa" style={{ color: '#64748b' }} />
                                     ) : result.type === 'user' ? (
-                                        <img src="/icons/person-outline.svg" alt="user" style={{ width: '20px', height: '20px' }} />
+                                        <FaUser className="result-icon-fa" style={{ color: '#BBD4E8' }} />
                                     ) : result.type === 'shop' ? (
-                                        <img src="/icons/store.png" alt="shop" style={{ width: '20px', height: '20px' }} />
+                                        <FaStore className="result-icon-fa" style={{ color: '#C7CFA0' }} />
                                     ) : result.type === 'query' ? (
-                                        <img src="/icons/location-outline.svg" alt="query" style={{ width: '20px', height: '20px' }} />
+                                        <FaSearch className="result-icon-fa" style={{ color: '#64748b' }} />
                                     ) : (
-                                        <img src="/icons/location-outline.svg" alt="location" style={{ width: '20px', height: '20px' }} />
+                                        <FaMapMarkerAlt className="result-icon-fa" style={{ color: '#F3C6D9' }} />
                                     )}
                                 </div>
                                 <div className="search-result-content">
@@ -605,7 +606,7 @@ export default function SearchBar() {
                                     <div className="search-result-delete" onClick={(e) => handleDeleteHistoryItem(result.id, e)}
                                          onMouseEnter={(e) => e.currentTarget.parentElement.classList.add('no-hover')}
                                          onMouseLeave={(e) => e.currentTarget.parentElement.classList.remove('no-hover')}>
-                                        <img src="/icons/trash-outline.svg" alt="delete" style={{ width: '16px', height: '16px' }} />
+                                        <FaTrash className="delete-icon-fa" style={{ color: '#94a3b8' }} />
                                     </div>
                                 )}
                             </div>

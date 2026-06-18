@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { FaCheckCircle, FaWifi } from 'react-icons/fa';
 import { useNetworkMonitor } from '../../hooks/useNetworkMonitor';
 
 export default function NetworkMonitor() {
@@ -34,10 +35,23 @@ export default function NetworkMonitor() {
                 fontWeight: '500',
                 zIndex: 10000,
                 boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-                transition: 'all 0.3s ease'
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
             }}
         >
-            {isOnline ? '✓ Đã kết nối lại' : '📶 Không có kết nối mạng'}
+            {isOnline ? (
+                <>
+                    <FaCheckCircle />
+                    <span>Đã kết nối lại</span>
+                </>
+            ) : (
+                <>
+                    <FaWifi />
+                    <span>Không có kết nối mạng</span>
+                </>
+            )}
         </div>
     );
 }
