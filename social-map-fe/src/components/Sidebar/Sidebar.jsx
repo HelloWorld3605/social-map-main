@@ -22,7 +22,7 @@ import {
     FaRobot,
     FaBullhorn
 } from 'react-icons/fa';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { createSellerRequest, getMySellerRequests } from '../../services/sellerRequestService';
 import CreateShopModal from '../Shop/CreateShopModal';
 import { useNotes } from '../../context/NotesContext';
@@ -46,6 +46,8 @@ export default function Sidebar() {
     const [showAllSellerItems, setShowAllSellerItems] = useState(false);
 
     const { openNotes } = useNotes();
+    const location = useLocation();
+    const isActive = (path) => location.pathname === path;
 
     // Load user info
     useEffect(() => {
@@ -183,14 +185,15 @@ export default function Sidebar() {
     };
 
     return (
-        <nav className="side-menu">
+        <>
+            <nav className="side-menu">
             <ul>
                 {/* User Profile Menu Item */}
                 {user && (
                     <li>
                         <Link
                             to="/profile"
-                            className="user-profile-menu-item"
+                            className={`user-profile-menu-item ${isActive('/profile') ? 'active' : ''}`}
                         >
                             <div className="user-avatar-small">
                                 <img
@@ -379,7 +382,7 @@ export default function Sidebar() {
                                                 {item.to ? (
                                                     <Link
                                                         to={item.to}
-                                                        className="seller-request-link"
+                                                        className={`seller-request-link ${isActive(item.to) ? 'active' : ''}`}
                                                     >
                                                         {item.icon}
                                                         <span>{item.text}</span>
@@ -428,6 +431,8 @@ export default function Sidebar() {
                     </ul>
                 </div>
             )}
+
+            </nav>
 
             {/* Seller Request Modal */}
             {showSellerRequestModal && (
@@ -818,6 +823,6 @@ export default function Sidebar() {
                     }
                 }}
             />
-        </nav>
+        </>
     );
 }

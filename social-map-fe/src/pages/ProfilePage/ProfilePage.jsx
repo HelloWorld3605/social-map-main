@@ -302,79 +302,81 @@ export default function ProfilePage() {
 
     return (
         <div className="profile-page">
-            {/* Cover Photo */}
-            <div className="profile-cover">
-                {user.coverPhoto ? (
-                    <img
-                        src={user.coverPhoto}
-                        alt="Cover"
-                        className="cover-image"
-                    />
-                ) : (
-                    <div className="cover-default-gradient"></div>
-                )}
-            </div>
-
-            {/* Profile Header */}
-            <div className="profile-header-container">
-                <div className="profile-header">
-                    {/* Avatar */}
-                    <div className="profile-avatar-wrapper">
+            <div className="profile-top-card">
+                {/* Cover Photo */}
+                <div className="profile-cover">
+                    {user.coverPhoto ? (
                         <img
-                            src={user.avatarUrl || '/channels/myprofile.jpg'}
-                            alt={user.displayName}
-                            className="profile-avatar"
+                            src={user.coverPhoto}
+                            alt="Cover"
+                            className="cover-image"
                         />
-                        {!isOwnProfile && userStatus.isOnline && (
-                            <div className="profile-online-dot"></div>
-                        )}
-                    </div>
-
-                    {/* User Info */}
-                    <div className="profile-info">
-                        <div className="profile-name-section">
-                            <h1 className="profile-name">{user.displayName}</h1>
-                            {mutualFriendsCount > 0 && (
-                                <p className="profile-mutual-friends">
-                                    {mutualFriendsCount} bạn chung
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="profile-actions">
-                            {!isOwnProfile && (
-                                <>
-                                    {renderFriendshipButton()}
-
-                                    <button
-                                        className="profile-btn profile-btn-message"
-                                        onClick={handleMessage}
-                                    >
-                                        <img src="/icons/chatbubbles-outline.svg" alt="" />
-                                        <span>Nhắn tin</span>
-                                    </button>
-                                </>
-                            )}
-
-                            {isOwnProfile && (
-                                <button
-                                    className="profile-btn profile-btn-secondary"
-                                    onClick={handleOpenEditModal}
-                                >
-                                    <span>Chỉnh sửa trang cá nhân</span>
-                                </button>
-                            )}
-                        </div>
-                    </div>
+                    ) : (
+                        <div className="cover-default-gradient"></div>
+                    )}
                 </div>
 
-                {/* Navigation Tabs */}
-                <div className="profile-nav">
-                    <button className="profile-nav-item active">Bài viết</button>
-                    <button className="profile-nav-item">Giới thiệu</button>
-                    <button className="profile-nav-item">Bạn bè</button>
-                    <button className="profile-nav-item">Ảnh</button>
+                {/* Profile Header */}
+                <div className="profile-header-container">
+                    <div className="profile-header">
+                        {/* Avatar */}
+                        <div className="profile-avatar-wrapper">
+                            <img
+                                src={user.avatarUrl || '/channels/myprofile.jpg'}
+                                alt={user.displayName}
+                                className="profile-avatar"
+                            />
+                            {!isOwnProfile && userStatus.isOnline && (
+                                <div className="profile-online-dot"></div>
+                            )}
+                        </div>
+
+                        {/* User Info */}
+                        <div className="profile-info">
+                            <div className="profile-name-section">
+                                <h1 className="profile-name">{user.displayName}</h1>
+                                {mutualFriendsCount > 0 && (
+                                    <p className="profile-mutual-friends">
+                                        {mutualFriendsCount} bạn chung
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="profile-actions">
+                                {!isOwnProfile && (
+                                    <>
+                                        {renderFriendshipButton()}
+
+                                        <button
+                                            className="profile-btn profile-btn-message"
+                                            onClick={handleMessage}
+                                        >
+                                            <img src="/icons/chatbubbles-outline.svg" alt="" />
+                                            <span>Nhắn tin</span>
+                                        </button>
+                                    </>
+                                )}
+
+                                {isOwnProfile && (
+                                    <button
+                                        className="profile-btn profile-btn-secondary"
+                                        onClick={handleOpenEditModal}
+                                    >
+                                        <span>Chỉnh sửa trang cá nhân</span>
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Navigation Tabs */}
+                    <div className="profile-nav">
+                        <button className="profile-nav-item active">Bài viết</button>
+                        <button className="profile-nav-item">Giới thiệu</button>
+                        <button className="profile-nav-item">Bạn bè</button>
+                        <button className="profile-nav-item">Ảnh</button>
+                    </div>
                 </div>
             </div>
 
