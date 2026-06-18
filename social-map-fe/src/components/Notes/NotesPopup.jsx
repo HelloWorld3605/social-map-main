@@ -204,20 +204,20 @@ const NotesPopup = () => {
         role="dialog"
         aria-labelledby="notes-title"
       >
-        <div className="notes-header" onMouseDown={isMinimized ? undefined : handleMouseDown} title={isMinimized ? "Click to restore" : "Drag to move window"}>
-          {!isMinimized && <div className="notes-title" id="notes-title">{activeNote ? activeNote.title : 'Notes'}</div>}
+        <div className="notes-header" onMouseDown={isMinimized ? undefined : handleMouseDown} title={isMinimized ? "Nhấp để khôi phục" : "Kéo để di chuyển cửa sổ"}>
+          {!isMinimized && <div className="notes-title" id="notes-title">{activeNote ? activeNote.title : 'Ghi chú'}</div>}
           {isMinimized && <div className="notes-icon"><FaStickyNote /></div>}
           <div className="notes-controls">
-            <button className="sidebar-toggle-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)} title={isSidebarOpen ? "Hide sidebar" : "Show sidebar"}>
+            <button className="sidebar-toggle-btn" onClick={() => setIsSidebarOpen(!isSidebarOpen)} title={isSidebarOpen ? "Ẩn thanh bên" : "Hiện thanh bên"}>
               {isSidebarOpen ? <FaAngleLeft /> : <FaBars />}
             </button>
-            <button className="minimize-btn" onClick={toggleMinimize} title={isMinimized ? "Restore" : "Minimize"}>
+            <button className="minimize-btn" onClick={toggleMinimize} title={isMinimized ? "Khôi phục" : "Thu nhỏ"}>
               {isMinimized ? <FaChevronUp /> : <FaChevronDown />}
             </button>
-            <button className="pin-btn" onClick={togglePin} title={isPinned ? "Unpin window" : "Pin window"}>
+            <button className="pin-btn" onClick={togglePin} title={isPinned ? "Bỏ ghim cửa sổ" : "Ghim cửa sổ"}>
               {isPinned ? <FaThumbtack /> : <FaStickyNote />}
             </button>
-            <button className="close-btn" onClick={closeNotes} title="Close">
+            <button className="close-btn" onClick={closeNotes} title="Đóng">
               <FaTimes />
             </button>
           </div>

@@ -14,8 +14,9 @@
 
 .notes-popup {
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #f1f5f9;
   width: 80%;
   height: 80%;
   max-width: 1200px;
@@ -46,14 +47,14 @@
 
 /* Enhanced hover effect */
 .notes-popup:hover {
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.16);
 }
 
 /* Resize feedback */
 .notes-popup.resizing {
   box-shadow:
-    0 0 0 2px rgba(0, 123, 255, 0.4),
-    0 12px 40px rgba(0, 0, 0, 0.2);
+    0 0 0 2px rgba(15, 23, 42, 0.2),
+    0 20px 40px rgba(0, 0, 0, 0.15);
 }
 
 /* Subtle border effect */
@@ -61,9 +62,9 @@
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 12px;
+  border-radius: 20px;
   pointer-events: none;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
 .notes-popup.pinned {
@@ -87,6 +88,8 @@
   width: 50px !important;
   height: 50px !important;
   cursor: pointer;
+  border-radius: 50%;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .notes-popup.minimized .notes-content {
@@ -94,9 +97,14 @@
 }
 
 .notes-popup.minimized .notes-header {
-  padding: 5px;
+  padding: 0;
+  height: 100%;
+  width: 100%;
   justify-content: center;
   cursor: pointer;
+  border-bottom: none;
+  background: #000000;
+  color: white;
 }
 
 .notes-popup.minimized .notes-title {
@@ -108,46 +116,63 @@
 }
 
 .notes-header {
-  background: #f0f0f0;
-  padding: 10px 15px;
+  background: #ffffff;
+  padding: 12px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: move;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .notes-title {
-  font-weight: bold;
-  font-size: 16px;
+  font-weight: 700;
+  font-size: 15px;
+  color: #0f172a;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.01em;
   user-select: none;
 }
 
 .notes-icon {
-  font-size: 20px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .notes-controls {
   display: flex;
-  gap: 5px;
+  gap: 4px;
 }
 
 .pin-btn, .close-btn, .maximize-btn, .minimize-btn, .sidebar-toggle-btn {
   background: none;
   border: none;
-  font-size: 18px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: all 0.2s ease;
 }
 
-.pin-btn:hover, .close-btn:hover, .maximize-btn:hover, .minimize-btn:hover, .sidebar-toggle-btn:hover {
-  background: #ddd;
+.pin-btn:hover, .minimize-btn:hover, .sidebar-toggle-btn:hover, .maximize-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.close-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
 }
 
 .sidebar-toggle-btn {
-  font-size: 16px;
-  padding: 4px 8px;
+  font-size: 15px;
 }
 
 .notes-content {
@@ -171,61 +196,78 @@
 }
 
 .notes-sidebar {
-  flex: 0 0 250px;
-  background: #f8f8f8;
-  border-right: 1px solid #ddd;
+  flex: 0 0 220px;
+  background: #f8fafc;
+  border-right: 1px solid #f1f5f9;
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
-  min-width: 200px;
-  max-width: 300px;
+  min-width: 180px;
+  max-width: 260px;
 }
 
 .sidebar-header {
-  padding: 15px;
-  border-bottom: 1px solid #ddd;
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .add-note-btn {
-  background: #007bff;
+  background: #0f172a;
   color: white;
   border: none;
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 13px;
   cursor: pointer;
   width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background-color 0.2s;
   user-select: none;
 }
 
 .add-note-btn:hover {
-  background: #0056b3;
+  background: #1e293b;
 }
 
 .notes-list {
   flex: 1;
   overflow-y: auto;
+  padding: 8px 0;
 }
 
 .note-item {
-  padding: 10px 15px;
-  border-bottom: 1px solid #eee;
+  margin: 4px 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
 }
 
-.note-item:hover, .note-item.active {
-  background: #e0e0e0;
+.note-item:hover {
+  background: #f1f5f9;
 }
 
-.note-title {
-  font-weight: 500;
-  margin-bottom: 4px;
+.note-item.active {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.note-item .note-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
   user-select: none;
 }
 
-.note-date {
-  font-size: 12px;
-  color: #666;
+.note-item .note-date {
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin-top: 2px;
   user-select: none;
 }
 
@@ -235,30 +277,47 @@
   flex-direction: column;
   overflow: hidden;
   transition: all 0.3s ease;
+  background: white;
 }
 
 .notes-tab-header {
   display: flex;
-  background: #f0f0f0;
-  border-bottom: 1px solid #ddd;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
   overflow-x: auto;
+  padding: 6px 12px 0 12px;
+  gap: 4px;
 }
 
 .tab {
-  padding: 8px 12px;
-  background: #e0e0e0;
-  border-right: 1px solid #ddd;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 5px;
-  min-width: 100px;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #64748b;
+  min-width: 90px;
   position: relative;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
 .tab.active {
   background: white;
-  border-bottom: 2px solid #007bff;
+  color: #0f172a;
+  font-weight: 600;
+  border-color: #f1f5f9;
+  box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.02);
 }
 
 .tab input {
@@ -266,6 +325,10 @@
   background: transparent;
   outline: none;
   width: 100%;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
 }
 
 .tab span {
@@ -275,41 +338,51 @@
 .delete-tab-btn {
   background: none;
   border: none;
-  color: #666;
+  color: #94a3b8;
   cursor: pointer;
-  font-size: 14px;
-  padding: 0;
+  font-size: 13px;
+  padding: 2px;
   margin-left: auto;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
 
 .delete-tab-btn:hover {
-  color: #333;
+  color: #ef4444;
+  background: #fee2e2;
 }
 
 .add-tab-btn {
-  background: #007bff;
+  background: #0f172a;
   color: white;
   border: none;
-  padding: 8px 12px;
+  padding: 6px 12px;
   cursor: pointer;
-  border-radius: 0;
+  border-radius: 8px 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 0.2s;
 }
 
 .add-tab-btn:hover {
-  background: #0056b3;
+  background: #1e293b;
 }
 
 .notes-editor {
   flex: 1;
-  padding: 15px;
+  padding: 20px;
   overflow: auto;
   border: 2px dashed transparent;
   transition: border-color 0.2s;
+  background: white;
 }
 
 .notes-editor.drag-over {
-  border-color: #007bff;
-  background: rgba(0, 123, 255, 0.1);
+  border-color: #000000;
+  background: #f8fafc;
 }
 
 .notes-editor-flow {
@@ -320,29 +393,31 @@
 
 .text-block {
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   outline: none;
   min-height: 24px;
-  line-height: 1.5;
-  font-family: inherit;
+  line-height: 1.6;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: 14px;
-  color: #333;
+  color: #334155;
   transition: background-color 0.2s;
+  border: 1px solid transparent;
 }
 
 .text-block:focus {
-  background: rgba(0, 0, 0, 0.02);
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .text-block:empty::before {
   content: attr(data-placeholder);
-  color: #6c757d;
+  color: #94a3b8;
   pointer-events: none;
 }
 
 .insert-indicator {
   height: 2px;
-  background: #4f8cff;
+  background: #0f172a;
   border-radius: 2px;
   margin: 6px 0;
   animation: insertPulse 1s ease-in-out infinite;
@@ -360,50 +435,51 @@
 .notes-textarea.inline {
   width: 100%;
   min-height: 60px;
-  border: 1px solid #e4e6ea;
-  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   padding: 12px;
   font-family: inherit;
   font-size: 14px;
   line-height: 1.5;
   resize: vertical;
   outline: none;
-  background: #f8f9fa;
+  background: #f8fafc;
   transition: all 0.2s;
   margin-bottom: 8px;
 }
 
 .notes-textarea.inline:focus {
   background: #fff;
-  border-color: #007bff;
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.05);
 }
 
 .notes-textarea.inline::placeholder {
   user-select: none;
-  color: #6c757d;
+  color: #94a3b8;
 }
 
 /* Location Note Styles */
 .location-note {
-  background: #f8f9fa;
-  border: 1px solid #e9ecef;
-  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
   margin-bottom: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
   transition: all 0.2s ease;
 }
 
 .location-note:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
 }
 
 .location-note-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 8px 12px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  color: #0f172a;
+  padding: 10px 14px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -411,13 +487,16 @@
 
 .location-note-icon {
   font-size: 14px;
-  opacity: 0.9;
+  color: #64748b;
+  display: flex;
+  align-items: center;
 }
 
 .location-note-title {
   flex: 1;
-  font-weight: 600;
-  font-size: 14px;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #0f172a;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -426,34 +505,33 @@
 .location-note-remove {
   background: none;
   border: none;
-  color: white;
+  color: #94a3b8;
   cursor: pointer;
-  padding: 2px;
-  border-radius: 3px;
+  padding: 4px;
+  border-radius: 6px;
   font-size: 12px;
-  opacity: 0.8;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
 }
 
 .location-note-remove:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.2);
+  color: #ef4444;
+  background: #fee2e2;
 }
 
 .location-note-content {
-  padding: 12px;
+  padding: 14px;
   display: flex;
-  gap: 12px;
+  gap: 14px;
   align-items: flex-start;
 }
 
 .location-note-image {
   flex-shrink: 0;
-  width: 80px;
-  height: 80px;
-  border-radius: 6px;
+  width: 70px;
+  height: 70px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 2px solid #e9ecef;
+  border: 1px solid #f1f5f9;
 }
 
 .location-note-image img {
@@ -477,31 +555,32 @@
 
 .location-note-details .label {
   font-weight: 600;
-  color: #495057;
+  color: #64748b;
   min-width: 80px;
   flex-shrink: 0;
 }
 
 .location-note-details .value {
-  color: #6c757d;
+  color: #334155;
   word-break: break-word;
 }
 
 .location-note-coordinates .value {
   font-family: 'Courier New', monospace;
-  font-size: 12px;
-  background: #f1f3f4;
-  padding: 2px 4px;
-  border-radius: 3px;
+  font-size: 11.5px;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #0f172a;
 }
 
 .location-note-rating .value {
-  color: #ffc107;
+  color: #e0b73a;
   font-weight: bold;
 }
 
 .location-note-hours .value {
-  color: #28a745;
+  color: #166534;
   font-weight: 500;
 }
 
@@ -511,33 +590,24 @@
   align-items: center;
 }
 
-.location-note-view-map, .location-note-remove {
+.location-note-view-map {
   background: none;
   border: none;
-  color: white;
+  color: #64748b;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 3px;
-  font-size: 14px;
-  opacity: 0.8;
+  padding: 6px;
+  border-radius: 6px;
+  font-size: 13px;
   transition: all 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.location-note-view-map:hover, .location-note-remove:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.1);
-}
-
-.location-note-view-map {
-  font-size: 16px;
-}
-
 .location-note-view-map:hover {
-  background: rgba(0, 123, 255, 0.3);
+  color: #0f172a;
+  background: #f1f5f9;
+  transform: scale(1.05);
 }
 
 /* Resize handles - Professional implementation */
@@ -586,8 +656,8 @@
 
 /* Visual feedback on hover */
 .resize-handle:hover {
-  background: rgba(0, 123, 255, 0.1);
-  border: 1px solid rgba(0, 123, 255, 0.3);
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.1);
 }
 
 /* Figma-style resize indicator */
@@ -596,7 +666,7 @@
   position: absolute;
   inset: 2px;
   border-radius: 50%;
-  background: rgba(0, 123, 255, 0.5);
+  background: rgba(15, 23, 42, 0.3);
   opacity: 0;
   transition: opacity 0.15s ease;
 }
@@ -630,35 +700,38 @@
 
 /* Inline Location Note Styles */
 .location-note.inline {
-  margin: 8px 0;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #f7f9fc;
-  border-left: 4px solid #4f8cff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin: 12px 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .location-note.inline:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.05);
   transform: none;
+  border-color: #cbd5e1;
 }
 
 .location-note.inline .location-note-header {
   background: transparent;
-  color: #333;
+  color: #0f172a;
   padding: 0;
   margin-bottom: 8px;
+  border-bottom: none;
 }
 
 .location-note.inline .location-note-icon {
-  color: #4f8cff;
+  color: #64748b;
   opacity: 1;
 }
 
 .location-note.inline .location-note-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
 }
 
 .location-note.inline .location-note-actions {
@@ -667,25 +740,31 @@
 
 .location-note.inline .location-note-view-map,
 .location-note.inline .location-note-remove {
-  color: #666;
-  font-size: 12px;
-  padding: 2px;
+  color: #64748b;
+  font-size: 13px;
+  padding: 4px;
+  border-radius: 6px;
 }
 
-.location-note.inline .location-note-view-map:hover,
-.location-note.inline .location-note-remove:hover {
-  background: rgba(0, 0, 0, 0.1);
+.location-note.inline .location-note-view-map:hover {
+  background: #f1f5f9;
+  color: #0f172a;
   transform: none;
+}
+
+.location-note.inline .location-note-remove:hover {
+  background: #fee2e2;
+  color: #ef4444;
 }
 
 .location-note.inline .location-note-content {
   padding: 0;
-  gap: 10px;
+  gap: 12px;
 }
 
 .location-note.inline .location-note-image {
-  width: 60px;
-  height: 60px;
+  width: 65px;
+  height: 65px;
 }
 
 .location-note.inline .location-note-details {
@@ -693,19 +772,19 @@
 }
 
 .location-note.inline .location-note-details > div {
-  font-size: 12px;
+  font-size: 12.5px;
 }
 
 .location-note.inline .location-note-details .label {
-  min-width: 60px;
-  font-weight: 500;
+  min-width: 65px;
+  font-weight: 600;
 }
 
 /* ===== CUSTOM SCROLLBAR (No arrows, clean look) ===== */
 .notes-sidebar::-webkit-scrollbar,
 .notes-editor::-webkit-scrollbar,
 .notes-list::-webkit-scrollbar {
-  width: 8px;
+  width: 5px;
 }
 
 .notes-sidebar::-webkit-scrollbar-track,
@@ -717,14 +796,14 @@
 .notes-sidebar::-webkit-scrollbar-thumb,
 .notes-editor::-webkit-scrollbar-thumb,
 .notes-list::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 4px;
+  background: #cbd5e1;
+  border-radius: 10px;
 }
 
 .notes-sidebar::-webkit-scrollbar-thumb:hover,
 .notes-editor::-webkit-scrollbar-thumb:hover,
 .notes-list::-webkit-scrollbar-thumb:hover {
-  background: #aaa;
+  background: #94a3b8;
 }
 
 .notes-sidebar::-webkit-scrollbar-button,
@@ -737,14 +816,14 @@
 .resize-handle.w {
   top: -12px;
   bottom: -12px;
-  width: 10px;               /* 👈 dày hơn */
+  width: 10px;               
 }
 
 .resize-handle.n,
 .resize-handle.s {
   left: -12px;
   right: -12px;
-  height: 10px;              /* 👈 cao hơn */
+  height: 10px;              
 }
 .resize-handle.e { right: -6px; cursor: ew-resize; }
 .resize-handle.w { left: -6px; cursor: ew-resize; }
@@ -755,9 +834,9 @@
 .resize-handle.sw,
 .resize-handle.ne,
 .resize-handle.nw {
-  width: 40px;          /* 👈 to hơn */
+  width: 40px;          
   height: 40px;
-  z-index: 60;          /* 👈 ưu tiên hơn edge */
+  z-index: 60;          
 }
 
 /* Push corners outward */
@@ -806,7 +885,7 @@
   position: absolute;
   inset: 6px;
   border-radius: 50%;
-  background: rgba(79, 140, 255, 0.6);
+  background: rgba(15, 23, 42, 0.3);
   opacity: 0;
   transition: opacity 0.15s ease;
 }

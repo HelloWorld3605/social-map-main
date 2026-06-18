@@ -136,7 +136,7 @@ const NotesEditor = ({ note }) => {
                   onMouseEnter={() => handleBlockMouseEnter(index)}
                   onMouseLeave={handleBlockMouseLeave}
                   onDragOver={(e) => handleDragOverBlock(e, index)}
-                  data-placeholder={index === 0 ? "Start writing your note here... You can drag location markers here to add annotations." : "Continue writing..."}
+                  data-placeholder={index === 0 ? "Bắt đầu viết ghi chú tại đây... Bạn có thể kéo thả các địa điểm trên bản đồ vào đây để tạo chú thích." : "Tiếp tục viết..."}
                   ref={(el) => {
                     if (el && el.textContent !== block.content) {
                       el.textContent = block.content;

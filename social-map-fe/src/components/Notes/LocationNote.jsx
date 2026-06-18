@@ -29,7 +29,7 @@ const LocationNote = ({ marker, onRemove, noteId, tabId, inline = false }) => {
           <FaMapMarkerAlt />
         </div>
         <div className="location-note-title">
-          {marker.name || 'Location Marker'}
+          {marker.name || 'Địa điểm trên bản đồ'}
         </div>
         <div className="location-note-actions">
           <button className="location-note-view-map" onClick={handleViewOnMap} title="Xem trên Bản đồ">

@@ -8,7 +8,7 @@ const NotesSidebar = () => {
     <div className="notes-sidebar">
       <div className="sidebar-header">
         <button className="add-note-btn" onClick={addNote}>
-          + New Note
+          + Ghi chú mới
         </button>
       </div>
       <div className="notes-list">
