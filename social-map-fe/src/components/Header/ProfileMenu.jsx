@@ -1,12 +1,46 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { logout } from '../../services/authService';
+import { notificationService } from '../../services/notificationService';
+import { webSocketService } from '../../services/WebSocketChatService';
+import { friendshipService } from '../../services/friendshipService';
+import { FaUserPlus, FaUserCheck, FaStore, FaTimesCircle, FaBell } from 'react-icons/fa';
+
+const formatRelativeTime = (dateString) => {
+  if (!dateString) return '';
+  const now = new Date();
+  const past = new Date(dateString);
+  const diffMs = now - past;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) {
+    return 'vừa xong';
+  }
+  if (diffMins < 60) {
+    return `${diffMins} phút trước`;
+  }
+  if (diffHours < 24) {
+    return `${diffHours} giờ trước`;
+  }
+  if (diffDays === 1) {
+    return 'hôm qua';
+  }
+  return `${diffDays} ngày trước`;
+};
 
 export default function ProfileMenu() {
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [user, setUser] = useState(null);
   const dropdownRef = useRef(null);
+
+  // States cho thông báo
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notificationsDropdownRef = useRef(null);
 
   // Lấy thông tin user từ localStorage
   useEffect(() => {
@@ -20,6 +54,49 @@ export default function ProfileMenu() {
       }
     }
   }, []);
+
+  // Lấy dữ liệu thông báo từ API
+  const fetchNotifications = async () => {
+    try {
+      const data = await notificationService.getNotifications();
+      setNotifications(data || []);
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count || 0);
+    } catch (err) {
+      console.error('Failed to fetch notifications:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      fetchNotifications();
+    }
+  }, [user]);
+
+  // Kết nối và đăng ký nhận thông báo real-time qua WebSocket
+  useEffect(() => {
+    if (!user) return;
+
+    const handleWsMessage = (notification) => {
+      console.log('Received real-time notification via WebSocket:', notification);
+      setNotifications(prev => [notification, ...prev]);
+      setUnreadCount(prev => prev + 1);
+    };
+
+    if (webSocketService.isConnected()) {
+      webSocketService.subscribe('/user/queue/notifications', handleWsMessage);
+    }
+
+    const onConnected = () => {
+      webSocketService.subscribe('/user/queue/notifications', handleWsMessage);
+    };
+    window.addEventListener('websocket-connected', onConnected);
+
+    return () => {
+      webSocketService.unsubscribe('/user/queue/notifications', handleWsMessage);
+      window.removeEventListener('websocket-connected', onConnected);
+    };
+  }, [user]);
 
   // Đóng dropdown khi click ra ngoài
   useEffect(() => {
@@ -38,37 +115,129 @@ export default function ProfileMenu() {
     };
   }, [isDropdownOpen]);
 
+  // Đóng notifications dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationsDropdownRef.current && !notificationsDropdownRef.current.contains(event.target)) {
+        setIsNotificationsOpen(false);
+      }
+    };
+
+    if (isNotificationsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isNotificationsOpen]);
+
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
   const handleLogout = async () => {
     try {
-      // Gọi logout service - xử lý disconnect WebSocket, clear storage, dispatch event
       await logout();
     } catch (error) {
       console.error('Logout error:', error);
-      // authService.logout() đã xử lý redirect trong finally block
     }
   };
 
   const handleSettings = () => {
-    // TODO: Chuyển đến trang settings
     console.log('Mở settings');
     setIsDropdownOpen(false);
   };
 
   const handleProfile = () => {
-    // Chuyển đến trang profile của người dùng hiện tại
     navigate('/profile');
     setIsDropdownOpen(false);
   };
 
   const handleDashboard = () => {
-    // Chuyển đến trang dashboard
     console.log('Mở dashboard');
     navigate('/dashboard');
     setIsDropdownOpen(false);
+  };
+
+  const handleAcceptFriend = async (friendshipId, notificationId, event) => {
+    event.stopPropagation();
+    try {
+      await friendshipService.acceptFriendRequest(friendshipId);
+      await notificationService.markAsRead(notificationId);
+      
+      setNotifications(prev => prev.map(n => n.id === notificationId ? { 
+        ...n, 
+        isRead: true, 
+        content: "Bạn đã chấp nhận lời mời kết bạn." 
+      } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Failed to accept friend request:', err);
+    }
+  };
+
+  const handleDeclineFriend = async (friendshipId, notificationId, event) => {
+    event.stopPropagation();
+    try {
+      await friendshipService.cancelFriendRequest(friendshipId);
+      await notificationService.markAsRead(notificationId);
+      
+      setNotifications(prev => prev.map(n => n.id === notificationId ? { 
+        ...n, 
+        isRead: true, 
+        content: "Bạn đã từ chối lời mời kết bạn." 
+      } : n));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error('Failed to decline friend request:', err);
+    }
+  };
+
+  // Click vào từng thông báo
+  const handleNotificationClick = async (item) => {
+    try {
+      if (!item.isRead) {
+        await notificationService.markAsRead(item.id);
+        setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, isRead: true } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+      setIsNotificationsOpen(false);
+
+      // Chuyển hướng hoặc xử lý dựa trên loại thông báo
+      if (item.type === 'FRIEND_REQUEST' || item.type === 'FRIEND_ACCEPT') {
+        navigate('/profile');
+      } else if (item.type === 'SELLER_APPROVED' || item.type === 'SELLER_REJECTED') {
+        navigate('/profile');
+      }
+    } catch (err) {
+      console.error('Failed to click notification:', err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (err) {
+      console.error('Failed to mark all as read:', err);
+    }
+  };
+
+  const getNotificationIcon = (type) => {
+    switch (type) {
+      case 'FRIEND_REQUEST':
+        return <FaUserPlus />;
+      case 'FRIEND_ACCEPT':
+        return <FaUserCheck />;
+      case 'SELLER_APPROVED':
+        return <FaStore />;
+      case 'SELLER_REJECTED':
+        return <FaTimesCircle />;
+      default:
+        return <FaBell />;
+    }
   };
 
   // Lấy avatar URL hoặc dùng default
@@ -84,9 +253,71 @@ export default function ProfileMenu() {
         {/*<span className="unread-messages">1</span>*/}
       </div>
 
-      <div className="notifications-container icon-btn">
-        <img className="notifications-icon" src="/icons/notifications.svg" alt="Notifications" />
-        <span className="notification-count">3</span>
+      <div className="notifications-container" ref={notificationsDropdownRef}>
+        <div 
+          className="notifications-trigger icon-btn" 
+          onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+        >
+          <img className="notifications-icon" src="/icons/notifications.svg" alt="Notifications" />
+          {unreadCount > 0 && (
+            <span className="notification-count">{unreadCount}</span>
+          )}
+        </div>
+
+        {/* Notifications Dropdown */}
+        <div className={`notifications-dropdown ${isNotificationsOpen ? 'show' : ''}`}>
+          <div className="notifications-header">
+            <span className="notifications-title">Thông báo</span>
+            {unreadCount > 0 && (
+              <button className="mark-all-read-btn" onClick={handleMarkAllAsRead}>
+                Đánh dấu đã đọc tất cả
+              </button>
+            )}
+          </div>
+
+          <div className="notifications-list">
+            {notifications.length === 0 ? (
+              <div className="no-notifications">
+                <FaBell className="no-notifications-icon" />
+                <span className="no-notifications-text">Không có thông báo nào</span>
+              </div>
+            ) : (
+              notifications.map((item) => (
+                <div
+                  key={item.id}
+                  className={`notification-item ${item.isRead ? '' : 'unread'}`}
+                  onClick={() => handleNotificationClick(item)}
+                >
+                  <div className={`notification-icon-wrapper ${item.type?.toLowerCase()}`}>
+                    {getNotificationIcon(item.type)}
+                  </div>
+                  <div className="notification-item-content">
+                    <div className="notification-item-title">{item.title}</div>
+                    <div className="notification-item-body">{item.content}</div>
+                    <div className="notification-item-time">{formatRelativeTime(item.createdAt)}</div>
+                    {item.type === 'FRIEND_REQUEST' && !item.isRead && (
+                      <div className="notification-actions">
+                        <button 
+                          className="notif-btn notif-accept-btn" 
+                          onClick={(e) => handleAcceptFriend(item.relatedId, item.id, e)}
+                        >
+                          Chấp nhận
+                        </button>
+                        <button 
+                          className="notif-btn notif-decline-btn" 
+                          onClick={(e) => handleDeclineFriend(item.relatedId, item.id, e)}
+                        >
+                          Từ chối
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {!item.isRead && <span className="unread-dot"></span>}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </div>
 
       <div className="profile-container" ref={dropdownRef}>

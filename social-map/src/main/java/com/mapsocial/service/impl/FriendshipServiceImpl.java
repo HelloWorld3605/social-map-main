@@ -9,6 +9,7 @@ import com.mapsocial.mapper.FriendshipMapper;
 import com.mapsocial.repository.FriendshipRepository;
 import com.mapsocial.repository.UserRepository;
 import com.mapsocial.service.FriendshipService;
+import com.mapsocial.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class FriendshipServiceImpl implements FriendshipService {
     private final FriendshipRepository friendshipRepository;
     private final UserRepository userRepository;
     private final FriendshipMapper friendshipMapper;
+    private final NotificationService notificationService;
 
     @Override
     public FriendResponseDTO sendRequest(UUID senderId, UUID receiverId) {
@@ -57,6 +59,16 @@ public class FriendshipServiceImpl implements FriendshipService {
                 existing.setStatus(FriendshipStatus.ACCEPTED);
                 existing.setUpdatedAt(LocalDateTime.now());
                 friendshipRepository.save(existing);
+                
+                // Gửi thông báo chấp nhận kết bạn đến người gửi ban đầu (receiver)
+                notificationService.createNotification(
+                        receiver,
+                        "Chấp nhận kết bạn",
+                        sender.getDisplayName() + " đã chấp nhận yêu cầu kết bạn của bạn.",
+                        "FRIEND_ACCEPT",
+                        existing.getId().toString()
+                );
+                
                 return friendshipMapper.toResponseDTO(existing);
             }
 
@@ -77,6 +89,16 @@ public class FriendshipServiceImpl implements FriendshipService {
                 .build();
 
         friendshipRepository.save(friendship);
+
+        // Gửi thông báo yêu cầu kết bạn mới đến người nhận
+        notificationService.createNotification(
+                receiver,
+                "Yêu cầu kết bạn mới",
+                sender.getDisplayName() + " đã gửi cho bạn một yêu cầu kết bạn.",
+                "FRIEND_REQUEST",
+                friendship.getId().toString()
+        );
+
         return friendshipMapper.toResponseDTO(friendship);
     }
 
@@ -92,6 +114,15 @@ public class FriendshipServiceImpl implements FriendshipService {
         friendship.setStatus(FriendshipStatus.ACCEPTED);
         friendship.setUpdatedAt(LocalDateTime.now());
         friendshipRepository.save(friendship);
+
+        // Gửi thông báo chấp nhận kết bạn đến người gửi (người gửi lời mời ban đầu)
+        notificationService.createNotification(
+                friendship.getSender(),
+                "Chấp nhận kết bạn",
+                friendship.getReceiver().getDisplayName() + " đã chấp nhận yêu cầu kết bạn của bạn.",
+                "FRIEND_ACCEPT",
+                friendship.getId().toString()
+        );
 
         return friendshipMapper.toResponseDTO(friendship);
     }

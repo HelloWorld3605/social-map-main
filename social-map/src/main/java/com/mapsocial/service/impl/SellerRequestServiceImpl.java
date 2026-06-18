@@ -8,6 +8,7 @@ import com.mapsocial.enums.RequestStatus;
 import com.mapsocial.enums.UserRole;
 import com.mapsocial.repository.SellerRequestRepository;
 import com.mapsocial.repository.UserRepository;
+import com.mapsocial.service.NotificationService;
 import com.mapsocial.service.SellerRequestService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class SellerRequestServiceImpl implements SellerRequestService {
 
     private final SellerRequestRepository sellerRequestRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     @Override
     @Transactional
@@ -115,6 +117,16 @@ public class SellerRequestServiceImpl implements SellerRequestService {
         userRepository.save(user);
 
         SellerRequest updatedRequest = sellerRequestRepository.save(request);
+
+        // Gửi thông báo phê duyệt yêu cầu làm seller
+        notificationService.createNotification(
+                user,
+                "Yêu cầu đăng ký Seller được duyệt",
+                "Chúc mừng! Yêu cầu đăng ký trở thành Seller của bạn đã được duyệt.",
+                "SELLER_APPROVED",
+                request.getId().toString()
+        );
+
         return toResponse(updatedRequest);
     }
 
@@ -138,6 +150,16 @@ public class SellerRequestServiceImpl implements SellerRequestService {
         request.setReviewedAt(LocalDateTime.now());
 
         SellerRequest updatedRequest = sellerRequestRepository.save(request);
+
+        // Gửi thông báo từ chối yêu cầu làm seller
+        notificationService.createNotification(
+                request.getUser(),
+                "Yêu cầu đăng ký Seller bị từ chối",
+                "Yêu cầu đăng ký trở thành Seller của bạn đã bị từ chối. Lý do: " + reason,
+                "SELLER_REJECTED",
+                request.getId().toString()
+        );
+
         return toResponse(updatedRequest);
     }
 
